@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Requests\Resident;
+
+use App\Http\Requests\BaseFormRequest;
+
+class StoreResidentRequest extends BaseFormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'household_id' => ['required', 'integer', 'exists:households,id'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'middle_name' => ['nullable', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'sex' => ['required', 'in:male,female,other'],
+            'birthdate' => ['required', 'date'],
+            'relationship_to_head' => ['required', 'string', 'max:255'],
+            'occupation_status' => ['required', 'in:employed,unemployed,student,retired,other'],
+            'is_pwd' => ['boolean'],
+        ];
+    }
+}
