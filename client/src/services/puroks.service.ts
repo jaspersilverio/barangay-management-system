@@ -1,12 +1,9 @@
 import api from './api'
 
 export type PurokPayload = {
-  code: string
   name: string
-  description?: string | null
-  centroid_lat?: number | null
-  centroid_lng?: number | null
-  boundary_geojson?: unknown
+  captain: string
+  contact: string
 }
 
 export async function listPuroks(params: { search?: string; page?: number }) {

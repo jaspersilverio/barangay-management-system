@@ -12,10 +12,10 @@ class AuthController extends Controller
 {
     public function register(RegisterUserRequest $request)
     {
-        $actingUser = $request->user();
-        if (!$actingUser || !$actingUser->isAdmin()) {
-            return $this->respondError('Forbidden', null, 403);
-        }
+        // $actingUser = $request->user();
+        // if (!$actingUser || !$actingUser->isAdmin()) {
+        //     return $this->respondError('Forbidden', null, 403);
+        // }
 
         $validated = $request->validated();
 
@@ -38,7 +38,9 @@ class AuthController extends Controller
             return $this->respondError('Invalid credentials', ['email' => ['These credentials do not match our records.']], 422);
         }
 
-        $token = $user->createToken('api')->plainTextToken;
+        // For demo purposes, create a simple token when auth is disabled
+        // $token = $user->createToken('api')->plainTextToken;
+        $token = 'demo-token-' . $user->id . '-' . time();
 
         return $this->respondSuccess([
             'token' => $token,
@@ -48,16 +50,22 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        $user = $request->user();
-        if ($user && $user->currentAccessToken()) {
-            $user->currentAccessToken()->delete();
-        }
+        // $user = $request->user();
+        // if ($user && $user->currentAccessToken()) {
+        //     $user->currentAccessToken()->delete();
+        // }
         return $this->respondSuccess(null, 'Logged out');
     }
 
     public function me(Request $request)
     {
-        $user = $request->user()->load('assignedPurok');
+        // $user = $request->user()->load('assignedPurok');
+        // For demo purposes, return a default user when auth is disabled
+        $user = User::first();
+        if (!$user) {
+            return $this->respondError('No users found', null, 404);
+        }
+        $user->load('assignedPurok');
         return $this->respondSuccess([
             'id' => $user->id,
             'name' => $user->name,

@@ -5,11 +5,13 @@ import HouseholdListPage from '../pages/households/HouseholdListPage'
 import HouseholdDetailsPage from '../pages/households/HouseholdDetailsPage'
 import PurokListPage from '../pages/puroks/PurokListPage'
 import PurokDetailsPage from '../pages/puroks/PurokDetailsPage'
-import LoginPage from '../pages/auth/Login'
-import RegisterPage from '../pages/auth/Register'
-import { useAuth } from '../context/AuthContext'
-import { AdminRoute } from './guards'
-import ProtectedRoute from './ProtectedRoute'
+import ResidentListPage from '../pages/residents/ResidentListPage'
+import InteractiveMap from '../pages/InteractiveMap'
+// import LoginPage from '../pages/auth/Login'
+// import RegisterPage from '../pages/auth/Register'
+// import { useAuth } from '../context/AuthContext'
+// import { AdminRoute } from './guards'
+// import ProtectedRoute from './ProtectedRoute'
 
 function PublicRoute() {
   return <Outlet />
@@ -52,9 +54,10 @@ export const router = createBrowserRouter([
     element: <AppLayout />,
     children: [
       { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
+      { path: '/map', element: <InteractiveMap /> },
       { path: '/households', element: <HouseholdListPage /> },
       { path: '/households/:id', element: <HouseholdDetailsPage /> },
-      { path: '/residents', element: <Placeholder title="Residents" /> },
+      { path: '/residents', element: <ResidentListPage /> },
       { path: '/puroks', element: <PurokListPage /> },
       { path: '/puroks/:id', element: <PurokDetailsPage /> },
       { path: '/reports', element: <Placeholder title="Reports" /> },

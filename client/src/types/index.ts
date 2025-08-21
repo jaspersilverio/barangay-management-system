@@ -1,29 +1,20 @@
-export type Role = 'admin' | 'purok_leader' | 'staff' | 'viewer'
+// export type Role = 'admin' | 'purok_leader' | 'staff' | 'viewer'
 
 export type Purok = {
   id: number
-  code: string
   name: string
-  description?: string | null
-  centroid_lat?: number | null
-  centroid_lng?: number | null
-  boundary_geojson?: unknown
+  captain?: string | null
+  contact?: string | null
   created_at: string
   updated_at: string
 }
 
 export type Household = {
   id: number
-  purok_id: number
-  household_code: string
-  head_name: string
   address: string
-  landmark?: string | null
-  photo_path?: string | null
-  latitude?: number | null
-  longitude?: number | null
-  created_by: number
-  updated_by?: number | null
+  property_type: string
+  head_name: string
+  contact: string
   created_at: string
   updated_at: string
   deleted_at?: string | null

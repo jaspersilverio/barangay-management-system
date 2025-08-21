@@ -6,7 +6,8 @@ type User = {
   id: number
   name: string
   email: string
-  role: 'admin' | 'purok_leader' | 'staff' | 'viewer'
+  // role: 'admin' | 'purok_leader' | 'staff' | 'viewer'
+  role: string // Allow any role for demo
   assigned_purok_id?: number | null
 }
 
@@ -15,7 +16,7 @@ type AuthContextType = {
   token: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  register: (input: { name: string; email: string; password: string; role: User['role']; assigned_purok_id?: number | null }) => Promise<void>
+  register: (input: { name: string; email: string; password: string; role: string; assigned_purok_id?: number | null }) => Promise<void>
   isAuthenticated: boolean
 }
 

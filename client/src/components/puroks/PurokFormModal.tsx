@@ -1,16 +1,13 @@
-import { Modal, Button, Form, Row, Col } from 'react-bootstrap'
+import { Modal, Button, Form } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect } from 'react'
 
 const schema = z.object({
-  code: z.string().min(1, 'Code is required'),
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().optional(),
-  centroid_lat: z.union([z.string(), z.number()]).optional(),
-  centroid_lng: z.union([z.string(), z.number()]).optional(),
-  boundary_geojson: z.string().optional(),
+  name: z.string().min(1, 'Purok Name is required'),
+  captain: z.string().min(1, 'Purok Captain is required'),
+  contact: z.string().min(1, 'Captain Contact is required'),
 })
 
 export type PurokFormValues = z.infer<typeof schema>
@@ -25,60 +22,53 @@ type Props = {
 export default function PurokFormModal({ show, initial, onSubmit, onHide }: Props) {
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<PurokFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { code: '', name: '', description: '', boundary_geojson: '', ...initial },
+    defaultValues: { name: '', captain: '', contact: '', ...initial },
   })
 
   useEffect(() => { reset(initial) }, [initial, reset])
 
   return (
-    <Modal show={show} onHide={onHide} centered size="lg">
+    <Modal show={show} onHide={onHide} centered>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <Modal.Header closeButton>
           <Modal.Title>{initial ? 'Edit Purok' : 'Add Purok'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Code</Form.Label>
-                <Form.Control {...register('code')} isInvalid={!!errors.code} />
-                <Form.Control.Feedback type="invalid">{errors.code?.message}</Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Name</Form.Label>
-                <Form.Control {...register('name')} isInvalid={!!errors.name} />
-                <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
           <Form.Group className="mb-3">
-            <Form.Label>Description</Form.Label>
-            <Form.Control as="textarea" rows={3} {...register('description')} />
+            <Form.Label>Purok Name</Form.Label>
+            <Form.Control 
+              placeholder="Enter purok name" 
+              {...register('name')} 
+              isInvalid={!!errors.name} 
+            />
+            <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
           </Form.Group>
-          <Row className="g-3">
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Centroid Lat</Form.Label>
-                <Form.Control type="number" step="0.0000001" {...register('centroid_lat')} />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Centroid Lng</Form.Label>
-                <Form.Control type="number" step="0.0000001" {...register('centroid_lng')} />
-              </Form.Group>
-            </Col>
-          </Row>
+          
           <Form.Group className="mb-3">
-            <Form.Label>Boundary GeoJSON</Form.Label>
-            <Form.Control as="textarea" rows={4} placeholder="Paste GeoJSON here" {...register('boundary_geojson')} />
+            <Form.Label>Purok Captain</Form.Label>
+            <Form.Control 
+              placeholder="Enter captain name" 
+              {...register('captain')} 
+              isInvalid={!!errors.captain} 
+            />
+            <Form.Control.Feedback type="invalid">{errors.captain?.message}</Form.Control.Feedback>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Captain Contact</Form.Label>
+            <Form.Control 
+              placeholder="Enter contact number" 
+              {...register('contact')} 
+              isInvalid={!!errors.contact} 
+            />
+            <Form.Control.Feedback type="invalid">{errors.contact?.message}</Form.Control.Feedback>
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={onHide}>Cancel</Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save'}</Button>
+          <Button variant="primary" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? 'Creating...' : 'Create Purok'}
+          </Button>
         </Modal.Footer>
       </Form>
     </Modal>

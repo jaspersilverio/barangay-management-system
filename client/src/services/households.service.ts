@@ -1,16 +1,10 @@
 import api from './api'
 
 export type HouseholdPayload = {
-	purok_id: number
-	household_code?: string
-	head_name: string
 	address: string
-	landmark?: string | null
-	photo_path?: string | null
-	latitude?: number | null
-	longitude?: number | null
-	created_by?: number
-	updated_by?: number | null
+	property_type: string
+	head_name: string
+	contact: string
 }
 
 export async function listHouseholds(params: { search?: string; purok_id?: number | string; page?: number }) {

@@ -17,42 +17,15 @@ return new class extends Migration
             $table->collation = 'utf8mb4_unicode_ci';
 
             $table->bigIncrements('id');
-            $table->unsignedBigInteger('purok_id');
-            $table->string('household_code')->unique();
-            $table->string('head_name');
             $table->string('address');
-            $table->string('landmark')->nullable();
-            $table->string('photo_path')->nullable();
-            $table->decimal('latitude', 10, 7)->nullable();
-            $table->decimal('longitude', 10, 7)->nullable();
-            $table->unsignedBigInteger('created_by');
-            $table->unsignedBigInteger('updated_by')->nullable();
+            $table->string('property_type');
+            $table->string('head_name');
+            $table->string('contact');
             $table->timestamps();
             $table->softDeletes();
 
-            $table->index('purok_id');
             $table->index('head_name');
             $table->index('address');
-            $table->index('created_by');
-            $table->index('updated_by');
-
-            $table->foreign('purok_id')
-                ->references('id')
-                ->on('puroks')
-                ->restrictOnDelete()
-                ->cascadeOnUpdate();
-
-            $table->foreign('created_by')
-                ->references('id')
-                ->on('users')
-                ->restrictOnDelete()
-                ->cascadeOnUpdate();
-
-            $table->foreign('updated_by')
-                ->references('id')
-                ->on('users')
-                ->nullOnDelete()
-                ->cascadeOnUpdate();
         });
     }
 

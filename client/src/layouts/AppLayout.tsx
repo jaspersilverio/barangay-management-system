@@ -11,6 +11,7 @@ export default function AppLayout() {
         </div>
         {[
           ['/dashboard', 'Dashboard'],
+          ['/map', 'Interactive Map'],
           ['/households', 'Households'],
           ['/residents', 'Residents'],
           ['/puroks', 'Puroks'],
@@ -40,7 +41,7 @@ export default function AppLayout() {
           <Navbar.Collapse className="justify-content-end">
             <Nav>
               <Nav.Link as={Link} to="/settings">Settings</Nav.Link>
-              <Nav.Link>Logout</Nav.Link>
+              {/* <Nav.Link>Logout</Nav.Link> */}
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -55,6 +56,7 @@ export default function AppLayout() {
           <Nav className="flex-column">
             {[
               ['/dashboard', 'Dashboard'],
+              ['/map', 'Interactive Map'],
               ['/households', 'Households'],
               ['/residents', 'Residents'],
               ['/puroks', 'Puroks'],

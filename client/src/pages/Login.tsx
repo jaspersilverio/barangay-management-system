@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useAuth } from '../context/AuthContext'
+// import { useAuth } from '../context/AuthContext'
 import { Card } from 'react-bootstrap'
 import { Button, Form } from 'react-bootstrap'
 import { Link, useNavigate } from 'react-router-dom'
@@ -15,7 +15,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>
 
 export default function Login() {
-  const { login, token } = useAuth()
+  // const { login, token } = useAuth()
   const navigate = useNavigate()
   const {
     register,
@@ -24,11 +24,14 @@ export default function Login() {
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
   useEffect(() => {
-    if (token) navigate('/dashboard')
-  }, [token, navigate])
+    // if (token) navigate('/dashboard')
+    // For demo purposes, redirect to dashboard immediately
+    navigate('/dashboard')
+  }, [navigate])
 
   const onSubmit = async (values: FormValues) => {
-    await login(values.email, values.password)
+    // await login(values.email, values.password)
+    // For demo purposes, just redirect to dashboard
     navigate('/dashboard')
   }
 

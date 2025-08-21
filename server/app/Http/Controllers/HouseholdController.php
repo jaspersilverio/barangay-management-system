@@ -13,43 +13,26 @@ class HouseholdController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Household::withCount(['residents as vulnerable_count' => function ($q) {
-            $q->where('is_pwd', true)
-                ->orWhereDate('birthdate', '<=', now()->subYears(60)->toDateString())
-                ->orWhereDate('birthdate', '>', now()->subYears(18)->toDateString());
-        }]);
+        $query = Household::query();
 
-        if ($purokId = $request->integer('purok_id')) {
-            $query->where('purok_id', $purokId);
-        }
         if ($search = $request->string('search')->toString()) {
             $query->search($search);
         }
-        if ($request->boolean('has_vulnerable')) {
-            $query->having('vulnerable_count', '>', 0);
-        }
 
-        $households = $query->with(['purok'])->paginate($request->integer('per_page', 15));
+        $households = $query->paginate($request->integer('per_page', 15));
         return $this->respondSuccess($households);
     }
 
     public function store(StoreHouseholdRequest $request)
     {
         $data = $request->validated();
-        if (!isset($data['household_code']) || $data['household_code'] === '') {
-            $data['household_code'] = 'HH-' . substr((string) now()->timestamp, -6);
-        }
-        // Fallback created_by to an existing user when auth is disabled (dev/demo)
-        if (empty($data['created_by'])) {
-            $data['created_by'] = auth()->id() ?? (User::query()->value('id'));
-        }
         $household = Household::create($data);
         return $this->respondSuccess($household, 'Household created', 201);
     }
 
     public function show(Household $household)
     {
-        $household->load(['purok', 'residents']);
+        $household->load(['residents']);
         return $this->respondSuccess($household);
     }
 

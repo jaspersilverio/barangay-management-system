@@ -3,13 +3,14 @@ import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast 
 import { listPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
 import PurokFormModal from '../../components/puroks/PurokFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
-import { useAuth } from '../../context/AuthContext'
+// import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function PurokListPage() {
-  const { user } = useAuth()
-  const role = user?.role
-  const isAdmin = role === 'admin'
+  // const { user } = useAuth()
+  // const role = user?.role
+  // const isAdmin = role === 'admin'
+  const isAdmin = true // Allow all users to perform CRUD operations for demo
   const navigate = useNavigate()
 
   const [items, setItems] = useState<any[]>([])
@@ -43,7 +44,7 @@ export default function PurokListPage() {
         <Col md={6}>
           <Form.Group className="mb-0">
             <Form.Label>Search</Form.Label>
-            <Form.Control placeholder="Code or name" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Form.Control placeholder="Purok name, captain, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
           </Form.Group>
         </Col>
         <Col className="text-end">
@@ -57,22 +58,18 @@ export default function PurokListPage() {
         <Table striped bordered hover responsive>
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Description</th>
-              <th>Total Households</th>
-              <th>Total Residents</th>
+              <th>Purok Name</th>
+              <th>Purok Captain</th>
+              <th>Captain Contact</th>
               <th style={{ width: 200 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {items.map((p) => (
               <tr key={p.id}>
-                <td>{p.code}</td>
                 <td>{p.name}</td>
-                <td>{p.description || '-'}</td>
-                <td>{p.households_count ?? p.households?.length ?? 0}</td>
-                <td>{p.residents_count ?? '-'}</td>
+                <td>{p.captain || '-'}</td>
+                <td>{p.contact || '-'}</td>
                 <td>
                   <div className="d-flex gap-2">
                     <Button size="sm" variant="secondary" onClick={() => navigate(`/puroks/${p.id}`)}>View</Button>
@@ -88,7 +85,7 @@ export default function PurokListPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-4">{loading ? 'Loading...' : 'No puroks found.'}</td>
+                <td colSpan={4} className="text-center py-4">{loading ? 'Loading...' : 'No puroks found.'}</td>
               </tr>
             )}
           </tbody>
@@ -112,34 +109,25 @@ export default function PurokListPage() {
           const p = items.find((i) => i.id === editingId)
           if (!p) return undefined
           return {
-            code: p.code,
             name: p.name,
-            description: p.description ?? '',
-            centroid_lat: p.centroid_lat ?? '',
-            centroid_lng: p.centroid_lng ?? '',
-            boundary_geojson: p.boundary_geojson ? JSON.stringify(p.boundary_geojson) : '',
+            captain: p.captain || '',
+            contact: p.contact || '',
           }
         })()}
         onSubmit={async (values) => {
           try {
             if (editingId) {
               await updatePurok(editingId, {
-                code: values.code,
                 name: values.name,
-                description: values.description || undefined,
-                centroid_lat: values.centroid_lat ? Number(values.centroid_lat) : undefined,
-                centroid_lng: values.centroid_lng ? Number(values.centroid_lng) : undefined,
-                boundary_geojson: values.boundary_geojson ? JSON.parse(values.boundary_geojson) : undefined,
+                captain: values.captain,
+                contact: values.contact,
               })
               setToast({ show: true, message: 'Purok updated', variant: 'success' })
             } else {
               await createPurok({
-                code: values.code,
                 name: values.name,
-                description: values.description || undefined,
-                centroid_lat: values.centroid_lat ? Number(values.centroid_lat) : undefined,
-                centroid_lng: values.centroid_lng ? Number(values.centroid_lng) : undefined,
-                boundary_geojson: values.boundary_geojson ? JSON.parse(values.boundary_geojson) : undefined,
+                captain: values.captain,
+                contact: values.contact,
               })
               setToast({ show: true, message: 'Purok created', variant: 'success' })
             }

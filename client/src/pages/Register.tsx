@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { Card, Button, Form, Row, Col } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import api from '../services/api'
-import { useAuth } from '../context/AuthContext'
+// import { useAuth } from '../context/AuthContext'
 import { usePuroks } from '../context/PurokContext'
 
 const schema = z
@@ -14,9 +14,7 @@ const schema = z
     email: z.string().email('Enter a valid email'),
     password: z.string().min(6, 'Minimum 6 characters'),
     confirm_password: z.string().min(6, 'Confirm your password'),
-    role: z.enum(['admin', 'purok_leader', 'staff', 'viewer'], {
-      required_error: 'Role is required',
-    }),
+    role: z.string().min(1, 'Role is required'),
     assigned_purok_id: z.union([z.string(), z.number()]).optional().nullable(),
   })
   .refine((data) => data.password === data.confirm_password, {
@@ -28,7 +26,7 @@ type FormValues = z.infer<typeof schema>
 
 export default function Register() {
   const navigate = useNavigate()
-  const { register: registerUser } = useAuth()
+  // const { register: registerUser } = useAuth()
   const { puroks, refresh } = usePuroks()
 
   const {
@@ -45,18 +43,19 @@ export default function Register() {
   }, [refresh])
 
   const onSubmit = async (values: FormValues) => {
-    const payload = {
-      name: values.name,
-      email: values.email,
-      password: values.password,
-      role: values.role,
-      assigned_purok_id:
-        values.role !== 'admin' && values.assigned_purok_id
-          ? Number(values.assigned_purok_id)
-          : null,
-    }
-    await registerUser(payload as any)
-    navigate('/login')
+    // const payload = {
+    //   name: values.name,
+    //   email: values.email,
+    //   password: values.password,
+    //   role: values.role,
+    //   assigned_purok_id:
+    //     values.role !== 'admin' && values.assigned_purok_id
+    //       ? Number(values.assigned_purok_id)
+    //       : null,
+    // }
+    // await registerUser(payload as any)
+    // For demo purposes, just redirect to dashboard
+    navigate('/dashboard')
   }
 
   return (

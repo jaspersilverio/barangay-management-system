@@ -19,6 +19,8 @@ class Purok extends Model
         'code',
         'name',
         'description',
+        'captain',
+        'contact',
         'centroid_lat',
         'centroid_lng',
         'boundary_geojson',

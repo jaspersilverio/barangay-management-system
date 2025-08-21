@@ -14,16 +14,10 @@ class StoreHouseholdRequest extends BaseFormRequest
     public function rules(): array
     {
         return [
-            'purok_id' => ['required', 'integer', 'exists:puroks,id'],
-            'household_code' => ['required', 'string', 'max:255', 'unique:households,household_code'],
-            'head_name' => ['required', 'string', 'max:255'],
             'address' => ['required', 'string', 'max:255'],
-            'landmark' => ['nullable', 'string', 'max:255'],
-            'photo_path' => ['nullable', 'string', 'max:255'],
-            'latitude' => ['nullable', 'numeric'],
-            'longitude' => ['nullable', 'numeric'],
-            'created_by' => ['nullable', 'integer', 'exists:users,id'],
-            'updated_by' => ['nullable', 'integer', 'exists:users,id'],
+            'property_type' => ['required', 'string', 'max:255'],
+            'head_name' => ['required', 'string', 'max:255'],
+            'contact' => ['required', 'string', 'max:255'],
         ];
     }
 }

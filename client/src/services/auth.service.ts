@@ -5,7 +5,8 @@ export type RegisterPayload = {
   name: string
   email: string
   password: string
-  role: 'admin' | 'purok_leader' | 'staff' | 'viewer'
+  // role: 'admin' | 'purok_leader' | 'staff' | 'viewer'
+  role: string // Allow any role for demo
   assigned_purok_id?: number | null
 }
 

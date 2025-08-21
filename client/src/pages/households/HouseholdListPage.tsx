@@ -1,22 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer } from 'react-bootstrap'
 import { listHouseholds, deleteHousehold, createHousehold, updateHousehold } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
 import { useNavigate } from 'react-router-dom'
-import { usePuroks } from '../../context/PurokContext'
-import { useAuth } from '../../context/AuthContext'
+// import { usePuroks } from '../../context/PurokContext'
+// import { useAuth } from '../../context/AuthContext'
 
 export default function HouseholdListPage() {
   const navigate = useNavigate()
-  const { puroks, refresh } = usePuroks()
-  const { user } = useAuth()
-  const role = user?.role
-  const assignedPurokId = user?.assigned_purok_id ?? null
+  // const { puroks, refresh } = usePuroks()
+  // const { user } = useAuth()
+  // const role = user?.role
+  // const assignedPurokId = user?.assigned_purok_id ?? null
+  const role = 'admin' // Allow all users to perform CRUD operations for demo
+  // const assignedPurokId = null
 
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  const [purokId, setPurokId] = useState<string>('')
+  // const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -25,18 +27,20 @@ export default function HouseholdListPage() {
   const [editingId, setEditingId] = useState<null | number>(null)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
 
-  const canManage = role === 'admin' || role === 'purok_leader'
+  // const canManage = role === 'admin' || role === 'purok_leader'
+  const canManage = true // Allow all users to manage for demo
 
-  const effectivePurokId = useMemo(() => {
-    if (role === 'admin') return purokId
-    if (role === 'purok_leader') return assignedPurokId ? String(assignedPurokId) : ''
-    return purokId
-  }, [role, purokId, assignedPurokId])
+  // const effectivePurokId = useMemo(() => {
+  //   // if (role === 'admin') return purokId
+  //   // if (role === 'purok_leader') return assignedPurokId ? String(assignedPurokId) : ''
+  //   // return purokId
+  //   return purokId // Allow all users to select any purok for demo
+  // }, [purokId])
 
   const load = async () => {
     setLoading(true)
     try {
-      const res = await listHouseholds({ search, purok_id: effectivePurokId, page })
+      const res = await listHouseholds({ search, page })
       const data = res.data
       const list = data.data ?? data
       setItems(list.data ?? list)
@@ -46,8 +50,7 @@ export default function HouseholdListPage() {
     }
   }
 
-  useEffect(() => { refresh().catch(() => null) }, [refresh])
-  useEffect(() => { load().catch(() => null) }, [search, effectivePurokId, page])
+  useEffect(() => { load().catch(() => null) }, [search, page])
 
   const handleDelete = async () => {
     if (showDelete == null) return
@@ -65,19 +68,10 @@ export default function HouseholdListPage() {
   return (
     <Card className="shadow rounded-3 p-4">
       <Row className="align-items-end g-3 mb-3">
-        <Col md={4}>
+        <Col md={6}>
           <Form.Group className="mb-0">
             <Form.Label>Search</Form.Label>
-            <Form.Control placeholder="Household code or head name" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col md={3}>
-          <Form.Group className="mb-0">
-            <Form.Label>Purok</Form.Label>
-            <Form.Select value={purokId} onChange={(e) => setPurokId(e.target.value)} disabled={role === 'purok_leader'}>
-              <option value="">All</option>
-              {puroks.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </Form.Select>
+            <Form.Control placeholder="Address, head name, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
           </Form.Group>
         </Col>
         <Col className="text-end">
@@ -91,22 +85,20 @@ export default function HouseholdListPage() {
         <Table striped bordered hover responsive>
           <thead>
             <tr>
-              <th>Household Code</th>
-              <th>Head Name</th>
               <th>Address</th>
-              <th>Purok</th>
-              <th>Created By</th>
+              <th>Property Type</th>
+              <th>Head of Household</th>
+              <th>Contact</th>
               <th style={{ width: 180 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {items.map((hh) => (
               <tr key={hh.id}>
-                <td>{hh.household_code}</td>
-                <td>{hh.head_name}</td>
                 <td>{hh.address}</td>
-                <td>{hh.purok?.name || hh.purok_id}</td>
-                <td>{hh.creator?.name || hh.created_by}</td>
+                <td>{hh.property_type || '-'}</td>
+                <td>{hh.head_name}</td>
+                <td>{hh.contact || '-'}</td>
                 <td>
                   <div className="d-flex gap-2">
                     <Button size="sm" variant="secondary" onClick={() => navigate(`/households/${hh.id}`)}>View</Button>
@@ -131,7 +123,7 @@ export default function HouseholdListPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
+                <td colSpan={5} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
               </tr>
             )}
           </tbody>
@@ -159,44 +151,33 @@ export default function HouseholdListPage() {
 
       <HouseholdFormModal
         show={showForm}
-        isAdmin={role === 'admin'}
-        defaultPurokId={role === 'purok_leader' ? assignedPurokId ?? undefined : undefined}
         initial={(() => {
           if (!editingId) return undefined
           const hh = items.find((i) => i.id === editingId)
           if (!hh) return undefined
           return {
-            purok_id: hh.purok_id,
-            household_code: hh.household_code,
-            head_name: hh.head_name,
             address: hh.address,
-            landmark: hh.landmark ?? '',
-            latitude: hh.latitude ?? '',
-            longitude: hh.longitude ?? '',
+            property_type: hh.property_type || '',
+            head_name: hh.head_name,
+            contact: hh.contact || '',
           }
         })()}
         onSubmit={async (values) => {
           try {
             if (editingId) {
               await updateHousehold(editingId, {
-                purok_id: Number(values.purok_id),
-                household_code: values.household_code || undefined,
-                head_name: values.head_name,
                 address: values.address,
-                landmark: values.landmark || undefined,
-                latitude: values.latitude ? Number(values.latitude) : undefined,
-                longitude: values.longitude ? Number(values.longitude) : undefined,
+                property_type: values.property_type,
+                head_name: values.head_name,
+                contact: values.contact,
               })
               setToast({ show: true, message: 'Household updated', variant: 'success' })
             } else {
               await createHousehold({
-                purok_id: Number(values.purok_id),
-                household_code: values.household_code || undefined,
-                head_name: values.head_name,
                 address: values.address,
-                landmark: values.landmark || undefined,
-                latitude: values.latitude ? Number(values.latitude) : undefined,
-                longitude: values.longitude ? Number(values.longitude) : undefined,
+                property_type: values.property_type,
+                head_name: values.head_name,
+                contact: values.contact,
               })
               setToast({ show: true, message: 'Household created', variant: 'success' })
             }

@@ -16,8 +16,9 @@ class PurokController extends Controller
 
         if ($search = $request->string('search')->toString()) {
             $query->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%$search%")
-                    ->orWhere('name', 'like', "%$search%");
+                $q->where('name', 'like', "%$search%")
+                    ->orWhere('captain', 'like', "%$search%")
+                    ->orWhere('contact', 'like', "%$search%");
             });
         }
 
@@ -27,7 +28,14 @@ class PurokController extends Controller
 
     public function store(StorePurokRequest $request)
     {
-        $purok = Purok::create($request->validated());
+        $data = $request->validated();
+
+        // Generate a simple code if not provided
+        if (empty($data['code'])) {
+            $data['code'] = 'P' . (Purok::count() + 1);
+        }
+
+        $purok = Purok::create($data);
         return $this->respondSuccess($purok, 'Purok created', 201);
     }
 

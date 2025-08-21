@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+// import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  // const { login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,7 +16,8 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     try {
-      await login(email, password)
+      // await login(email, password)
+      // For demo purposes, just redirect to dashboard
       navigate('/dashboard')
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed')
