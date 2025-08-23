@@ -14,9 +14,9 @@ export default function AppLayout() {
           ['/map', 'Interactive Map'],
           ['/households', 'Households'],
           ['/residents', 'Residents'],
+          ['/events', 'Events'],
           ['/puroks', 'Puroks'],
           ['/reports', 'Reports'],
-          ['/disaster', 'Disaster Response'],
           ['/users', 'Users'],
           ['/settings', 'Settings'],
         ].map(([to, label]) => (
@@ -59,9 +59,9 @@ export default function AppLayout() {
               ['/map', 'Interactive Map'],
               ['/households', 'Households'],
               ['/residents', 'Residents'],
+              ['/events', 'Events'],
               ['/puroks', 'Puroks'],
               ['/reports', 'Reports'],
-              ['/disaster', 'Disaster Response'],
               ['/users', 'Users'],
               ['/settings', 'Settings'],
             ].map(([to, label]) => (

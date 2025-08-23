@@ -10,6 +10,7 @@ const schema = z.object({
   property_type: z.string().min(1, 'Property type is required'),
   head_name: z.string().min(1, 'Head of household is required'),
   contact: z.string().min(1, 'Contact is required'),
+  purok_id: z.string().min(1, 'Purok is required'),
 })
 
 export type HouseholdFormValues = z.infer<typeof schema>
@@ -31,6 +32,7 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
       property_type: '',
       head_name: '',
       contact: '',
+      purok_id: '',
       ...initial,
     },
   })
@@ -52,6 +54,19 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
               isInvalid={!!errors.address} 
             />
             <Form.Control.Feedback type="invalid">{errors.address?.message}</Form.Control.Feedback>
+          </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Label>Purok</Form.Label>
+            <Form.Select {...register('purok_id')} isInvalid={!!errors.purok_id}>
+              <option value="">Select purok</option>
+              {puroks.map((purok) => (
+                <option key={purok.id} value={purok.id}>
+                  {purok.name}
+                </option>
+              ))}
+            </Form.Select>
+            <Form.Control.Feedback type="invalid">{errors.purok_id?.message}</Form.Control.Feedback>
           </Form.Group>
           
           <Form.Group className="mb-3">

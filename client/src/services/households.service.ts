@@ -5,6 +5,7 @@ export type HouseholdPayload = {
 	property_type: string
 	head_name: string
 	contact: string
+	purok_id: string | number
 }
 
 export async function listHouseholds(params: { search?: string; purok_id?: number | string; page?: number }) {

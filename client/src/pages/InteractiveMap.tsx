@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, Col, Container, Row } from 'react-bootstrap'
-import { MapContainer, TileLayer, ImageOverlay, FeatureGroup, Popup, Marker, useMap, LayersControl } from 'react-leaflet'
-import L, { CRS, LatLngExpression } from 'leaflet'
+import { MapContainer, TileLayer, ImageOverlay, FeatureGroup, Popup, Marker, useMap } from 'react-leaflet'
+import L, { CRS } from 'leaflet'
+import type { LatLngExpression } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
 import MapToolbar from '../components/MapToolbar'
 import MapLegend from '../components/MapLegend'
 import { icons } from '../lib/mapIcons'
+import type { MarkerType } from '../lib/mapIcons'
 import { loadFromLocalStorage, saveToLocalStorage, exportAsBlob, importFromFile } from '../lib/mapStore'
 import type { GeoJSONFeatureCollection } from '../lib/mapStore'
 import type { GeoJSONFeature } from '../lib/mapStore'
@@ -29,10 +31,10 @@ function DrawControls({ onCreated, onEdited, onDeleted }: any) {
         featureGroup: drawnItems,
       },
       draw: {
-        marker: true,
-        polygon: true,
-        polyline: true,
-        rectangle: true,
+        marker: {},
+        polygon: {},
+        polyline: {},
+        rectangle: {},
         circle: false,
         circlemarker: false,
       },
@@ -107,17 +109,12 @@ export default function InteractiveMap() {
     saveToLocalStorage(next)
   }
 
-  const handleEdited = (layerGroup: L.LayerGroup) => {
-    const editedLayers = new Set<number>()
-    // For simplicity, rebuild from map's drawn layers is complex; encourage explicit save.
-    // Here we just persist current fc.
+  const handleEdited = (_layerGroup: L.LayerGroup) => {
+    // Persist current state
     saveToLocalStorage(fc)
   }
 
-  const handleDeleted = (layerGroup: L.LayerGroup) => {
-    // Deletion from Leaflet Draw doesn't map back to our saved features without IDs.
-    // As a pragmatic approach, clear all and let users re-import or re-save after editing in future.
-    // Better approach: assign IDs to layers and sync; omitted for brevity.
+  const handleDeleted = (_layerGroup: L.LayerGroup) => {
     const ok = window.confirm('Delete selected shapes from saved data? This will clear all saved features for now.')
     if (ok) {
       const next: GeoJSONFeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -159,6 +156,22 @@ export default function InteractiveMap() {
 
   const toggleLayer = (key: string) => {
     setLayersVisible((s) => ({ ...s, [key]: !s[key] }))
+  }
+
+  const asMarkerType = (t: string): MarkerType => {
+    switch (t) {
+      case 'household':
+      case 'barangay_hall':
+      case 'chapel':
+      case 'church':
+      case 'school':
+      case 'health_center':
+      case 'evacuation_center':
+      case 'poi':
+        return t
+      default:
+        return 'poi'
+    }
   }
 
   return (
@@ -203,7 +216,7 @@ export default function InteractiveMap() {
 
                     {layersVisible.markers && fc.features.filter(f => f.geometry.type === 'Point').map((f, idx) => {
                       const [lng, lat] = f.geometry.coordinates
-                      const icon = icons[(f.properties.type as any)] || icons.poi
+                      const icon = icons[asMarkerType(f.properties.type)]
                       return (
                         <Marker key={`pt-${idx}`} position={[lat, lng]} icon={icon as any}>
                           <Popup>

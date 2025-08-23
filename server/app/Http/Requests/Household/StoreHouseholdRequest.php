@@ -18,6 +18,7 @@ class StoreHouseholdRequest extends BaseFormRequest
             'property_type' => ['required', 'string', 'max:255'],
             'head_name' => ['required', 'string', 'max:255'],
             'contact' => ['required', 'string', 'max:255'],
+            'purok_id' => ['required', 'integer', 'exists:puroks,id'],
         ];
     }
 }

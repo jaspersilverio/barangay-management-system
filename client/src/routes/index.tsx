@@ -1,12 +1,16 @@
 import { Navigate, Outlet, createBrowserRouter } from 'react-router-dom'
 import AppLayout from '../layouts/AppLayout'
 import Placeholder from '../pages/Placeholder'
+import Dashboard from '../pages/Dashboard'
 import HouseholdListPage from '../pages/households/HouseholdListPage'
 import HouseholdDetailsPage from '../pages/households/HouseholdDetailsPage'
 import PurokListPage from '../pages/puroks/PurokListPage'
 import PurokDetailsPage from '../pages/puroks/PurokDetailsPage'
 import ResidentListPage from '../pages/residents/ResidentListPage'
+import EventsPage from '../pages/events/EventsPage'
 import InteractiveMap from '../pages/InteractiveMap'
+import Reports from '../pages/Reports'
+import Users from '../pages/Users'
 // import LoginPage from '../pages/auth/Login'
 // import RegisterPage from '../pages/auth/Register'
 // import { useAuth } from '../context/AuthContext'
@@ -53,16 +57,16 @@ export const router = createBrowserRouter([
   {
     element: <AppLayout />,
     children: [
-      { path: '/dashboard', element: <Placeholder title="Dashboard" /> },
+      { path: '/dashboard', element: <Dashboard /> },
       { path: '/map', element: <InteractiveMap /> },
       { path: '/households', element: <HouseholdListPage /> },
       { path: '/households/:id', element: <HouseholdDetailsPage /> },
       { path: '/residents', element: <ResidentListPage /> },
+      { path: '/events', element: <EventsPage /> },
       { path: '/puroks', element: <PurokListPage /> },
       { path: '/puroks/:id', element: <PurokDetailsPage /> },
-      { path: '/reports', element: <Placeholder title="Reports" /> },
-      { path: '/disaster', element: <Placeholder title="Disaster Response" /> },
-      { path: '/users', element: <Placeholder title="Users" /> },
+      { path: '/reports', element: <Reports /> },
+      { path: '/users', element: <Users /> },
       { path: '/settings', element: <Placeholder title="Settings" /> },
     ],
   },

@@ -20,6 +20,7 @@ class Household extends Model
         'property_type',
         'head_name',
         'contact',
+        'purok_id',
     ];
 
     /**
@@ -32,6 +33,14 @@ class Household extends Model
             'longitude' => 'float',
             'deleted_at' => 'datetime',
         ];
+    }
+
+    /**
+     * @return BelongsTo<Purok>
+     */
+    public function purok(): BelongsTo
+    {
+        return $this->belongsTo(Purok::class);
     }
 
     /**

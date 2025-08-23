@@ -55,4 +55,12 @@ class Purok extends Model
     {
         return $this->hasMany(Landmark::class);
     }
+
+    /**
+     * Get residents through households
+     */
+    public function residents()
+    {
+        return $this->hasManyThrough(Resident::class, Household::class);
+    }
 }

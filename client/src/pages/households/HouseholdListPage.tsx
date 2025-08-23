@@ -160,6 +160,7 @@ export default function HouseholdListPage() {
             property_type: hh.property_type || '',
             head_name: hh.head_name,
             contact: hh.contact || '',
+            purok_id: hh.purok_id ? String(hh.purok_id) : '',
           }
         })()}
         onSubmit={async (values) => {
@@ -170,6 +171,7 @@ export default function HouseholdListPage() {
                 property_type: values.property_type,
                 head_name: values.head_name,
                 contact: values.contact,
+                purok_id: values.purok_id,
               })
               setToast({ show: true, message: 'Household updated', variant: 'success' })
             } else {
@@ -178,6 +180,7 @@ export default function HouseholdListPage() {
                 property_type: values.property_type,
                 head_name: values.head_name,
                 contact: values.contact,
+                purok_id: values.purok_id,
               })
               setToast({ show: true, message: 'Household created', variant: 'success' })
             }

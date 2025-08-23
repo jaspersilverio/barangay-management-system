@@ -19,6 +19,7 @@ class UpdateHouseholdRequest extends BaseFormRequest
             'property_type' => ['sometimes', 'string', 'max:255'],
             'head_name' => ['sometimes', 'string', 'max:255'],
             'contact' => ['sometimes', 'string', 'max:255'],
+            'purok_id' => ['sometimes', 'integer', 'exists:puroks,id'],
         ];
     }
 }
