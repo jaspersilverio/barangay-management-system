@@ -59,23 +59,23 @@ class User extends Authenticatable
         return $this->belongsTo(Purok::class, 'assigned_purok_id');
     }
 
-    // public function isAdmin(): bool
-    // {
-    //     return $this->role === 'admin';
-    // }
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
 
-    // public function isPurokLeader(): bool
-    // {
-    //     return $this->role === 'purok_leader';
-    // }
+    public function isPurokLeader(): bool
+    {
+        return $this->role === 'purok_leader';
+    }
 
-    // public function isStaff(): bool
-    // {
-    //     return $this->role === 'staff';
-    // }
+    public function isStaff(): bool
+    {
+        return $this->role === 'staff';
+    }
 
-    // public function isViewer(): bool
-    // {
-    //     return $this->role === 'viewer';
-    // }
+    public function isViewer(): bool
+    {
+        return $this->role === 'viewer';
+    }
 }

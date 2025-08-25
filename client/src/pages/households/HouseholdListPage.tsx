@@ -50,7 +50,9 @@ export default function HouseholdListPage() {
     }
   }
 
-  useEffect(() => { load().catch(() => null) }, [search, page])
+  useEffect(() => { 
+    load().catch(() => null) 
+  }, [search, page]) // These dependencies are fine as they're primitive values
 
   const handleDelete = async () => {
     if (showDelete == null) return

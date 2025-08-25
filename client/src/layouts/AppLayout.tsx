@@ -1,7 +1,18 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { Navbar, Container, Nav, Offcanvas } from 'react-bootstrap'
+import { Navbar, Container, Nav, Offcanvas, Button } from 'react-bootstrap'
+import { useAuth } from '../context/AuthContext'
 
 export default function AppLayout() {
+  const { user, logout } = useAuth()
+
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('Logout failed:', error)
+    }
+  }
+
   return (
     <div>
       {/* Sidebar (fixed) */}
@@ -17,8 +28,8 @@ export default function AppLayout() {
           ['/events', 'Events'],
           ['/puroks', 'Puroks'],
           ['/reports', 'Reports'],
-          ['/users', 'Users'],
-          ['/settings', 'Settings'],
+          ...(user?.role === 'admin' ? [['/users', 'Users']] : []),
+          ...(user?.role === 'admin' ? [['/settings', 'Settings']] : []),
         ].map(([to, label]) => (
           <NavLink
             key={to}
@@ -39,9 +50,18 @@ export default function AppLayout() {
           <Navbar.Brand as={Link} to="/dashboard">Barangay Dashboard</Navbar.Brand>
           <Navbar.Toggle aria-controls="offcanvasNavbar" />
           <Navbar.Collapse className="justify-content-end">
-            <Nav>
-              <Nav.Link as={Link} to="/settings">Settings</Nav.Link>
-              {/* <Nav.Link>Logout</Nav.Link> */}
+            <Nav className="align-items-center">
+              {user && (
+                <span className="text-muted me-3">
+                  Welcome, {user.name} ({user.role})
+                </span>
+              )}
+              {user?.role === 'admin' && (
+                <Nav.Link as={Link} to="/settings">Settings</Nav.Link>
+              )}
+              <Button variant="outline-secondary" size="sm" onClick={handleLogout}>
+                Logout
+              </Button>
             </Nav>
           </Navbar.Collapse>
         </Container>
@@ -62,8 +82,8 @@ export default function AppLayout() {
               ['/events', 'Events'],
               ['/puroks', 'Puroks'],
               ['/reports', 'Reports'],
-              ['/users', 'Users'],
-              ['/settings', 'Settings'],
+              ...(user?.role === 'admin' ? [['/users', 'Users']] : []),
+              ...(user?.role === 'admin' ? [['/settings', 'Settings']] : []),
             ].map(([to, label]) => (
               <NavLink key={to} to={to} className={({ isActive }) => `nav-link ${isActive ? 'text-primary' : ''}`} end>
                 {label}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Modal, Button, Spinner } from 'react-bootstrap'
-import { User } from '../../services/users.service'
+import type { User } from '../../services/users.service'
 
 interface DeleteConfirmModalProps {
   show: boolean

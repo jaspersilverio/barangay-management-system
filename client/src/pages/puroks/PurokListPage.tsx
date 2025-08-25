@@ -36,7 +36,9 @@ export default function PurokListPage() {
     }
   }
 
-  useEffect(() => { load().catch(() => null) }, [search, page])
+  useEffect(() => { 
+    load().catch(() => null) 
+  }, [search, page]) // These dependencies are fine as they're primitive values
 
   return (
     <Card className="shadow rounded-3 p-4">

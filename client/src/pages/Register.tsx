@@ -39,8 +39,11 @@ export default function Register() {
   const role = watch('role')
 
   useEffect(() => {
-    refresh().catch(() => null)
-  }, [refresh])
+    // Only refresh if puroks is empty and not loading
+    if (puroks.length === 0) {
+      refresh().catch(() => null)
+    }
+  }, []) // Only run once on mount
 
   const onSubmit = async (values: FormValues) => {
     // const payload = {
@@ -108,9 +111,9 @@ export default function Register() {
                   <Form.Label>Assigned Purok</Form.Label>
                   <Form.Select {...register('assigned_purok_id')} isInvalid={!!errors.assigned_purok_id}>
                     <option value="">Select a purok</option>
-                    {puroks.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} ({p.code})</option>
-                    ))}
+                                         {puroks.map((p) => (
+                       <option key={p.id} value={p.id}>{p.name}</option>
+                     ))}
                   </Form.Select>
                   <Form.Control.Feedback type="invalid">{errors.assigned_purok_id?.message as any}</Form.Control.Feedback>
                 </Form.Group>

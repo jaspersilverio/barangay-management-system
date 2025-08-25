@@ -24,7 +24,7 @@ export default function ResidentsReport() {
 
   useEffect(() => {
     loadReport()
-  }, [filters, currentPage])
+  }, [filters, currentPage]) // These dependencies are fine as they're primitive values
 
   const loadReport = async () => {
     try {

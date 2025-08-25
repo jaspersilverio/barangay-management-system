@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal, Form, Button, Alert, Spinner } from 'react-bootstrap'
-import { User, CreateUserPayload, UpdateUserPayload, Role, PurokOption } from '../../services/users.service'
+import type { User, CreateUserPayload, UpdateUserPayload, Role, PurokOption } from '../../services/users.service'
 import { getRoles, getPuroks } from '../../services/users.service'
 
 interface UserFormModalProps {

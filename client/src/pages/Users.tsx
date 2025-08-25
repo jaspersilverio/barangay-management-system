@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, Spinner, InputGroup } from 'react-bootstrap'
 import { Plus, Search, Filter, Edit, Trash2, RotateCcw, Users as UsersIcon } from 'lucide-react'
-import { getUsers, createUser, updateUser, deleteUser, restoreUser, type User, type UserFilters } from '../services/users.service'
+import type { User, UserFilters } from '../services/users.service'
+import { getUsers, createUser, updateUser, deleteUser, restoreUser } from '../services/users.service'
 import UserFormModal from '../components/users/UserFormModal'
 import DeleteConfirmModal from '../components/users/DeleteConfirmModal'
 
