@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
-// import { useAuth } from '../../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 import { Button } from '../../components/ui/Button'
 
 export default function LoginPage() {
-  // const { login } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,8 +16,7 @@ export default function LoginPage() {
     setLoading(true)
     setError(null)
     try {
-      // await login(email, password)
-      // For demo purposes, just redirect to dashboard
+      await login(email, password)
       navigate('/dashboard')
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Login failed')
@@ -55,7 +54,7 @@ export default function LoginPage() {
           {loading ? 'Signing in...' : 'Sign in'}
         </Button>
         <div className="text-sm text-gray-500 text-center">
-          Need an account? <Link to="/register" className="text-blue-600">Register</Link>
+          Contact the administrator to create an account
         </div>
       </form>
     </div>

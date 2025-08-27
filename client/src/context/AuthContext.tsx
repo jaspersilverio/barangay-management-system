@@ -16,7 +16,6 @@ type AuthContextType = {
   token: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  register: (input: { name: string; email: string; password: string; role: string; assigned_purok_id?: number | null }) => Promise<void>
   isAuthenticated: boolean
 }
 
@@ -58,12 +57,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const register: AuthContextType['register'] = async (input) => {
-    await AuthService.register(input)
-  }
-
   const isAuthenticated = !!token
-  const value = useMemo(() => ({ user, token, login, logout, register, isAuthenticated }), [
+  const value = useMemo(() => ({ user, token, login, logout, isAuthenticated }), [
     user,
     token,
   ])

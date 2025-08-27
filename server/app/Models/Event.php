@@ -13,6 +13,7 @@ class Event extends Model
         'location',
         'description',
         'created_by',
+        'purok_id',
     ];
 
     protected $casts = [
@@ -22,6 +23,11 @@ class Event extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function purok(): BelongsTo
+    {
+        return $this->belongsTo(Purok::class);
     }
 
     public function scopeUpcoming($query)

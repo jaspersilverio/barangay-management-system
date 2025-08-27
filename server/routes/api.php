@@ -16,7 +16,6 @@ use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
 
 // Dev helper (no auth): seed demo data
 Route::post('/dev/seed', [DevController::class, 'seed']);
@@ -84,9 +83,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
     });
 
-    // Purok Leader specific routes (scoped to assigned purok)
-    Route::middleware('role:purok_leader')->group(function () {
-        // Purok leaders can manage households and residents in their assigned purok
+    // Household and Resident management (purok leaders, staff, and admin access)
+    Route::middleware('role:purok_leader,staff,admin')->group(function () {
         Route::post('/households', [HouseholdController::class, 'store']);
         Route::put('/households/{household}', [HouseholdController::class, 'update']);
         Route::delete('/households/{household}', [HouseholdController::class, 'destroy']);
@@ -95,15 +93,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/residents/{resident}', [ResidentController::class, 'destroy']);
     });
 
-    // Staff and Admin routes (full access)
-    Route::middleware('role:staff,admin')->group(function () {
-        // Households and residents management (full access)
-        Route::post('/households', [HouseholdController::class, 'store']);
-        Route::put('/households/{household}', [HouseholdController::class, 'update']);
-        Route::delete('/households/{household}', [HouseholdController::class, 'destroy']);
-        Route::post('/residents', [ResidentController::class, 'store']);
-        Route::put('/residents/{resident}', [ResidentController::class, 'update']);
-        Route::delete('/residents/{resident}', [ResidentController::class, 'destroy']);
+    // Events management (purok leaders, staff, and admin access)
+    Route::middleware('role:purok_leader,staff,admin')->group(function () {
+        Route::post('/events', [EventController::class, 'store']);
+        Route::put('/events/{event}', [EventController::class, 'update']);
+        Route::delete('/events/{event}', [EventController::class, 'destroy']);
     });
 
     // Admin only routes

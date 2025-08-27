@@ -7,6 +7,11 @@ export type Event = {
   location: string
   description?: string
   created_by?: number
+  purok_id?: number | null
+  purok?: {
+    id: number
+    name: string
+  } | null
   created_at: string
   updated_at: string
 }
@@ -16,6 +21,7 @@ export type CreateEventPayload = {
   date: string
   location: string
   description?: string
+  purok_id?: number | null
 }
 
 export type UpdateEventPayload = CreateEventPayload

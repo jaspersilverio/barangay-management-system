@@ -1,24 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer } from 'react-bootstrap'
 import { listHouseholds, deleteHousehold, createHousehold, updateHousehold } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
 import { useNavigate } from 'react-router-dom'
-// import { usePuroks } from '../../context/PurokContext'
-// import { useAuth } from '../../context/AuthContext'
+import { usePuroks } from '../../context/PurokContext'
+import { useAuth } from '../../context/AuthContext'
 
 export default function HouseholdListPage() {
   const navigate = useNavigate()
-  // const { puroks, refresh } = usePuroks()
-  // const { user } = useAuth()
-  // const role = user?.role
-  // const assignedPurokId = user?.assigned_purok_id ?? null
-  const role = 'admin' // Allow all users to perform CRUD operations for demo
-  // const assignedPurokId = null
+  const { puroks } = usePuroks()
+  const { user } = useAuth()
+  const role = user?.role
+  const assignedPurokId = user?.assigned_purok_id ?? null
 
   const [items, setItems] = useState<any[]>([])
   const [search, setSearch] = useState('')
-  // const [purokId, setPurokId] = useState<string>('')
+  const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -27,20 +25,18 @@ export default function HouseholdListPage() {
   const [editingId, setEditingId] = useState<null | number>(null)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
 
-  // const canManage = role === 'admin' || role === 'purok_leader'
-  const canManage = true // Allow all users to manage for demo
+  const canManage = role === 'admin' || role === 'purok_leader'
 
-  // const effectivePurokId = useMemo(() => {
-  //   // if (role === 'admin') return purokId
-  //   // if (role === 'purok_leader') return assignedPurokId ? String(assignedPurokId) : ''
-  //   // return purokId
-  //   return purokId // Allow all users to select any purok for demo
-  // }, [purokId])
+  const effectivePurokId = useMemo(() => {
+    if (role === 'admin') return purokId
+    if (role === 'purok_leader') return assignedPurokId ? String(assignedPurokId) : ''
+    return purokId
+  }, [purokId, role, assignedPurokId])
 
   const load = async () => {
     setLoading(true)
     try {
-      const res = await listHouseholds({ search, page })
+      const res = await listHouseholds({ search, page, purok_id: effectivePurokId || undefined })
       const data = res.data
       const list = data.data ?? data
       setItems(list.data ?? list)
@@ -52,7 +48,7 @@ export default function HouseholdListPage() {
 
   useEffect(() => { 
     load().catch(() => null) 
-  }, [search, page]) // These dependencies are fine as they're primitive values
+  }, [search, page, effectivePurokId]) // These dependencies are fine as they're primitive values
 
   const handleDelete = async () => {
     if (showDelete == null) return
@@ -70,12 +66,27 @@ export default function HouseholdListPage() {
   return (
     <Card className="shadow rounded-3 p-4">
       <Row className="align-items-end g-3 mb-3">
-        <Col md={6}>
+        <Col md={4}>
           <Form.Group className="mb-0">
             <Form.Label>Search</Form.Label>
             <Form.Control placeholder="Address, head name, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
           </Form.Group>
         </Col>
+        {role === 'admin' && (
+          <Col md={4}>
+            <Form.Group className="mb-0">
+              <Form.Label>Purok</Form.Label>
+              <Form.Select value={purokId} onChange={(e) => setPurokId(e.target.value)}>
+                <option value="">All Puroks</option>
+                {puroks.map((purok) => (
+                  <option key={purok.id} value={purok.id}>
+                    {purok.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          </Col>
+        )}
         <Col className="text-end">
           {canManage && (
             <Button variant="primary" onClick={() => setShowForm(true)}>Add Household</Button>
@@ -88,6 +99,7 @@ export default function HouseholdListPage() {
           <thead>
             <tr>
               <th>Address</th>
+              <th>Purok</th>
               <th>Property Type</th>
               <th>Head of Household</th>
               <th>Contact</th>
@@ -98,6 +110,7 @@ export default function HouseholdListPage() {
             {items.map((hh) => (
               <tr key={hh.id}>
                 <td>{hh.address}</td>
+                <td>{puroks.find(p => p.id === hh.purok_id)?.name || '-'}</td>
                 <td>{hh.property_type || '-'}</td>
                 <td>{hh.head_name}</td>
                 <td>{hh.contact || '-'}</td>
@@ -125,7 +138,7 @@ export default function HouseholdListPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={5} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
+                <td colSpan={6} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
               </tr>
             )}
           </tbody>
@@ -167,23 +180,20 @@ export default function HouseholdListPage() {
         })()}
         onSubmit={async (values) => {
           try {
+            // Handle optional purok_id for purok leaders
+            const payload = {
+              address: values.address,
+              property_type: values.property_type,
+              head_name: values.head_name,
+              contact: values.contact,
+              purok_id: values.purok_id || '', // Convert undefined to empty string
+            }
+
             if (editingId) {
-              await updateHousehold(editingId, {
-                address: values.address,
-                property_type: values.property_type,
-                head_name: values.head_name,
-                contact: values.contact,
-                purok_id: values.purok_id,
-              })
+              await updateHousehold(editingId, payload)
               setToast({ show: true, message: 'Household updated', variant: 'success' })
             } else {
-              await createHousehold({
-                address: values.address,
-                property_type: values.property_type,
-                head_name: values.head_name,
-                contact: values.contact,
-                purok_id: values.purok_id,
-              })
+              await createHousehold(payload)
               setToast({ show: true, message: 'Household created', variant: 'success' })
             }
             setShowForm(false)

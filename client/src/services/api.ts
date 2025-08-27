@@ -18,9 +18,15 @@ api.interceptors.response.use(
   (res) => res,
   (error) => {
     if (error.response?.status === 401 || error.response?.status === 403) {
-      // Clear token and redirect to login
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      // Log the error for debugging
+      console.error('API Error:', error.response?.data)
+      console.error('Status:', error.response?.status)
+      
+      // Only logout for 401 (unauthorized), not 403 (forbidden)
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

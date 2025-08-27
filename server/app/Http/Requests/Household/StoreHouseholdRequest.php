@@ -13,12 +13,16 @@ class StoreHouseholdRequest extends BaseFormRequest
 
     public function rules(): array
     {
+        $user = $this->user();
+
         return [
             'address' => ['required', 'string', 'max:255'],
             'property_type' => ['required', 'string', 'max:255'],
             'head_name' => ['required', 'string', 'max:255'],
             'contact' => ['required', 'string', 'max:255'],
-            'purok_id' => ['required', 'integer', 'exists:puroks,id'],
+            'purok_id' => $user && $user->role === 'purok_leader'
+                ? ['nullable', 'integer', 'exists:puroks,id']
+                : ['required', 'integer', 'exists:puroks,id'],
         ];
     }
 }

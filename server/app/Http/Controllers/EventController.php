@@ -15,13 +15,21 @@ class EventController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Event::query();
+        $user = $request->user();
+
+        // Role-based filtering
+        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+            // Purok leaders can only see events from their assigned purok
+            $query->where('purok_id', $user->assigned_purok_id);
+        }
+        // Admin, staff, and viewer users can see all events
 
         // Filter by upcoming events only by default
         if ($request->get('upcoming', true)) {
             $query->upcoming();
         }
 
-        $events = $query->orderByDate()->get();
+        $events = $query->with('purok')->orderByDate()->get();
 
         return response()->json([
             'success' => true,
@@ -36,13 +44,14 @@ class EventController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-
+        $user = $request->user();
 
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'date' => 'required|date',
             'location' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'purok_id' => 'nullable|exists:puroks,id',
         ]);
 
         // Custom validation for date
@@ -62,12 +71,23 @@ class EventController extends Controller
             ], 422);
         }
 
+        // Role-based purok assignment
+        $purokId = null;
+        if ($user && $user->role === 'purok_leader') {
+            // Purok leaders can only create events for their assigned purok
+            $purokId = $user->assigned_purok_id;
+        } else {
+            // Admin can assign any purok or leave null for barangay-wide events
+            $purokId = $request->purok_id;
+        }
+
         $event = Event::create([
             'title' => $request->title,
             'date' => $request->date,
             'location' => $request->location,
             'description' => $request->description,
-            'created_by' => null, // Since auth is disabled
+            'purok_id' => $purokId,
+            'created_by' => $user ? $user->id : null,
         ]);
 
         return response()->json([
@@ -108,6 +128,7 @@ class EventController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $event = Event::find($id);
+        $user = $request->user();
 
         if (!$event) {
             return response()->json([
@@ -118,11 +139,22 @@ class EventController extends Controller
             ], 404);
         }
 
+        // Role-based access control
+        if ($user && $user->role === 'purok_leader' && $event->purok_id !== $user->assigned_purok_id) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'You can only edit events from your assigned purok',
+                'errors' => null,
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'date' => 'required|date',
             'location' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'purok_id' => 'nullable|exists:puroks,id',
         ]);
 
         // Custom validation for date
@@ -142,11 +174,22 @@ class EventController extends Controller
             ], 422);
         }
 
+        // Role-based purok assignment for updates
+        $purokId = null;
+        if ($user && $user->role === 'purok_leader') {
+            // Purok leaders can only update events for their assigned purok
+            $purokId = $user->assigned_purok_id;
+        } else {
+            // Admin can assign any purok or leave null for barangay-wide events
+            $purokId = $request->purok_id;
+        }
+
         $event->update([
             'title' => $request->title,
             'date' => $request->date,
             'location' => $request->location,
             'description' => $request->description,
+            'purok_id' => $purokId,
         ]);
 
         return response()->json([
@@ -160,9 +203,10 @@ class EventController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $event = Event::find($id);
+        $user = $request->user();
 
         if (!$event) {
             return response()->json([
@@ -171,6 +215,16 @@ class EventController extends Controller
                 'message' => 'Event not found',
                 'errors' => null,
             ], 404);
+        }
+
+        // Role-based access control
+        if ($user && $user->role === 'purok_leader' && $event->purok_id !== $user->assigned_purok_id) {
+            return response()->json([
+                'success' => false,
+                'data' => null,
+                'message' => 'You can only delete events from your assigned purok',
+                'errors' => null,
+            ], 403);
         }
 
         $event->delete();

@@ -13,6 +13,9 @@ class UpdateResidentRequest extends BaseFormRequest
 
     public function rules(): array
     {
+        $user = $this->user();
+        $isPurokLeader = $user && $user->role === 'purok_leader';
+
         return [
             'household_id' => ['sometimes', 'integer', 'exists:households,id'],
             'first_name' => ['sometimes', 'string', 'max:255'],
@@ -23,6 +26,9 @@ class UpdateResidentRequest extends BaseFormRequest
             'relationship_to_head' => ['sometimes', 'string', 'max:255'],
             'occupation_status' => ['sometimes', 'in:employed,unemployed,student,retired,other'],
             'is_pwd' => ['sometimes', 'boolean'],
+            'purok_id' => $isPurokLeader
+                ? ['sometimes', 'nullable', 'string'] // Optional for purok leaders (auto-assigned)
+                : ['sometimes', 'required', 'string', 'exists:puroks,id'], // Required for others
         ];
     }
 }

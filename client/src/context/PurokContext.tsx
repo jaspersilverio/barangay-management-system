@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import api from '../services/api'
-// import { useAuth } from './AuthContext'
-import type { Purok } from '../types'
+import { useAuth } from './AuthContext'
+import { getPuroks, type Purok } from '../services/puroks.service'
 
 type PurokContextType = {
   puroks: Purok[]
@@ -13,11 +12,12 @@ type PurokContextType = {
 const PurokContext = createContext<PurokContextType | undefined>(undefined)
 
 export function PurokProvider({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuth()
+  
   const [puroks, setPuroks] = useState<Purok[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const hasFetchedRef = useRef(false)
-  // const { isAuthenticated } = useAuth()
 
   const fetchPuroks = useCallback(async () => {
     if (loading || hasFetchedRef.current) return // Prevent multiple simultaneous requests and re-initialization
@@ -25,18 +25,13 @@ export function PurokProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true)
       setError(null)
-      const res = await api.get('/puroks', { params: { per_page: 100 } })
-      const list = (res.data.data?.data || res.data.data) as Purok[]
+      const res = await getPuroks({ per_page: 100 })
+      const list = res.data.data || []
       setPuroks(list)
     } catch (error) {
       console.warn('Failed to fetch puroks:', error)
       setError('Failed to fetch puroks')
-      // For demo purposes, set some default puroks if API fails
-      const defaultPuroks = [
-        { id: 1, name: 'Purok 1', captain: 'Demo Captain 1', contact: '123-456-7890', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-        { id: 2, name: 'Purok 2', captain: 'Demo Captain 2', contact: '098-765-4321', created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
-      ]
-      setPuroks(defaultPuroks)
+      setPuroks([])
     } finally {
       setLoading(false)
       hasFetchedRef.current = true
@@ -44,22 +39,23 @@ export function PurokProvider({ children }: { children: React.ReactNode }) {
   }, [loading])
 
   useEffect(() => {
-    // if (isAuthenticated) {
-    fetchPuroks()
-    // }
-  }, []) // Only run once on mount, remove fetchPuroks dependency
+    if (isAuthenticated) {
+      fetchPuroks()
+    }
+  }, [isAuthenticated, fetchPuroks])
 
   const refresh = useCallback(async () => {
     if (loading) return
     try {
       setLoading(true)
       setError(null)
-      const res = await api.get('/puroks', { params: { per_page: 100 } })
-      const list = (res.data.data?.data || res.data.data) as Purok[]
+      const res = await getPuroks({ per_page: 100 })
+      const list = res.data.data || []
       setPuroks(list)
     } catch (error) {
       console.warn('Failed to refresh puroks:', error)
       setError('Failed to refresh puroks')
+      setPuroks([])
     } finally {
       setLoading(false)
     }

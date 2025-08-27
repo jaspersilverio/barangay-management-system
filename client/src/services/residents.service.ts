@@ -10,9 +10,10 @@ export type ResidentPayload = {
   relationship_to_head: string
   occupation_status: 'employed' | 'unemployed' | 'student' | 'retired' | 'other'
   is_pwd: boolean
+  purok_id?: string | number
 }
 
-export async function listResidents(params: { search?: string; page?: number }) {
+export async function listResidents(params: { search?: string; page?: number; purok_id?: string | number }) {
   const res = await api.get('/residents', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }

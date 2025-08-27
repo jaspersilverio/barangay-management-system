@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('location');
             $table->text('description')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
+            $table->foreignId('purok_id')->nullable()->constrained('puroks')->onDelete('set null');
             $table->timestamps();
 
             $table->foreign('created_by')->references('id')->on('users')->onDelete('set null');

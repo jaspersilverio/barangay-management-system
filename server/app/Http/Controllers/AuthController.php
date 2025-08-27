@@ -12,22 +12,7 @@ class AuthController extends Controller
 {
     public function register(RegisterUserRequest $request)
     {
-        // $actingUser = $request->user();
-        // if (!$actingUser || !$actingUser->isAdmin()) {
-        //     return $this->respondError('Forbidden', null, 403);
-        // }
-
-        $validated = $request->validated();
-
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-            'role' => $validated['role'],
-            'assigned_purok_id' => $validated['assigned_purok_id'] ?? null,
-        ]);
-
-        return $this->respondSuccess($user->only(['id', 'name', 'email', 'role', 'assigned_purok_id']), 'User registered', 201);
+        return $this->respondError('User registration is disabled. Contact the administrator.', null, 403);
     }
 
     public function login(LoginRequest $request)
@@ -38,9 +23,8 @@ class AuthController extends Controller
             return $this->respondError('Invalid credentials', ['email' => ['These credentials do not match our records.']], 422);
         }
 
-        // For demo purposes, create a simple token when auth is disabled
-        // $token = $user->createToken('api')->plainTextToken;
-        $token = 'demo-token-' . $user->id . '-' . time();
+        // Create a real Sanctum token
+        $token = $user->createToken('api')->plainTextToken;
 
         return $this->respondSuccess([
             'token' => $token,
@@ -50,22 +34,19 @@ class AuthController extends Controller
 
     public function logout(Request $request)
     {
-        // $user = $request->user();
-        // if ($user && $user->currentAccessToken()) {
-        //     $user->currentAccessToken()->delete();
-        // }
+        $user = $request->user();
+        if ($user && $user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
+        }
         return $this->respondSuccess(null, 'Logged out');
     }
 
     public function me(Request $request)
     {
-        // $user = $request->user()->load('assignedPurok');
-        // For demo purposes, return a default user when auth is disabled
-        $user = User::first();
+        $user = $request->user()->load('assignedPurok');
         if (!$user) {
             return $this->respondError('No users found', null, 404);
         }
-        $user->load('assignedPurok');
         return $this->respondSuccess([
             'id' => $user->id,
             'name' => $user->name,

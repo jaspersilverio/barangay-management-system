@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { Container, Row, Col, Card, Button, Table, Badge } from 'react-bootstrap'
-import { Plus, Edit, Trash2, Calendar, MapPin } from 'lucide-react'
+import { Plus, Edit, Trash2, Calendar, MapPin, Users } from 'lucide-react'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
 import EventFormModal from '../../components/events/EventFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
+import { useAuth } from '../../context/AuthContext'
 
 export default function EventsPage() {
+  const { user } = useAuth()
   const [events, setEvents] = useState<Event[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -14,6 +16,9 @@ export default function EventsPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null)
+
+  // Determine user permissions
+  const canManage = user?.role === 'admin' || user?.role === 'purok_leader'
 
   useEffect(() => {
     loadEvents()
@@ -35,9 +40,18 @@ export default function EventsPage() {
     }
   }
 
-  const handleCreateEvent = async (values: CreateEventPayload) => {
+  const handleCreateEvent = async (values: any) => {
     try {
-      const response = await createEvent(values)
+      // Convert form values to API payload
+      const payload: CreateEventPayload = {
+        title: values.title,
+        date: values.date,
+        location: values.location,
+        description: values.description,
+        purok_id: values.purok_id ? Number(values.purok_id) : null,
+      }
+      
+      const response = await createEvent(payload)
       if (response.success) {
         setEvents(prev => [response.data, ...prev])
         setShowForm(false)
@@ -49,11 +63,20 @@ export default function EventsPage() {
     }
   }
 
-  const handleUpdateEvent = async (values: CreateEventPayload) => {
+  const handleUpdateEvent = async (values: any) => {
     if (!editingEvent) return
     
     try {
-      const response = await updateEvent(editingEvent.id, values)
+      // Convert form values to API payload
+      const payload: CreateEventPayload = {
+        title: values.title,
+        date: values.date,
+        location: values.location,
+        description: values.description,
+        purok_id: values.purok_id ? Number(values.purok_id) : null,
+      }
+      
+      const response = await updateEvent(editingEvent.id, payload)
       if (response.success) {
         setEvents(prev => prev.map(event => 
           event.id === editingEvent.id ? response.data : event
@@ -126,14 +149,16 @@ export default function EventsPage() {
         <Col>
           <div className="d-flex justify-content-between align-items-center">
             <h2 className="mb-0">Events Management</h2>
-            <Button 
-              variant="primary" 
-              onClick={() => setShowForm(true)}
-              className="d-flex align-items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Event
-            </Button>
+            {canManage && (
+              <Button 
+                variant="primary" 
+                onClick={() => setShowForm(true)}
+                className="d-flex align-items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Event
+              </Button>
+            )}
           </div>
         </Col>
       </Row>
@@ -160,10 +185,12 @@ export default function EventsPage() {
                   <Calendar className="h-12 w-12 text-muted mb-3" />
                   <h5 className="text-muted">No events found</h5>
                   <p className="text-muted">Create your first event to get started.</p>
-                  <Button variant="primary" onClick={() => setShowForm(true)}>
-                    <Plus className="h-4 w-4 me-2" />
-                    Add Event
-                  </Button>
+                  {canManage && (
+                    <Button variant="primary" onClick={() => setShowForm(true)}>
+                      <Plus className="h-4 w-4 me-2" />
+                      Add Event
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table responsive hover className="mb-0">
@@ -172,6 +199,7 @@ export default function EventsPage() {
                       <th>Title</th>
                       <th>Date</th>
                       <th>Location</th>
+                      <th>Purok</th>
                       <th>Status</th>
                       <th>Description</th>
                       <th style={{ width: '120px' }}>Actions</th>
@@ -196,6 +224,12 @@ export default function EventsPage() {
                           </div>
                         </td>
                         <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <Users className="h-4 w-4 text-muted" />
+                            {event.purok ? event.purok.name : 'Barangay-wide'}
+                          </div>
+                        </td>
+                        <td>
                           {getEventStatus(event.date)}
                         </td>
                         <td>
@@ -211,30 +245,32 @@ export default function EventsPage() {
                           )}
                         </td>
                         <td>
-                          <div className="d-flex gap-1">
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => {
-                                setEditingEvent(event)
-                                setShowForm(true)
-                              }}
-                              title="Edit Event"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => {
-                                setDeletingEvent(event)
-                                setShowDeleteConfirm(true)
-                              }}
-                              title="Delete Event"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          {canManage && (
+                            <div className="d-flex gap-1">
+                              <Button
+                                variant="outline-primary"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingEvent(event)
+                                  setShowForm(true)
+                                }}
+                                title="Edit Event"
+                              >
+                                <Edit className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                onClick={() => {
+                                  setDeletingEvent(event)
+                                  setShowDeleteConfirm(true)
+                                }}
+                                title="Delete Event"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

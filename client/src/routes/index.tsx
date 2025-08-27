@@ -13,7 +13,7 @@ import Reports from '../pages/Reports'
 import Users from '../pages/Users'
 import Settings from '../pages/Settings'
 import LoginPage from '../pages/auth/Login'
-import RegisterPage from '../pages/auth/Register'
+
 import { useAuth } from '../context/AuthContext'
 import { AdminRoute, ProtectedRoute } from './guards'
 
@@ -23,13 +23,12 @@ function PublicRoute() {
 
 export const router = createBrowserRouter([
   { path: '/', element: <Navigate to="/dashboard" replace /> },
-  {
-    element: <PublicRoute />,
-    children: [
-      { path: '/login', element: <LoginPage /> },
-      { path: '/register', element: <RegisterPage /> },
-    ],
-  },
+      {
+      element: <PublicRoute />,
+      children: [
+        { path: '/login', element: <LoginPage /> },
+      ],
+    },
   {
     element: <ProtectedRoute />,
     children: [

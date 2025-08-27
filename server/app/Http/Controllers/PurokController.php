@@ -13,6 +13,14 @@ class PurokController extends Controller
     public function index(Request $request)
     {
         $query = Purok::query();
+        $user = $request->user();
+
+        // Role-based filtering
+        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+            // Purok leaders can only see their assigned purok
+            $query->where('id', $user->assigned_purok_id);
+        }
+        // Admin, staff, and viewer users can see all puroks
 
         if ($search = $request->string('search')->toString()) {
             $query->where(function ($q) use ($search) {

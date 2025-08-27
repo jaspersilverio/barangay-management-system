@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
-import { listPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
+import { getPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
 import PurokFormModal from '../../components/puroks/PurokFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 // import { useAuth } from '../../context/AuthContext'
@@ -26,11 +26,10 @@ export default function PurokListPage() {
   const load = async () => {
     setLoading(true)
     try {
-      const res = await listPuroks({ search, page })
-      const data = res.data
-      const list = data.data ?? data
-      setItems(list.data ?? list)
-      setTotalPages(list.last_page ?? 1)
+      const res = await getPuroks({ search, page, per_page: 15 })
+      const list = res.data.data
+      setItems(list)
+      setTotalPages(res.data.last_page)
     } finally {
       setLoading(false)
     }

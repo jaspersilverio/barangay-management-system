@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 // import { useAuth } from '../context/AuthContext'
 import { Card } from 'react-bootstrap'
 import { Button, Form } from 'react-bootstrap'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 const schema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -54,7 +54,7 @@ export default function Login() {
             {isSubmitting ? 'Signing in...' : 'Sign in'}
           </Button>
           <div className="text-center mt-3">
-            Don’t have an account? <Link to="/register">Register</Link>
+            Contact the administrator to create an account
           </div>
         </Form>
       </Card>
