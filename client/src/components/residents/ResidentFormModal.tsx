@@ -4,6 +4,9 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
+import { useEffect, useState } from 'react'
+import Select from 'react-select'
+import { getHouseholdsForResidentForm, type HouseholdOption } from '../../services/households.service'
 
 // Dynamic schema based on user role
 const createSchema = (isPurokLeader: boolean) => z.object({
@@ -33,13 +36,16 @@ type Props = {
 export default function ResidentFormModal({ show, initial, onSubmit, onHide }: Props) {
   const { puroks } = usePuroks()
   const { user } = useAuth()
+  const [households, setHouseholds] = useState<HouseholdOption[]>([])
+  const [loadingHouseholds, setLoadingHouseholds] = useState(false)
+  const [selectedHousehold, setSelectedHousehold] = useState<HouseholdOption | null>(null)
 
   // Determine if user is a purok leader
   const isPurokLeader = user?.role === 'purok_leader'
   const assignedPurokId = user?.assigned_purok_id
 
   const schema = createSchema(isPurokLeader)
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ResidentFormValues>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue, watch } = useForm<ResidentFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       household_id: '',
@@ -52,12 +58,88 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       occupation_status: 'other',
       is_pwd: false,
       purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
-      ...initial,
     },
   })
 
+  // Load households for dropdown
+  const loadHouseholds = async (search?: string) => {
+    setLoadingHouseholds(true)
+    try {
+      const response = await getHouseholdsForResidentForm({ search })
+      if (response.success) {
+        setHouseholds(response.data)
+      }
+    } catch (error) {
+      console.error('Error loading households:', error)
+    } finally {
+      setLoadingHouseholds(false)
+    }
+  }
+
+  // Load households when modal opens
+  useEffect(() => {
+    if (show) {
+      loadHouseholds()
+    }
+  }, [show])
+
+  // Handle household selection
+  const handleHouseholdChange = (option: HouseholdOption | null) => {
+    setSelectedHousehold(option)
+    if (option) {
+      setValue('household_id', option.id)
+    } else {
+      setValue('household_id', '')
+    }
+  }
+
+  // Reset form and set initial values when modal opens/closes or initial changes
+  useEffect(() => {
+    if (show) {
+      const defaultValues = {
+        household_id: '',
+        first_name: '',
+        middle_name: '',
+        last_name: '',
+        sex: 'male' as const,
+        birthdate: '',
+        relationship_to_head: '',
+        occupation_status: 'other' as const,
+        is_pwd: false,
+        purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
+        ...initial,
+      }
+      
+      reset(defaultValues)
+      
+      // Set household selection if editing
+      if (initial?.household_id && households.length > 0) {
+        const household = households.find(h => h.id === Number(initial.household_id))
+        if (household) {
+          setSelectedHousehold(household)
+        }
+      } else {
+        setSelectedHousehold(null)
+      }
+    } else {
+      // Reset form when modal closes
+      reset()
+      setSelectedHousehold(null)
+    }
+  }, [show, initial, reset, households, isPurokLeader, assignedPurokId])
+
+  // Update household selection when households load and we have initial data
+  useEffect(() => {
+    if (initial?.household_id && households.length > 0) {
+      const household = households.find(h => h.id === Number(initial.household_id))
+      if (household) {
+        setSelectedHousehold(household)
+      }
+    }
+  }, [households, initial?.household_id])
+
   return (
-    <Modal show={show} onHide={onHide} centered>
+    <Modal show={show} onHide={onHide} centered size="lg">
       <Form onSubmit={handleSubmit(async (values) => {
         const payload = {
           ...values,
@@ -65,19 +147,51 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
         }
         await onSubmit(payload as any)
         reset()
+        setSelectedHousehold(null)
       })}>
         <Modal.Header closeButton>
           <Modal.Title>{initial ? 'Edit Resident' : 'Add Resident'}</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <Row className="g-3">
-            <Col md={6}>
+            <Col md={12}>
               <Form.Group className="mb-3">
-                <Form.Label>Household ID</Form.Label>
-                <Form.Control {...register('household_id')} isInvalid={!!errors.household_id} />
-                <Form.Control.Feedback type="invalid">Household is required</Form.Control.Feedback>
+                <Form.Label>Household *</Form.Label>
+                <Select
+                  value={selectedHousehold}
+                  onChange={handleHouseholdChange}
+                  options={households}
+                  getOptionLabel={(option) => option.label}
+                  getOptionValue={(option) => option.id.toString()}
+                  placeholder="Search for a household..."
+                  isLoading={loadingHouseholds}
+                  isClearable
+                  isSearchable
+                  noOptionsMessage={() => "No households found"}
+                  onInputChange={(newValue) => {
+                    if (newValue.length >= 2) {
+                      loadHouseholds(newValue)
+                    }
+                  }}
+                  styles={{
+                    control: (provided, state) => ({
+                      ...provided,
+                      borderColor: errors.household_id ? '#dc3545' : provided.borderColor,
+                    }),
+                  }}
+                />
+                {errors.household_id && (
+                  <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>
+                    Household is required
+                  </div>
+                )}
+                <Form.Text className="text-muted">
+                  Search by head of household name, address, or purok
+                </Form.Text>
               </Form.Group>
             </Col>
+          </Row>
+          <Row className="g-3">
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Purok</Form.Label>
@@ -109,8 +223,6 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                 )}
               </Form.Group>
             </Col>
-          </Row>
-          <Row className="g-3">
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Birthdate</Form.Label>

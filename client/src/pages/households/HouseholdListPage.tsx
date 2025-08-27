@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer } from 'react-bootstrap'
-import { listHouseholds, deleteHousehold, createHousehold, updateHousehold } from '../../services/households.service'
+import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer, Badge } from 'react-bootstrap'
+import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type Household } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
+import ViewResidentsModal from '../../components/households/ViewResidentsModal'
 import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
+import { FaUsers, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
 
 export default function HouseholdListPage() {
   const navigate = useNavigate()
@@ -14,7 +16,7 @@ export default function HouseholdListPage() {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [items, setItems] = useState<any[]>([])
+  const [items, setItems] = useState<Household[]>([])
   const [search, setSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
@@ -22,6 +24,7 @@ export default function HouseholdListPage() {
   const [loading, setLoading] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
   const [showForm, setShowForm] = useState(false)
+  const [showViewResidents, setShowViewResidents] = useState<null | Household>(null)
   const [editingId, setEditingId] = useState<null | number>(null)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
 
@@ -48,7 +51,7 @@ export default function HouseholdListPage() {
 
   useEffect(() => { 
     load().catch(() => null) 
-  }, [search, page, effectivePurokId]) // These dependencies are fine as they're primitive values
+  }, [search, page, effectivePurokId])
 
   const handleDelete = async () => {
     if (showDelete == null) return
@@ -61,6 +64,10 @@ export default function HouseholdListPage() {
     } finally {
       setShowDelete(null)
     }
+  }
+
+  const handleViewResidents = (household: Household) => {
+    setShowViewResidents(household)
   }
 
   return (
@@ -89,7 +96,10 @@ export default function HouseholdListPage() {
         )}
         <Col className="text-end">
           {canManage && (
-            <Button variant="primary" onClick={() => setShowForm(true)}>Add Household</Button>
+            <Button variant="primary" onClick={() => setShowForm(true)}>
+              <FaPlus className="me-1" />
+              Add Household
+            </Button>
           )}
         </Col>
       </Row>
@@ -98,25 +108,37 @@ export default function HouseholdListPage() {
         <Table striped bordered hover responsive>
           <thead>
             <tr>
-              <th>Address</th>
-              <th>Purok</th>
-              <th>Property Type</th>
               <th>Head of Household</th>
+              <th>Address</th>
               <th>Contact</th>
-              <th style={{ width: 180 }}>Actions</th>
+              <th>Total Residents</th>
+              <th style={{ width: 200 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {items.map((hh) => (
               <tr key={hh.id}>
-                <td>{hh.address}</td>
-                <td>{puroks.find(p => p.id === hh.purok_id)?.name || '-'}</td>
-                <td>{hh.property_type || '-'}</td>
                 <td>{hh.head_name}</td>
+                <td>{hh.address}</td>
                 <td>{hh.contact || '-'}</td>
                 <td>
+                  <Badge bg={hh.residents_count > 0 ? 'primary' : 'secondary'}>
+                    {hh.residents_count} {hh.residents_count === 1 ? 'Resident' : 'Residents'}
+                  </Badge>
+                </td>
+                <td>
                   <div className="d-flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => navigate(`/households/${hh.id}`)}>View</Button>
+                    <Button 
+                      size="sm" 
+                      variant="info" 
+                      onClick={() => handleViewResidents(hh)}
+                    >
+                      <FaUsers className="me-1" />
+                      View Residents
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => navigate(`/households/${hh.id}`)}>
+                      View
+                    </Button>
                     {canManage && (
                       <>
                         <Button
@@ -127,9 +149,13 @@ export default function HouseholdListPage() {
                             setShowForm(true)
                           }}
                         >
+                          <FaEdit className="me-1" />
                           Edit
                         </Button>
-                        <Button size="sm" variant="danger" onClick={() => setShowDelete(hh.id)}>Delete</Button>
+                        <Button size="sm" variant="danger" onClick={() => setShowDelete(hh.id)}>
+                          <FaTrash className="me-1" />
+                          Delete
+                        </Button>
                       </>
                     )}
                   </div>
@@ -138,7 +164,7 @@ export default function HouseholdListPage() {
             ))}
             {items.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
+                <td colSpan={5} className="text-center py-4">{loading ? 'Loading...' : 'No households found.'}</td>
               </tr>
             )}
           </tbody>
@@ -208,6 +234,18 @@ export default function HouseholdListPage() {
           setEditingId(null)
         }}
       />
+
+      {showViewResidents && (
+        <ViewResidentsModal
+          show={showViewResidents !== null}
+          household={showViewResidents}
+          onHide={() => {
+            setShowViewResidents(null)
+            // Refresh the household list to update resident counts
+            load()
+          }}
+        />
+      )}
 
       <ToastContainer position="top-end" className="p-3">
         <Toast bg={toast.variant} onClose={() => setToast((t) => ({ ...t, show: false }))} show={toast.show} delay={2500} autohide>

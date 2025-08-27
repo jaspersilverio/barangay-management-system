@@ -39,8 +39,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/puroks', [PurokController::class, 'index']);
         Route::get('/puroks/{purok}', [PurokController::class, 'show']);
         Route::get('/households', [HouseholdController::class, 'index']);
+        Route::get('/households/for-resident-form', [HouseholdController::class, 'forResidentForm']);
         Route::get('/households/{household}', [HouseholdController::class, 'show']);
         Route::get('/households/{household}/members', [HouseholdController::class, 'members']);
+        Route::get('/households/{household}/residents', [HouseholdController::class, 'getResidents']);
         Route::get('/residents', [ResidentController::class, 'index']);
         Route::get('/residents/{resident}', [ResidentController::class, 'show']);
         Route::get('/landmarks', [LandmarkController::class, 'index']);

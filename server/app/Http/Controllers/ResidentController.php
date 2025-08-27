@@ -54,6 +54,34 @@ class ResidentController extends Controller
         }
 
         $residents = $query->paginate($request->integer('per_page', 15));
+
+        // Transform the response to include properly formatted data
+        $residents->getCollection()->transform(function ($resident) {
+            return [
+                'id' => $resident->id,
+                'household_id' => $resident->household_id,
+                'first_name' => $resident->first_name,
+                'middle_name' => $resident->middle_name,
+                'last_name' => $resident->last_name,
+                'sex' => $resident->sex,
+                'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
+                'relationship_to_head' => $resident->relationship_to_head,
+                'occupation_status' => $resident->occupation_status,
+                'is_pwd' => $resident->is_pwd,
+                'age' => $resident->age,
+                'household' => $resident->household ? [
+                    'id' => $resident->household->id,
+                    'head_name' => $resident->household->head_name,
+                    'address' => $resident->household->address,
+                    'purok_id' => $resident->household->purok_id,
+                    'purok' => $resident->household->purok ? [
+                        'id' => $resident->household->purok->id,
+                        'name' => $resident->household->purok->name,
+                    ] : null,
+                ] : null,
+            ];
+        });
+
         return $this->respondSuccess($residents);
     }
 
@@ -86,7 +114,35 @@ class ResidentController extends Controller
             }
         }
 
-        return $this->respondSuccess($resident->load('household.purok'));
+        // Load the resident with household and purok relationships
+        $resident->load(['household.purok']);
+
+        // Format the response for the frontend
+        $formattedResident = [
+            'id' => $resident->id,
+            'household_id' => $resident->household_id,
+            'first_name' => $resident->first_name,
+            'middle_name' => $resident->middle_name,
+            'last_name' => $resident->last_name,
+            'sex' => $resident->sex,
+            'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
+            'relationship_to_head' => $resident->relationship_to_head,
+            'occupation_status' => $resident->occupation_status,
+            'is_pwd' => $resident->is_pwd,
+            'age' => $resident->age,
+            'household' => $resident->household ? [
+                'id' => $resident->household->id,
+                'head_name' => $resident->household->head_name,
+                'address' => $resident->household->address,
+                'purok_id' => $resident->household->purok_id,
+                'purok' => $resident->household->purok ? [
+                    'id' => $resident->household->purok->id,
+                    'name' => $resident->household->purok->name,
+                ] : null,
+            ] : null,
+        ];
+
+        return $this->respondSuccess($formattedResident);
     }
 
     public function update(UpdateResidentRequest $request, Resident $resident)

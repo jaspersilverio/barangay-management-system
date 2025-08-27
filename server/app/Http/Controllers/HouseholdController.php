@@ -13,7 +13,7 @@ class HouseholdController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Household::query();
+        $query = Household::with('purok')->withCount('residents');
         $user = $request->user();
 
         // Role-based filtering
@@ -28,6 +28,24 @@ class HouseholdController extends Controller
         }
 
         $households = $query->paginate($request->integer('per_page', 15));
+
+        // Transform the response to include properly formatted data
+        $households->getCollection()->transform(function ($household) {
+            return [
+                'id' => $household->id,
+                'address' => $household->address,
+                'property_type' => $household->property_type,
+                'head_name' => $household->head_name,
+                'contact' => $household->contact,
+                'purok_id' => $household->purok_id,
+                'residents_count' => $household->residents_count,
+                'purok' => $household->purok ? [
+                    'id' => $household->purok->id,
+                    'name' => $household->purok->name,
+                ] : null,
+            ];
+        });
+
         return $this->respondSuccess($households);
     }
 
@@ -95,5 +113,69 @@ class HouseholdController extends Controller
     {
         $residents = $household->residents()->paginate(50);
         return $this->respondSuccess($residents);
+    }
+
+    public function getResidents(Request $request, Household $household)
+    {
+        $user = $request->user();
+
+        // Role-based access control
+        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+            if ($household->purok_id != $user->assigned_purok_id) {
+                return $this->respondError('Access denied.', null, 403);
+            }
+        }
+
+        $residents = $household->residents()->get();
+
+        // Transform the response for the frontend
+        $formattedResidents = $residents->map(function ($resident) {
+            return [
+                'id' => $resident->id,
+                'first_name' => $resident->first_name,
+                'middle_name' => $resident->middle_name,
+                'last_name' => $resident->last_name,
+                'full_name' => trim($resident->first_name . ' ' . ($resident->middle_name ? $resident->middle_name . ' ' : '') . $resident->last_name),
+                'sex' => $resident->sex,
+                'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
+                'age' => $resident->age,
+                'relationship_to_head' => $resident->relationship_to_head,
+                'occupation_status' => $resident->occupation_status,
+                'is_pwd' => $resident->is_pwd,
+            ];
+        });
+
+        return $this->respondSuccess($formattedResidents);
+    }
+
+    public function forResidentForm(Request $request)
+    {
+        $query = Household::with('purok');
+        $user = $request->user();
+
+        // Role-based filtering
+        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+            // Purok leaders can only see households from their assigned purok
+            $query->where('purok_id', $user->assigned_purok_id);
+        }
+
+        if ($search = $request->string('search')->toString()) {
+            $query->search($search);
+        }
+
+        $households = $query->get();
+
+        // Transform the response for dropdown
+        $formattedHouseholds = $households->map(function ($household) {
+            return [
+                'id' => $household->id,
+                'head_of_household' => $household->head_name,
+                'address' => $household->address,
+                'purok_name' => $household->purok ? $household->purok->name : 'Unknown Purok',
+                'label' => "{$household->head_name} – {$household->address} ({$household->purok->name})",
+            ];
+        });
+
+        return $this->respondSuccess($formattedHouseholds);
     }
 }
