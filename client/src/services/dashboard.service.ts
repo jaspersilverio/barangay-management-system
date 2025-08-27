@@ -10,6 +10,8 @@ export type DashboardSummary = {
     infants: number
   }
   active_puroks: number
+  residents_by_purok: Array<{ purok: string; count: number }>
+  households_by_purok: Array<{ purok: string; count: number }>
 }
 
 export async function getSummary() {

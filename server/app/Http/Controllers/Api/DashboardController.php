@@ -101,6 +101,37 @@ class DashboardController extends Controller
 
         $activePuroks = $purokCount;
 
+        // Get residents by purok
+        $residentsByPurok = Purok::withCount('households')
+            ->withCount(['households as residents_count' => function ($query) {
+                $query->withCount('residents');
+            }])
+            ->orderBy('name')
+            ->get()
+            ->map(function ($purok) {
+                // Calculate total residents for this purok
+                $residentsCount = Household::where('purok_id', $purok->id)
+                    ->withCount('residents')
+                    ->get()
+                    ->sum('residents_count');
+
+                return [
+                    'purok' => $purok->name,
+                    'count' => $residentsCount
+                ];
+            });
+
+        // Get households by purok
+        $householdsByPurok = Purok::withCount('households')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($purok) {
+                return [
+                    'purok' => $purok->name,
+                    'count' => (int) $purok->households_count
+                ];
+            });
+
         $data = [
             'total_households' => $totalHouseholds,
             'total_residents' => $totalResidents,
@@ -111,6 +142,8 @@ class DashboardController extends Controller
                 'infants' => $infants,
             ],
             'active_puroks' => $activePuroks,
+            'residents_by_purok' => $residentsByPurok,
+            'households_by_purok' => $householdsByPurok,
         ];
 
         return $this->respondSuccess($data);

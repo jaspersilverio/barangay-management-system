@@ -7,8 +7,9 @@ import QuickActions from '../components/dashboard/QuickActions'
 import RecentActivities from '../components/dashboard/RecentActivities'
 import UpcomingEvents from '../components/dashboard/UpcomingEvents'
 import StatusCards from '../components/dashboard/StatusCards'
+import { DashboardProvider } from '../context/DashboardContext'
 
-export default function Dashboard() {
+function DashboardContent() {
   return (
     <main className="p-6">
       <div className="grid grid-cols-12 gap-6">
@@ -31,6 +32,14 @@ export default function Dashboard() {
         <StatusCards />
       </div>
     </main>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <DashboardProvider>
+      <DashboardContent />
+    </DashboardProvider>
   )
 }
 

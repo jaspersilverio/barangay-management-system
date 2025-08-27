@@ -5,6 +5,7 @@ import { createResident, updateResident, deleteResident } from '../../services/r
 import ResidentFormModal from '../residents/ResidentFormModal'
 import ConfirmModal from '../modals/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
+import { useDashboard } from '../../context/DashboardContext'
 import { FaCheck, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
 
 interface ViewResidentsModalProps {
@@ -20,6 +21,7 @@ interface ViewResidentsModalProps {
 
 export default function ViewResidentsModal({ show, onHide, household }: ViewResidentsModalProps) {
   const { user } = useAuth()
+  const { refreshData: refreshDashboard } = useDashboard()
   const [residents, setResidents] = useState<Resident[]>([])
   const [loading, setLoading] = useState(false)
   const [showResidentForm, setShowResidentForm] = useState(false)
@@ -63,6 +65,8 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
       await createResident(payload)
       setToast({ show: true, message: 'Resident created successfully', variant: 'success' })
       await loadResidents()
+      // Refresh dashboard data to update counts
+      await refreshDashboard()
       setShowResidentForm(false)
     } catch (error: any) {
       setToast({ show: true, message: error?.response?.data?.message || 'Failed to create resident', variant: 'danger' })
@@ -80,6 +84,8 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
       await updateResident(editingResident.id, payload)
       setToast({ show: true, message: 'Resident updated successfully', variant: 'success' })
       await loadResidents()
+      // Refresh dashboard data to update counts
+      await refreshDashboard()
       setShowResidentForm(false)
       setEditingResident(null)
     } catch (error: any) {
@@ -94,6 +100,8 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
       await deleteResident(showDeleteConfirm)
       setToast({ show: true, message: 'Resident deleted successfully', variant: 'success' })
       await loadResidents()
+      // Refresh dashboard data to update counts
+      await refreshDashboard()
       setShowDeleteConfirm(null)
     } catch (error: any) {
       setToast({ show: true, message: error?.response?.data?.message || 'Failed to delete resident', variant: 'danger' })

@@ -7,12 +7,14 @@ import ViewResidentsModal from '../../components/households/ViewResidentsModal'
 import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
+import { useDashboard } from '../../context/DashboardContext'
 import { FaUsers, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
 
 export default function HouseholdListPage() {
   const navigate = useNavigate()
   const { puroks } = usePuroks()
   const { user } = useAuth()
+  const { refreshData: refreshDashboard } = useDashboard()
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
@@ -59,6 +61,8 @@ export default function HouseholdListPage() {
       await deleteHousehold(showDelete)
       setToast({ show: true, message: 'Household deleted', variant: 'success' })
       await load()
+      // Refresh dashboard data to update counts
+      await refreshDashboard()
     } catch (e: any) {
       setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
     } finally {
@@ -225,6 +229,8 @@ export default function HouseholdListPage() {
             setShowForm(false)
             setEditingId(null)
             await load()
+            // Refresh dashboard data to update counts
+            await refreshDashboard()
           } catch (e: any) {
             setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
           }

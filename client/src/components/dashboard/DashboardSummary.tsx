@@ -1,19 +1,10 @@
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 import SummaryCard from './SummaryCard'
 import { Home, Users, Heart, MapPin } from 'lucide-react'
-import { getSummary } from '../../services/dashboard.service'
-import type { DashboardSummary as DashboardSummaryType } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 
 export default function DashboardSummary() {
-  const [data, setData] = useState<DashboardSummaryType | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    getSummary()
-      .then((res) => setData(res.data))
-      .catch(() => setData(null))
-      .finally(() => setLoading(false))
-  }, [])
+  const { summaryData: data, loading } = useDashboard()
 
   const totalVulnerable = data
     ? data.vulnerable_population.seniors +
