@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\NotificationController;
 use App\Models\Event;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
@@ -18,11 +20,11 @@ class EventController extends Controller
         $user = $request->user();
 
         // Role-based filtering
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only see events from their assigned purok
             $query->where('purok_id', $user->assigned_purok_id);
         }
-        // Admin, staff, and viewer users can see all events
+        // Admin can see all events
 
         // Filter by upcoming events only by default
         if ($request->get('upcoming', true)) {
@@ -73,7 +75,7 @@ class EventController extends Controller
 
         // Role-based purok assignment
         $purokId = null;
-        if ($user && $user->role === 'purok_leader') {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only create events for their assigned purok
             $purokId = $user->assigned_purok_id;
         } else {
@@ -89,6 +91,9 @@ class EventController extends Controller
             'purok_id' => $purokId,
             'created_by' => $user ? $user->id : null,
         ]);
+
+        // Create notifications
+        $this->createEventNotifications($event, $user);
 
         return response()->json([
             'success' => true,
@@ -140,7 +145,7 @@ class EventController extends Controller
         }
 
         // Role-based access control
-        if ($user && $user->role === 'purok_leader' && $event->purok_id !== $user->assigned_purok_id) {
+        if ($user->isPurokLeader() && $event->purok_id !== $user->assigned_purok_id) {
             return response()->json([
                 'success' => false,
                 'data' => null,
@@ -176,7 +181,7 @@ class EventController extends Controller
 
         // Role-based purok assignment for updates
         $purokId = null;
-        if ($user && $user->role === 'purok_leader') {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only update events for their assigned purok
             $purokId = $user->assigned_purok_id;
         } else {
@@ -218,7 +223,7 @@ class EventController extends Controller
         }
 
         // Role-based access control
-        if ($user && $user->role === 'purok_leader' && $event->purok_id !== $user->assigned_purok_id) {
+        if ($user->isPurokLeader() && $event->purok_id !== $user->assigned_purok_id) {
             return response()->json([
                 'success' => false,
                 'data' => null,
@@ -235,5 +240,40 @@ class EventController extends Controller
             'message' => 'Event deleted successfully',
             'errors' => null,
         ]);
+    }
+
+    /**
+     * Create notifications for new event
+     */
+    private function createEventNotifications($event, $user)
+    {
+        $eventDate = date('M d, Y', strtotime($event->date));
+
+        if ($event->purok_id) {
+            // Purok-level event - notify purok leader
+            $purokLeader = User::where('role', 'purok_leader')
+                ->where('assigned_purok_id', $event->purok_id)
+                ->first();
+
+            if ($purokLeader && $purokLeader->id !== $user->id) {
+                NotificationController::createUserNotification(
+                    $purokLeader->id,
+                    'New Event in Your Purok',
+                    "A new event has been scheduled: {$event->title} on {$eventDate} at {$event->location}",
+                    'event'
+                );
+            }
+        } else {
+            // Barangay-wide event - notify all users
+            $allUsers = User::where('id', '!=', $user->id)->get();
+            foreach ($allUsers as $targetUser) {
+                NotificationController::createUserNotification(
+                    $targetUser->id,
+                    'New Barangay Event',
+                    "A new barangay-wide event has been scheduled: {$event->title} on {$eventDate} at {$event->location}",
+                    'event'
+                );
+            }
+        }
     }
 }

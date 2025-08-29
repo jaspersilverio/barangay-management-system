@@ -6,8 +6,8 @@ import { useEffect } from 'react'
 
 const schema = z.object({
   name: z.string().min(1, 'Purok Name is required'),
-  captain: z.string().min(1, 'Purok Captain is required'),
-  contact: z.string().min(1, 'Captain Contact is required'),
+  captain: z.string().min(1, 'Purok Leader is required'),
+  contact: z.string().min(1, 'Leader Contact is required'),
 })
 
 export type PurokFormValues = z.infer<typeof schema>
@@ -45,9 +45,9 @@ export default function PurokFormModal({ show, initial, onSubmit, onHide }: Prop
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Purok Captain</Form.Label>
+            <Form.Label>Purok Leader</Form.Label>
             <Form.Control 
-              placeholder="Enter captain name" 
+              placeholder="Enter leader name" 
               {...register('captain')} 
               isInvalid={!!errors.captain} 
             />
@@ -55,7 +55,7 @@ export default function PurokFormModal({ show, initial, onSubmit, onHide }: Prop
           </Form.Group>
           
           <Form.Group className="mb-3">
-            <Form.Label>Captain Contact</Form.Label>
+            <Form.Label>Leader Contact</Form.Label>
             <Form.Control 
               placeholder="Enter contact number" 
               {...register('contact')} 

@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Nav, Tab } from 'react-bootstrap'
-import { Settings as SettingsIcon, Building, Cog, Phone } from 'lucide-react'
+import { Settings as SettingsIcon, Building, Cog, Phone, Sun, Moon, Monitor } from 'lucide-react'
 import { getSettings, updateBarangayInfo, updatePreferences, updateEmergency, type Settings, type BarangayInfo, type SystemPreferences, type EmergencySettings, type EmergencyContact, type EvacuationCenter } from '../services/settings.service'
+import { useTheme } from '../context/ThemeContext'
 
 export default function Settings() {
+  const { theme: currentTheme, setTheme } = useTheme()
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -40,9 +42,9 @@ export default function Settings() {
       
       if (response.success) {
         setSettings(response.data)
-        setBarangayInfo(response.data.barangay_info)
-        setPreferences(response.data.system_preferences)
-        setEmergency(response.data.emergency)
+        setBarangayInfo(response.data.barangay_info || { name: '', address: '', contact: '', logo_path: '' })
+        setPreferences(response.data.system_preferences || { theme: 'light', per_page: 10, date_format: 'YYYY-MM-DD' })
+        setEmergency(response.data.emergency || { contact_numbers: [], evacuation_centers: [] })
       } else {
         setError(response.message || 'Failed to load settings')
       }
@@ -85,11 +87,21 @@ export default function Settings() {
       if (response.success) {
         setSuccess('System preferences updated successfully')
         setSettings(prev => prev ? { ...prev, system_preferences: response.data } : null)
+        // Apply theme change immediately
+        setTheme(preferences.theme)
       } else {
         setError(response.message || 'Failed to update system preferences')
+        // Revert theme if save failed
+        if (settings?.system_preferences?.theme) {
+          setTheme(settings.system_preferences.theme)
+        }
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to update system preferences')
+      // Revert theme if save failed
+      if (settings?.system_preferences?.theme) {
+        setTheme(settings.system_preferences.theme)
+      }
     } finally {
       setSaving(null)
     }
@@ -119,21 +131,21 @@ export default function Settings() {
   const addEmergencyContact = () => {
     setEmergency(prev => ({
       ...prev,
-      contact_numbers: [...prev.contact_numbers, { name: '', number: '' }]
+      contact_numbers: [...(prev.contact_numbers || []), { name: '', number: '' }]
     }))
   }
 
   const removeEmergencyContact = (index: number) => {
     setEmergency(prev => ({
       ...prev,
-      contact_numbers: prev.contact_numbers.filter((_, i) => i !== index)
+      contact_numbers: (prev.contact_numbers || []).filter((_, i) => i !== index)
     }))
   }
 
   const updateEmergencyContact = (index: number, field: keyof EmergencyContact, value: string) => {
     setEmergency(prev => ({
       ...prev,
-      contact_numbers: prev.contact_numbers.map((contact, i) => 
+      contact_numbers: (prev.contact_numbers || []).map((contact, i) => 
         i === index ? { ...contact, [field]: value } : contact
       )
     }))
@@ -142,24 +154,38 @@ export default function Settings() {
   const addEvacuationCenter = () => {
     setEmergency(prev => ({
       ...prev,
-      evacuation_centers: [...prev.evacuation_centers, { name: '', address: '', capacity: 0 }]
+      evacuation_centers: [...(prev.evacuation_centers || []), { name: '', address: '', capacity: 0 }]
     }))
   }
 
   const removeEvacuationCenter = (index: number) => {
     setEmergency(prev => ({
       ...prev,
-      evacuation_centers: prev.evacuation_centers.filter((_, i) => i !== index)
+      evacuation_centers: (prev.evacuation_centers || []).filter((_, i) => i !== index)
     }))
   }
 
   const updateEvacuationCenter = (index: number, field: keyof EvacuationCenter, value: string | number) => {
     setEmergency(prev => ({
       ...prev,
-      evacuation_centers: prev.evacuation_centers.map((center, i) => 
+      evacuation_centers: (prev.evacuation_centers || []).map((center, i) => 
         i === index ? { ...center, [field]: value } : center
       )
     }))
+  }
+
+  const handleThemeChange = (newTheme: 'light' | 'dark') => {
+    setPreferences(prev => ({ ...prev, theme: newTheme }))
+    // Apply theme change immediately for preview
+    setTheme(newTheme)
+  }
+
+  const getThemeIcon = (theme: string) => {
+    switch (theme) {
+      case 'light': return <Sun className="h-4 w-4" />
+      case 'dark': return <Moon className="h-4 w-4" />
+      default: return <Monitor className="h-4 w-4" />
+    }
   }
 
   if (loading) {
@@ -293,50 +319,107 @@ export default function Settings() {
                   {/* System Preferences Tab */}
                   <Tab.Pane eventKey="preferences">
                     <h4 className="mb-4">System Preferences</h4>
-                    <Form>
-                      <Row>
-                        <Col md={4}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Theme *</Form.Label>
-                            <Form.Select
-                              value={preferences.theme}
-                              onChange={(e) => setPreferences(prev => ({ ...prev, theme: e.target.value as 'light' | 'dark' }))}
-                            >
-                              <option value="light">Light</option>
-                              <option value="dark">Dark</option>
-                            </Form.Select>
-                          </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Items per Page *</Form.Label>
-                            <Form.Select
-                              value={preferences.per_page}
-                              onChange={(e) => setPreferences(prev => ({ ...prev, per_page: Number(e.target.value) }))}
-                            >
-                              <option value={5}>5</option>
-                              <option value={10}>10</option>
-                              <option value={15}>15</option>
-                              <option value={25}>25</option>
-                              <option value={50}>50</option>
-                            </Form.Select>
-                          </Form.Group>
-                        </Col>
-                        <Col md={4}>
-                          <Form.Group className="mb-3">
-                            <Form.Label>Date Format *</Form.Label>
-                            <Form.Select
-                              value={preferences.date_format}
-                              onChange={(e) => setPreferences(prev => ({ ...prev, date_format: e.target.value }))}
-                            >
-                              <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                              <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                              <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                              <option value="MMMM DD, YYYY">MMMM DD, YYYY</option>
-                            </Form.Select>
-                          </Form.Group>
-                        </Col>
-                      </Row>
+                    
+                    {/* Theme Selection */}
+                    <Card className="mb-4">
+                      <Card.Header>
+                        <h6 className="mb-0">Theme Settings</h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Application Theme *</Form.Label>
+                              <div className="d-flex gap-2">
+                                <Button
+                                  variant={preferences.theme === 'light' ? 'primary' : 'outline-primary'}
+                                  onClick={() => handleThemeChange('light')}
+                                  className="d-flex align-items-center gap-2"
+                                >
+                                  <Sun className="h-4 w-4" />
+                                  Light Mode
+                                </Button>
+                                <Button
+                                  variant={preferences.theme === 'dark' ? 'primary' : 'outline-primary'}
+                                  onClick={() => handleThemeChange('dark')}
+                                  className="d-flex align-items-center gap-2"
+                                >
+                                  <Moon className="h-4 w-4" />
+                                  Dark Mode
+                                </Button>
+                              </div>
+                              <Form.Text className="text-muted">
+                                Choose your preferred theme. Changes are applied immediately for preview.
+                              </Form.Text>
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <div className="p-3 border rounded">
+                              <h6 className="mb-2">Theme Preview</h6>
+                              <div className={`p-3 rounded ${preferences.theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
+                                <div className="d-flex align-items-center gap-2 mb-2">
+                                  {getThemeIcon(preferences.theme)}
+                                  <span className="fw-bold">Sample Content</span>
+                                </div>
+                                <p className="mb-2 small">This is how your interface will look with the selected theme.</p>
+                                <div className="d-flex gap-2">
+                                  <Button size="sm" variant="primary">Primary Button</Button>
+                                  <Button size="sm" variant="secondary">Secondary Button</Button>
+                                </div>
+                              </div>
+                            </div>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+
+                    {/* Other Preferences */}
+                    <Card className="mb-4">
+                      <Card.Header>
+                        <h6 className="mb-0">Display Settings</h6>
+                      </Card.Header>
+                      <Card.Body>
+                        <Row>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Items per Page *</Form.Label>
+                              <Form.Select
+                                value={preferences.per_page}
+                                onChange={(e) => setPreferences(prev => ({ ...prev, per_page: Number(e.target.value) }))}
+                              >
+                                <option value={5}>5 items</option>
+                                <option value={10}>10 items</option>
+                                <option value={15}>15 items</option>
+                                <option value={25}>25 items</option>
+                                <option value={50}>50 items</option>
+                              </Form.Select>
+                              <Form.Text className="text-muted">
+                                Number of items displayed per page in lists and tables.
+                              </Form.Text>
+                            </Form.Group>
+                          </Col>
+                          <Col md={6}>
+                            <Form.Group className="mb-3">
+                              <Form.Label>Date Format *</Form.Label>
+                              <Form.Select
+                                value={preferences.date_format}
+                                onChange={(e) => setPreferences(prev => ({ ...prev, date_format: e.target.value }))}
+                              >
+                                <option value="YYYY-MM-DD">YYYY-MM-DD (2025-08-28)</option>
+                                <option value="MM/DD/YYYY">MM/DD/YYYY (08/28/2025)</option>
+                                <option value="DD/MM/YYYY">DD/MM/YYYY (28/08/2025)</option>
+                                <option value="MMMM DD, YYYY">MMMM DD, YYYY (August 28, 2025)</option>
+                              </Form.Select>
+                              <Form.Text className="text-muted">
+                                How dates are displayed throughout the application.
+                              </Form.Text>
+                            </Form.Group>
+                          </Col>
+                        </Row>
+                      </Card.Body>
+                    </Card>
+
+                    <div className="d-flex gap-2">
                       <Button
                         variant="primary"
                         onClick={handlePreferencesSave}
@@ -346,7 +429,20 @@ export default function Settings() {
                         {saving === 'preferences' && <Spinner animation="border" size="sm" />}
                         Save Preferences
                       </Button>
-                    </Form>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          // Revert to original settings
+                          if (settings?.system_preferences) {
+                            setPreferences(settings.system_preferences)
+                            setTheme(settings.system_preferences.theme)
+                          }
+                        }}
+                        disabled={saving === 'preferences'}
+                      >
+                        Cancel Changes
+                      </Button>
+                    </div>
                   </Tab.Pane>
 
                   {/* Emergency Settings Tab */}
@@ -364,7 +460,7 @@ export default function Settings() {
                         </div>
                       </Card.Header>
                       <Card.Body>
-                        {emergency.contact_numbers.map((contact, index) => (
+                        {(emergency.contact_numbers || []).map((contact, index) => (
                           <Row key={index} className="mb-3">
                             <Col md={5}>
                               <Form.Control
@@ -393,7 +489,7 @@ export default function Settings() {
                             </Col>
                           </Row>
                         ))}
-                        {emergency.contact_numbers.length === 0 && (
+                        {(emergency.contact_numbers || []).length === 0 && (
                           <p className="text-muted text-center py-3">No emergency contacts added</p>
                         )}
                       </Card.Body>
@@ -410,7 +506,7 @@ export default function Settings() {
                         </div>
                       </Card.Header>
                       <Card.Body>
-                        {emergency.evacuation_centers.map((center, index) => (
+                        {(emergency.evacuation_centers || []).map((center, index) => (
                           <Row key={index} className="mb-3">
                             <Col md={3}>
                               <Form.Control
@@ -447,7 +543,7 @@ export default function Settings() {
                             </Col>
                           </Row>
                         ))}
-                        {emergency.evacuation_centers.length === 0 && (
+                        {(emergency.evacuation_centers || []).length === 0 && (
                           <p className="text-muted text-center py-3">No evacuation centers added</p>
                         )}
                       </Card.Body>

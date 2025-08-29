@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\NotificationController;
 use App\Http\Requests\Resident\StoreResidentRequest;
 use App\Http\Requests\Resident\UpdateResidentRequest;
 use App\Models\Resident;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ResidentController extends Controller
@@ -15,13 +17,13 @@ class ResidentController extends Controller
         $user = $request->user();
 
         // Role-based filtering for purok leaders
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             $query->whereHas('household', function ($q) use ($user) {
                 $q->where('purok_id', $user->assigned_purok_id);
             });
         }
 
-        // Filter by purok_id (for admin/staff)
+        // Filter by purok_id (for admin)
         if ($purokId = $request->string('purok_id')->toString()) {
             $query->whereHas('household', function ($q) use ($purokId) {
                 $q->where('purok_id', $purokId);
@@ -91,7 +93,7 @@ class ResidentController extends Controller
         $data = $request->validated();
 
         // Auto-assign purok_id for purok leaders
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             // Verify that the household belongs to the assigned purok
             $household = \App\Models\Household::find($data['household_id']);
             if (!$household || $household->purok_id != $user->assigned_purok_id) {
@@ -100,6 +102,10 @@ class ResidentController extends Controller
         }
 
         $resident = Resident::create($data);
+
+        // Create notifications
+        $this->createResidentNotifications($resident, $user);
+
         return $this->respondSuccess($resident, 'Resident created', 201);
     }
 
@@ -108,7 +114,7 @@ class ResidentController extends Controller
         $user = $request->user();
 
         // Check if purok leader can access this resident
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             if ($resident->household->purok_id != $user->assigned_purok_id) {
                 return $this->respondError('Access denied.', null, 403);
             }
@@ -150,7 +156,7 @@ class ResidentController extends Controller
         $user = $request->user();
 
         // Check if purok leader can edit this resident
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             if ($resident->household->purok_id != $user->assigned_purok_id) {
                 return $this->respondError('You can only edit residents in your assigned purok.', null, 403);
             }
@@ -159,7 +165,7 @@ class ResidentController extends Controller
         $data = $request->validated();
 
         // For purok leaders, ensure they can't change the household to one outside their purok
-        if ($user && $user->role === 'purok_leader' && isset($data['household_id']) && $user->assigned_purok_id) {
+        if ($user->isPurokLeader() && isset($data['household_id'])) {
             $household = \App\Models\Household::find($data['household_id']);
             if (!$household || $household->purok_id != $user->assigned_purok_id) {
                 return $this->respondError('You can only assign residents to households in your assigned purok.', null, 403);
@@ -175,7 +181,7 @@ class ResidentController extends Controller
         $user = $request->user();
 
         // Check if purok leader can delete this resident
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             if ($resident->household->purok_id != $user->assigned_purok_id) {
                 return $this->respondError('You can only delete residents in your assigned purok.', null, 403);
             }
@@ -183,5 +189,41 @@ class ResidentController extends Controller
 
         $resident->delete();
         return $this->respondSuccess(null, 'Resident deleted');
+    }
+
+    /**
+     * Create notifications for new resident
+     */
+    private function createResidentNotifications($resident, $user)
+    {
+        $fullName = trim($resident->first_name . ' ' . ($resident->middle_name ? $resident->middle_name . ' ' : '') . $resident->last_name);
+        $householdAddress = $resident->household->address ?? 'Unknown address';
+
+        // Notify admin
+        $adminUsers = User::where('role', 'admin')->get();
+        foreach ($adminUsers as $admin) {
+            NotificationController::createUserNotification(
+                $admin->id,
+                'New Resident Added',
+                "A new resident has been added: {$fullName} at {$householdAddress}",
+                'resident'
+            );
+        }
+
+        // Notify purok leader if different from the user who created it
+        if ($resident->household->purok_id && $user->role !== 'purok_leader') {
+            $purokLeader = User::where('role', 'purok_leader')
+                ->where('assigned_purok_id', $resident->household->purok_id)
+                ->first();
+
+            if ($purokLeader) {
+                NotificationController::createUserNotification(
+                    $purokLeader->id,
+                    'New Resident in Your Purok',
+                    "A new resident has been added to your purok: {$fullName} at {$householdAddress}",
+                    'resident'
+                );
+            }
+        }
     }
 }

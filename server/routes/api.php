@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\HouseholdController;
 use App\Http\Controllers\LandmarkController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PurokController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResidentController;
@@ -26,6 +27,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me', [AuthController::class, 'me']);
 
+    // Notification routes
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::get('/notifications/bell', [NotificationController::class, 'bell']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
     // Dashboard routes (all authenticated users can access)
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('/dashboard/analytics', [DashboardController::class, 'analytics']);
@@ -34,8 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/recent-activities', [DashboardController::class, 'recentActivities']);
     Route::get('/dashboard/upcoming-events', [DashboardController::class, 'upcomingEvents']);
 
-    // Read-only routes (viewer access)
-    Route::middleware('role:viewer,staff,purok_leader,admin')->group(function () {
+    // Read-only routes (all authenticated users)
+    Route::middleware('role:admin,purok_leader')->group(function () {
         Route::get('/puroks', [PurokController::class, 'index']);
         Route::get('/puroks/{purok}', [PurokController::class, 'show']);
         Route::get('/households', [HouseholdController::class, 'index']);
@@ -51,8 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/events/{event}', [EventController::class, 'show']);
     });
 
-    // Reports (viewer access)
-    Route::middleware('role:viewer,staff,purok_leader,admin')->group(function () {
+    // Reports (admin only - purok leaders get filtered data)
+    Route::middleware('role:admin')->group(function () {
         Route::get('/reports/households', [ReportController::class, 'households']);
         Route::get('/reports/residents', [ReportController::class, 'residents']);
         Route::get('/reports/puroks', [ReportController::class, 'puroks']);
@@ -61,32 +68,22 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/reports/export', [ReportController::class, 'export']);
     });
 
-    // Audit logs (staff and admin access)
-    Route::middleware('role:staff,admin')->group(function () {
-        Route::get('/audit-logs', [AuditLogController::class, 'index']);
-        Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
-    });
-
-    // CRUD operations (staff and admin access)
-    Route::middleware('role:staff,admin')->group(function () {
-        // Puroks management
+    // Puroks management (admin only)
+    Route::middleware('role:admin')->group(function () {
         Route::post('/puroks', [PurokController::class, 'store']);
         Route::put('/puroks/{purok}', [PurokController::class, 'update']);
         Route::delete('/puroks/{purok}', [PurokController::class, 'destroy']);
+    });
 
-        // Landmarks management
+    // Landmarks management (admin only)
+    Route::middleware('role:admin')->group(function () {
         Route::post('/landmarks', [LandmarkController::class, 'store']);
         Route::put('/landmarks/{landmark}', [LandmarkController::class, 'update']);
         Route::delete('/landmarks/{landmark}', [LandmarkController::class, 'destroy']);
-
-        // Events management
-        Route::post('/events', [EventController::class, 'store']);
-        Route::put('/events/{event}', [EventController::class, 'update']);
-        Route::delete('/events/{event}', [EventController::class, 'destroy']);
     });
 
-    // Household and Resident management (purok leaders, staff, and admin access)
-    Route::middleware('role:purok_leader,staff,admin')->group(function () {
+    // Household and Resident management (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
         Route::post('/households', [HouseholdController::class, 'store']);
         Route::put('/households/{household}', [HouseholdController::class, 'update']);
         Route::delete('/households/{household}', [HouseholdController::class, 'destroy']);
@@ -95,11 +92,17 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/residents/{resident}', [ResidentController::class, 'destroy']);
     });
 
-    // Events management (purok leaders, staff, and admin access)
-    Route::middleware('role:purok_leader,staff,admin')->group(function () {
+    // Events management (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
         Route::post('/events', [EventController::class, 'store']);
         Route::put('/events/{event}', [EventController::class, 'update']);
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
+    });
+
+    // Audit logs (admin only)
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
+        Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
     });
 
     // Admin only routes

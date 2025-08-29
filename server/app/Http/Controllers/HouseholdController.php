@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\NotificationController;
 use App\Http\Requests\Household\StoreHouseholdRequest;
 use App\Http\Requests\Household\UpdateHouseholdRequest;
 use App\Models\Household;
@@ -17,11 +18,11 @@ class HouseholdController extends Controller
         $user = $request->user();
 
         // Role-based filtering
-        if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only see households from their assigned purok
             $query->where('purok_id', $user->assigned_purok_id);
         }
-        // Admin, staff, and viewer users can see all households
+        // Admin can see all households
 
         if ($search = $request->string('search')->toString()) {
             $query->search($search);
@@ -55,13 +56,17 @@ class HouseholdController extends Controller
         $data = $request->validated();
 
         // Role-based purok assignment
-        if ($user && $user->role === 'purok_leader') {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only create households in their assigned purok
             $data['purok_id'] = $user->assigned_purok_id;
         }
-        // Admin and staff can assign any purok
+        // Admin can assign any purok
 
         $household = Household::create($data);
+
+        // Create notifications
+        $this->createHouseholdNotifications($household, $user);
+
         return $this->respondSuccess($household, 'Household created', 201);
     }
 
@@ -77,16 +82,16 @@ class HouseholdController extends Controller
         $data = $request->validated();
 
         // Role-based access control
-        if ($user && $user->role === 'purok_leader' && $household->purok_id !== $user->assigned_purok_id) {
+        if ($user->isPurokLeader() && $household->purok_id !== $user->assigned_purok_id) {
             return $this->respondError('You can only edit households in your assigned purok', null, 403);
         }
 
         // Role-based purok assignment for updates
-        if ($user && $user->role === 'purok_leader') {
+        if ($user->isPurokLeader()) {
             // Purok leaders can only update households in their assigned purok
             $data['purok_id'] = $user->assigned_purok_id;
         }
-        // Admin and staff can assign any purok
+        // Admin can assign any purok
 
         $household->update($data);
         return $this->respondSuccess($household, 'Household updated');
@@ -97,7 +102,7 @@ class HouseholdController extends Controller
         $user = $request->user();
 
         // Role-based access control
-        if ($user && $user->role === 'purok_leader' && $household->purok_id !== $user->assigned_purok_id) {
+        if ($user->isPurokLeader() && $household->purok_id !== $user->assigned_purok_id) {
             return $this->respondError('You can only delete households in your assigned purok', null, 403);
         }
 
@@ -177,5 +182,38 @@ class HouseholdController extends Controller
         });
 
         return $this->respondSuccess($formattedHouseholds);
+    }
+
+    /**
+     * Create notifications for new household
+     */
+    private function createHouseholdNotifications($household, $user)
+    {
+        // Notify admin
+        $adminUsers = User::where('role', 'admin')->get();
+        foreach ($adminUsers as $admin) {
+            NotificationController::createUserNotification(
+                $admin->id,
+                'New Household Added',
+                "A new household has been added: {$household->head_name} at {$household->address}",
+                'household'
+            );
+        }
+
+        // Notify purok leader if different from the user who created it
+        if ($household->purok_id && $user->role !== 'purok_leader') {
+            $purokLeader = User::where('role', 'purok_leader')
+                ->where('assigned_purok_id', $household->purok_id)
+                ->first();
+
+            if ($purokLeader) {
+                NotificationController::createUserNotification(
+                    $purokLeader->id,
+                    'New Household in Your Purok',
+                    "A new household has been added to your purok: {$household->head_name} at {$household->address}",
+                    'household'
+                );
+            }
+        }
     }
 }

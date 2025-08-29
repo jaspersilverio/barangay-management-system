@@ -3,7 +3,7 @@
 export type Purok = {
   id: number
   name: string
-  captain?: string | null
+  captain?: string | null  // This is the database field name, but UI shows "Leader"
   contact?: string | null
   created_at: string
   updated_at: string

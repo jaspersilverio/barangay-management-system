@@ -41,18 +41,6 @@ class RoleMiddleware
                         break 2;
                     }
                     break;
-                case 'staff':
-                    if ($user->isStaff()) {
-                        $hasRole = true;
-                        break 2;
-                    }
-                    break;
-                case 'viewer':
-                    if ($user->isViewer()) {
-                        $hasRole = true;
-                        break 2;
-                    }
-                    break;
             }
         }
 

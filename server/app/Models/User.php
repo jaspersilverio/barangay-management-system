@@ -68,14 +68,4 @@ class User extends Authenticatable
     {
         return $this->role === 'purok_leader';
     }
-
-    public function isStaff(): bool
-    {
-        return $this->role === 'staff';
-    }
-
-    public function isViewer(): bool
-    {
-        return $this->role === 'viewer';
-    }
 }

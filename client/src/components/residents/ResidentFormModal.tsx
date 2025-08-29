@@ -2,14 +2,12 @@ import { Modal, Button, Form, Row, Col } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { usePuroks } from '../../context/PurokContext'
-import { useAuth } from '../../context/AuthContext'
 import { useEffect, useState } from 'react'
 import Select from 'react-select'
 import { getHouseholdsForResidentForm, type HouseholdOption } from '../../services/households.service'
 
-// Dynamic schema based on user role
-const createSchema = (isPurokLeader: boolean) => z.object({
+// Schema for resident form
+const schema = z.object({
   household_id: z.union([z.string(), z.number()]),
   first_name: z.string().min(1, 'First name is required'),
   middle_name: z.string().optional(),
@@ -19,12 +17,9 @@ const createSchema = (isPurokLeader: boolean) => z.object({
   relationship_to_head: z.string().min(1, 'Relationship is required'),
   occupation_status: z.enum(['employed', 'unemployed', 'student', 'retired', 'other']),
   is_pwd: z.boolean().default(false),
-  purok_id: isPurokLeader 
-    ? z.string().optional() // Optional for purok leaders (auto-assigned)
-    : z.string().min(1, 'Purok is required'), // Required for others
 })
 
-export type ResidentFormValues = z.infer<ReturnType<typeof createSchema>>
+export type ResidentFormValues = z.infer<typeof schema>
 
 type Props = {
   show: boolean
@@ -34,18 +29,11 @@ type Props = {
 }
 
 export default function ResidentFormModal({ show, initial, onSubmit, onHide }: Props) {
-  const { puroks } = usePuroks()
-  const { user } = useAuth()
   const [households, setHouseholds] = useState<HouseholdOption[]>([])
   const [loadingHouseholds, setLoadingHouseholds] = useState(false)
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdOption | null>(null)
 
-  // Determine if user is a purok leader
-  const isPurokLeader = user?.role === 'purok_leader'
-  const assignedPurokId = user?.assigned_purok_id
-
-  const schema = createSchema(isPurokLeader)
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue, watch } = useForm<ResidentFormValues>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<ResidentFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       household_id: '',
@@ -57,7 +45,6 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       relationship_to_head: '',
       occupation_status: 'other',
       is_pwd: false,
-      purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
     },
   })
 
@@ -106,7 +93,6 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
         relationship_to_head: '',
         occupation_status: 'other' as const,
         is_pwd: false,
-        purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
         ...initial,
       }
       
@@ -126,7 +112,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       reset()
       setSelectedHousehold(null)
     }
-  }, [show, initial, reset, households, isPurokLeader, assignedPurokId])
+  }, [show, initial, reset, households])
 
   // Update household selection when households load and we have initial data
   useEffect(() => {
@@ -173,12 +159,12 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                       loadHouseholds(newValue)
                     }
                   }}
-                  styles={{
-                    control: (provided, state) => ({
-                      ...provided,
-                      borderColor: errors.household_id ? '#dc3545' : provided.borderColor,
-                    }),
-                  }}
+                                     styles={{
+                     control: (provided) => ({
+                       ...provided,
+                       borderColor: errors.household_id ? '#dc3545' : provided.borderColor,
+                     }),
+                   }}
                 />
                 {errors.household_id && (
                   <div className="text-danger mt-1" style={{ fontSize: '0.875rem' }}>
@@ -195,32 +181,14 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label>Purok</Form.Label>
-                {isPurokLeader ? (
-                  <>
-                    <Form.Control
-                      type="text"
-                      value={puroks.find(p => p.id === assignedPurokId)?.name || 'Your Assigned Purok'}
-                      disabled
-                    />
-                    <Form.Text className="text-muted">
-                      You can only manage residents in your assigned purok.
-                    </Form.Text>
-                    {/* Hidden input to include purok_id in form submission */}
-                    <input type="hidden" {...register('purok_id')} defaultValue={assignedPurokId ? String(assignedPurokId) : ''} />
-                  </>
-                ) : (
-                  <>
-                    <Form.Select {...register('purok_id')} isInvalid={!!errors.purok_id}>
-                      <option value="">Select Purok</option>
-                      {puroks.map((purok) => (
-                        <option key={purok.id} value={purok.id}>
-                          {purok.name}
-                        </option>
-                      ))}
-                    </Form.Select>
-                    <Form.Control.Feedback type="invalid">{errors.purok_id?.message}</Form.Control.Feedback>
-                  </>
-                )}
+                <Form.Control
+                  type="text"
+                  value={selectedHousehold?.purok_name || 'Select a household to see purok'}
+                  disabled
+                />
+                <Form.Text className="text-muted">
+                  Purok is determined by the selected household
+                </Form.Text>
               </Form.Group>
             </Col>
             <Col md={6}>

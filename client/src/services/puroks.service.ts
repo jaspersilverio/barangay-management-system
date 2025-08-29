@@ -3,7 +3,7 @@ import api from './api'
 export type Purok = {
   id: number
   name: string
-  captain?: string | null
+  captain?: string | null  // This is the database field name, but UI shows "Leader"
   contact?: string | null
   created_at: string
   updated_at: string
@@ -17,7 +17,7 @@ export type PurokFilters = {
 
 export type CreatePurokPayload = {
   name: string
-  captain?: string
+  captain?: string  // This is the database field name, but UI shows "Leader"
   contact?: string
 }
 

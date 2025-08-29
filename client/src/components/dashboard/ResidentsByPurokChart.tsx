@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   BarChart,
   Bar,
@@ -9,7 +10,7 @@ import {
 } from 'recharts'
 import { useDashboard } from '../../context/DashboardContext'
 
-export default function DashboardCharts() {
+export default function ResidentsByPurokChart() {
   const { summaryData, loading, error } = useDashboard()
 
   if (loading) {
@@ -36,12 +37,12 @@ export default function DashboardCharts() {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={summaryData.households_by_purok}>
+      <BarChart data={summaryData.residents_by_purok}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="purok" />
         <YAxis />
         <Tooltip />
-        <Bar dataKey="count" fill="#059669" />
+        <Bar dataKey="count" fill="#3B82F6" />
       </BarChart>
     </ResponsiveContainer>
   )

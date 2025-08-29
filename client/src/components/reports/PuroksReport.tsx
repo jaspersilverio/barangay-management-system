@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Row, Col, Card, Button, Table, Badge, Alert, Spinner } from 'react-bootstrap'
 import { Download, BarChart3, Users, Home, MapPin, Phone } from 'lucide-react'
 import { getPuroksReport, exportReport, type PurokReport } from '../../services/reports.service'
@@ -219,7 +219,7 @@ export default function PuroksReport() {
             <thead className="table-light">
               <tr>
                 <th>Purok</th>
-                <th>Captain</th>
+                                    <th>Leader</th>
                 <th>Contact</th>
                 <th>Households</th>
                 <th>Residents</th>

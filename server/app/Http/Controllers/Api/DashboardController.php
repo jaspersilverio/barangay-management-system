@@ -13,11 +13,25 @@ class DashboardController extends Controller
 {
     public function summary()
     {
+        $user = request()->user();
         $now = Carbon::now();
 
-        $totalHouseholds = Household::query()->count();
-        $totalResidents = Resident::query()->count();
-        $purokCount = Purok::query()->count();
+        // Apply role-based filtering
+        $householdQuery = Household::query();
+        $residentQuery = Resident::query();
+        $purokQuery = Purok::query();
+
+        if ($user->isPurokLeader()) {
+            $householdQuery->where('purok_id', $user->assigned_purok_id);
+            $residentQuery->whereHas('household', function ($q) use ($user) {
+                $q->where('purok_id', $user->assigned_purok_id);
+            });
+            $purokQuery->where('id', $user->assigned_purok_id);
+        }
+
+        $totalHouseholds = $householdQuery->count();
+        $totalResidents = $residentQuery->count();
+        $purokCount = $purokQuery->count();
 
         // Seed minimal demo data if database is empty
         if ($totalHouseholds === 0 && $totalResidents === 0 && $purokCount === 0) {
@@ -83,18 +97,18 @@ class DashboardController extends Controller
             $purokCount = Purok::query()->count();
         }
 
-        $seniors = Resident::query()
+        $seniors = $residentQuery->clone()
             ->whereDate('birthdate', '<=', $now->copy()->subYears(60)->toDateString())
             ->count();
 
-        $infants = Resident::query()
+        $infants = $residentQuery->clone()
             ->whereDate('birthdate', '>=', $now->copy()->subYears(1)->toDateString())
             ->count();
 
-        $pwd = Resident::query()->where('is_pwd', true)->count();
+        $pwd = $residentQuery->clone()->where('is_pwd', true)->count();
 
         // Temporary rule for pregnant: female and occupation_status = 'other'
-        $pregnant = Resident::query()
+        $pregnant = $residentQuery->clone()
             ->where('sex', 'female')
             ->where('occupation_status', 'other')
             ->count();
@@ -102,11 +116,16 @@ class DashboardController extends Controller
         $activePuroks = $purokCount;
 
         // Get residents by purok
-        $residentsByPurok = Purok::withCount('households')
+        $residentsByPurokQuery = Purok::withCount('households')
             ->withCount(['households as residents_count' => function ($query) {
                 $query->withCount('residents');
-            }])
-            ->orderBy('name')
+            }]);
+
+        if ($user->isPurokLeader()) {
+            $residentsByPurokQuery->where('id', $user->assigned_purok_id);
+        }
+
+        $residentsByPurok = $residentsByPurokQuery->orderBy('name')
             ->get()
             ->map(function ($purok) {
                 // Calculate total residents for this purok
@@ -122,8 +141,13 @@ class DashboardController extends Controller
             });
 
         // Get households by purok
-        $householdsByPurok = Purok::withCount('households')
-            ->orderBy('name')
+        $householdsByPurokQuery = Purok::withCount('households');
+
+        if ($user->isPurokLeader()) {
+            $householdsByPurokQuery->where('id', $user->assigned_purok_id);
+        }
+
+        $householdsByPurok = $householdsByPurokQuery->orderBy('name')
             ->get()
             ->map(function ($purok) {
                 return [
@@ -151,11 +175,22 @@ class DashboardController extends Controller
 
     public function analytics()
     {
+        $user = request()->user();
         $now = Carbon::now();
 
+        // Apply role-based filtering
+        $residentQuery = Resident::query();
+        $purokQuery = Purok::withCount('households');
+
+        if ($user->isPurokLeader()) {
+            $residentQuery->whereHas('household', function ($q) use ($user) {
+                $q->where('purok_id', $user->assigned_purok_id);
+            });
+            $purokQuery->where('id', $user->assigned_purok_id);
+        }
+
         // Households by purok - include all puroks with counts
-        $householdsByPurok = Purok::withCount('households')
-            ->orderBy('name')
+        $householdsByPurok = $purokQuery->orderBy('name')
             ->get()
             ->map(function ($purok) {
                 return [
@@ -165,16 +200,16 @@ class DashboardController extends Controller
             });
 
         // Residents by age group
-        $children = Resident::query()
+        $children = $residentQuery->clone()
             ->whereDate('birthdate', '>', $now->copy()->subYears(18)->toDateString())
             ->count();
 
-        $adults = Resident::query()
+        $adults = $residentQuery->clone()
             ->whereDate('birthdate', '<=', $now->copy()->subYears(18)->toDateString())
             ->whereDate('birthdate', '>', $now->copy()->subYears(60)->toDateString())
             ->count();
 
-        $seniors = Resident::query()
+        $seniors = $residentQuery->clone()
             ->whereDate('birthdate', '<=', $now->copy()->subYears(60)->toDateString())
             ->count();
 

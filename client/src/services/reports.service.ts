@@ -55,7 +55,7 @@ export type ResidentReport = {
 export type PurokReport = {
   id: number
   name: string
-  captain: string
+  captain: string  // This is the database field name, but UI shows "Leader"
   contact: string
   household_count: number
   resident_count: number

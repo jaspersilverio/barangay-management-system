@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
 import { getPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
 import PurokFormModal from '../../components/puroks/PurokFormModal'
@@ -45,7 +45,7 @@ export default function PurokListPage() {
         <Col md={6}>
           <Form.Group className="mb-0">
             <Form.Label>Search</Form.Label>
-            <Form.Control placeholder="Purok name, captain, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Form.Control placeholder="Purok name, leader, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
           </Form.Group>
         </Col>
         <Col className="text-end">
@@ -60,8 +60,8 @@ export default function PurokListPage() {
           <thead>
             <tr>
               <th>Purok Name</th>
-              <th>Purok Captain</th>
-              <th>Captain Contact</th>
+              <th>Purok Leader</th>
+              <th>Leader Contact</th>
               <th style={{ width: 200 }}>Actions</th>
             </tr>
           </thead>
