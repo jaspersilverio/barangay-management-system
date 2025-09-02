@@ -85,6 +85,19 @@ class Resident extends Model
     }
 
     /**
+     * Get the full name of the resident.
+     */
+    public function getFullNameAttribute(): string
+    {
+        $name = $this->first_name;
+        if ($this->middle_name) {
+            $name .= ' ' . $this->middle_name;
+        }
+        $name .= ' ' . $this->last_name;
+        return $name;
+    }
+
+    /**
      * Generic search by name and relationship.
      */
     public function scopeSearch($query, string $term)

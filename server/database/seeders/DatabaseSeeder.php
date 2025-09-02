@@ -23,6 +23,7 @@ class DatabaseSeeder extends Seeder
         // Create admin user with token
         $this->call([
             CreateAdminUserSeeder::class,
+            CertificateSeeder::class,
         ]);
     }
 }

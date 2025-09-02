@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Card, Col, Container, Row } from 'react-bootstrap'
-import { MapContainer, TileLayer, ImageOverlay, FeatureGroup, Popup, Marker, useMap } from 'react-leaflet'
-import L, { CRS } from 'leaflet'
+import { MapContainer, TileLayer, FeatureGroup, Popup, Marker, useMap } from 'react-leaflet'
+import L from 'leaflet'
 import type { LatLngExpression } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import 'leaflet-draw'
+import { useAuth } from '../context/AuthContext'
 import MapToolbar from '../components/MapToolbar'
 import MapLegend from '../components/MapLegend'
 import { icons } from '../lib/mapIcons'
@@ -17,6 +18,8 @@ import type { GeoJSONFeature } from '../lib/mapStore'
 const DEFAULT_CENTER: LatLngExpression = [11.5329, 122.691] // Approx Capiz area
 
 const initialFC: GeoJSONFeatureCollection = { type: 'FeatureCollection', features: [] }
+
+
 
 function DrawControls({ onCreated, onEdited, onDeleted }: any) {
   const map = useMap()
@@ -73,7 +76,9 @@ function DrawControls({ onCreated, onEdited, onDeleted }: any) {
 }
 
 export default function InteractiveMap() {
-  const [mode, setMode] = useState<'sketch' | 'real'>('real')
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+  
   const [fc, setFc] = useState<GeoJSONFeatureCollection>(() => loadFromLocalStorage() || initialFC)
   const [layersVisible, setLayersVisible] = useState<Record<string, boolean>>({
     markers: true,
@@ -81,7 +86,7 @@ export default function InteractiveMap() {
     polylines: true,
   })
 
-  const sketchBounds = useMemo(() => new L.LatLngBounds([0, 0], [1000, 1500]), []) // image pixels h,w
+
 
   const handleCreated = (layer: any, type: string, label: string) => {
     let geometry: GeoJSONFeature['geometry']
@@ -158,6 +163,8 @@ export default function InteractiveMap() {
     setLayersVisible((s) => ({ ...s, [key]: !s[key] }))
   }
 
+
+
   const asMarkerType = (t: string): MarkerType => {
     switch (t) {
       case 'household':
@@ -174,16 +181,18 @@ export default function InteractiveMap() {
     }
   }
 
+
+
   return (
     <Container fluid className="p-4">
       <Row className="g-3">
         <Col lg={9}>
           <Card className="shadow rounded-3">
-            <Card.Header className="fw-semibold">Interactive Map</Card.Header>
+            <Card.Header className="fw-semibold">
+              <span>Interactive Map</span>
+            </Card.Header>
             <Card.Body>
               <MapToolbar
-                mode={mode}
-                onToggleMode={() => setMode((m) => (m === 'real' ? 'sketch' : 'real'))}
                 onSave={onSave}
                 onLoad={onLoad}
                 onExport={onExport}
@@ -193,43 +202,27 @@ export default function InteractiveMap() {
               />
 
               <div style={{ height: 600, width: '100%' }}>
-                {mode === 'sketch' ? (
-                  <MapContainer
-                    crs={CRS.Simple}
-                    center={[500, 750] as any}
-                    zoom={-1}
-                    style={{ height: '100%', width: '100%' }}
-                    maxBounds={sketchBounds}
-                    maxBoundsViscosity={1.0}
-                  >
-                    <ImageOverlay url="/maps/poblacion-sur-sketch.png" bounds={sketchBounds} />
-                    <FeatureGroup>
-                      <DrawControls onCreated={handleCreated} onEdited={handleEdited} onDeleted={handleDeleted} />
-                    </FeatureGroup>
-                  </MapContainer>
-                ) : (
-                  <MapContainer center={DEFAULT_CENTER} zoom={15} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
-                    <FeatureGroup>
-                      <DrawControls onCreated={handleCreated} onEdited={handleEdited} onDeleted={handleDeleted} />
-                    </FeatureGroup>
+                <MapContainer center={DEFAULT_CENTER} zoom={15} style={{ height: '100%', width: '100%' }}>
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap contributors" />
+                  <FeatureGroup>
+                    <DrawControls onCreated={handleCreated} onEdited={handleEdited} onDeleted={handleDeleted} />
+                  </FeatureGroup>
 
-                    {layersVisible.markers && fc.features.filter(f => f.geometry.type === 'Point').map((f, idx) => {
-                      const [lng, lat] = f.geometry.coordinates
-                      const icon = icons[asMarkerType(f.properties.type)]
-                      return (
-                        <Marker key={`pt-${idx}`} position={[lat, lng]} icon={icon as any}>
-                          <Popup>
-                            <div>
-                              <div><strong>Type:</strong> {f.properties.type}</div>
-                              <div><strong>Label:</strong> {f.properties.label}</div>
-                            </div>
-                          </Popup>
-                        </Marker>
-                      )
-                    })}
-                  </MapContainer>
-                )}
+                  {layersVisible.markers && fc.features.filter(f => f.geometry.type === 'Point').map((f, idx) => {
+                    const [lng, lat] = f.geometry.coordinates
+                    const icon = icons[asMarkerType(f.properties.type)]
+                    return (
+                      <Marker key={`pt-${idx}`} position={[lat, lng]} icon={icon as any}>
+                        <Popup>
+                          <div>
+                            <div><strong>Type:</strong> {f.properties.type}</div>
+                            <div><strong>Label:</strong> {f.properties.label}</div>
+                          </div>
+                        </Popup>
+                      </Marker>
+                    )
+                  })}
+                </MapContainer>
               </div>
             </Card.Body>
           </Card>

@@ -25,7 +25,7 @@ api.interceptors.response.use(
       // Only logout for 401 (unauthorized), not 403 (forbidden)
       if (error.response?.status === 401) {
         localStorage.removeItem('token')
-        window.location.href = '/login'
+        // Don't redirect immediately, let the auth context handle it
       }
     }
     return Promise.reject(error)

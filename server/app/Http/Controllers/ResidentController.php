@@ -65,6 +65,7 @@ class ResidentController extends Controller
                 'first_name' => $resident->first_name,
                 'middle_name' => $resident->middle_name,
                 'last_name' => $resident->last_name,
+                'full_name' => $resident->full_name,
                 'sex' => $resident->sex,
                 'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
                 'relationship_to_head' => $resident->relationship_to_head,
@@ -189,6 +190,96 @@ class ResidentController extends Controller
 
         $resident->delete();
         return $this->respondSuccess(null, 'Resident deleted');
+    }
+
+    /**
+     * Search for existing residents
+     */
+    public function search(Request $request)
+    {
+        $query = $request->string('query')->toString();
+        $user = $request->user();
+
+        if (empty($query) || strlen($query) < 2) {
+            return $this->respondSuccess(['data' => []]);
+        }
+
+        $residentsQuery = Resident::with(['household.purok'])
+            ->where(function ($q) use ($query) {
+                $q->where('first_name', 'like', "%{$query}%")
+                    ->orWhere('middle_name', 'like', "%{$query}%")
+                    ->orWhere('last_name', 'like', "%{$query}%")
+                    ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", ["%{$query}%"]);
+            });
+
+        // Role-based filtering for purok leaders
+        if ($user->isPurokLeader()) {
+            $residentsQuery->whereHas('household', function ($q) use ($user) {
+                $q->where('purok_id', $user->assigned_purok_id);
+            });
+        }
+
+        $residents = $residentsQuery->limit(10)->get();
+
+        $formattedResidents = $residents->map(function ($resident) {
+            return [
+                'id' => $resident->id,
+                'full_name' => $resident->full_name,
+                'age' => $resident->age,
+                'sex' => $resident->sex,
+                'household_id' => $resident->household_id,
+                'household' => $resident->household ? [
+                    'id' => $resident->household->id,
+                    'head_name' => $resident->household->head_name,
+                    'address' => $resident->household->address,
+                    'purok' => $resident->household->purok ? [
+                        'id' => $resident->household->purok->id,
+                        'name' => $resident->household->purok->name,
+                    ] : null,
+                ] : null,
+            ];
+        });
+
+        return $this->respondSuccess(['data' => $formattedResidents]);
+    }
+
+    /**
+     * Link an existing resident to a household
+     */
+    public function linkToHousehold(Request $request)
+    {
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
+            'resident_id' => 'required|exists:residents,id',
+            'household_id' => 'required|exists:households,id',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->respondError('Validation failed', $validator->errors()->toArray(), 422);
+        }
+
+        $user = $request->user();
+        $resident = Resident::findOrFail($request->resident_id);
+        $household = \App\Models\Household::findOrFail($request->household_id);
+
+        // Check if purok leader can perform this action
+        if ($user->isPurokLeader()) {
+            if ($household->purok_id != $user->assigned_purok_id) {
+                return $this->respondError('You can only link residents to households in your assigned purok.', null, 403);
+            }
+        }
+
+        // Check if resident is already linked to a household
+        if ($resident->household_id) {
+            return $this->respondError('This resident is already linked to a household.', null, 422);
+        }
+
+        // Link resident to household
+        $resident->update(['household_id' => $request->household_id]);
+
+        // Load the updated resident with household data
+        $resident->load(['household.purok']);
+
+        return $this->respondSuccess($resident, 'Resident linked to household successfully');
     }
 
     /**

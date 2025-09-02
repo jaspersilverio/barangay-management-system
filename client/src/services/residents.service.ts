@@ -13,7 +13,7 @@ export type ResidentPayload = {
   purok_id?: string | number
 }
 
-export async function listResidents(params: { search?: string; page?: number; purok_id?: string | number }) {
+export async function listResidents(params: { search?: string; page?: number; purok_id?: string | number; per_page?: number }) {
   const res = await api.get('/residents', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }
@@ -35,5 +35,15 @@ export async function updateResident(id: number | string, payload: Partial<Resid
 
 export async function deleteResident(id: number | string) {
   const res = await api.delete(`/residents/${id}`)
+  return res.data as { success: boolean; data: any; message: string | null; errors: any }
+}
+
+export async function searchResidents(query: string) {
+  const res = await api.get('/residents/search', { params: { query } })
+  return res.data as { success: boolean; data: any; message: string | null; errors: any }
+}
+
+export async function linkResidentToHousehold(residentId: number, householdId: number) {
+  const res = await api.post('/residents/link-to-household', { resident_id: residentId, household_id: householdId })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }

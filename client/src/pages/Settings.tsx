@@ -5,7 +5,7 @@ import { getSettings, updateBarangayInfo, updatePreferences, updateEmergency, ty
 import { useTheme } from '../context/ThemeContext'
 
 export default function Settings() {
-  const { theme: currentTheme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

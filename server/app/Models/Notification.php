@@ -66,6 +66,12 @@ class Notification extends Model
             'household' => '🏠',
             'resident' => '🧑',
             'system' => '⚙️',
+            'certificate_request' => '📋',
+            'certificate_approved' => '✅',
+            'certificate_rejected' => '❌',
+            'certificate_released' => '📄',
+            'certificate_issued' => '📜',
+            'certificate_invalidated' => '🚫',
             default => 'ℹ️'
         };
     }

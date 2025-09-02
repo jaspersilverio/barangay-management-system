@@ -2,6 +2,7 @@ import { Link, NavLink, Outlet } from 'react-router-dom'
 import { Navbar, Container, Nav, Offcanvas, Button } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 import { NotificationProvider } from '../context/NotificationContext'
+import { useState } from 'react'
 import { 
   LayoutDashboard, 
   Users, 
@@ -12,12 +13,14 @@ import {
   FileText, 
   Settings, 
   LogOut,
-  Menu
+  Menu,
+  Award
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 
 export default function AppLayout() {
   const { user, logout } = useAuth()
+  const [showOffcanvas, setShowOffcanvas] = useState(false)
 
   const handleLogout = async () => {
     try {
@@ -26,6 +29,9 @@ export default function AppLayout() {
       console.error('Logout failed:', error)
     }
   }
+
+  const handleCloseOffcanvas = () => setShowOffcanvas(false)
+  const handleShowOffcanvas = () => setShowOffcanvas(true)
 
   // Navigation items with icons
   const getNavItems = () => {
@@ -40,10 +46,23 @@ export default function AppLayout() {
     if (user?.role === 'admin') {
       baseItems.push(
         { to: '/map', label: 'Interactive Map', icon: Map },
+        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin },
         { to: '/puroks', label: 'Puroks', icon: MapPin },
+        { to: '/certificates', label: 'Certificates', icon: Award },
         { to: '/reports', label: 'Reports', icon: FileText },
         { to: '/users', label: 'Users', icon: Users },
         { to: '/settings', label: 'Settings', icon: Settings }
+      )
+    } else if (user?.role === 'purok_leader') {
+      // Purok leaders get certificates access
+      baseItems.push(
+        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin },
+        { to: '/certificates', label: 'Certificates', icon: Award }
+      )
+    } else {
+      // Residents get sketch map access (view-only)
+      baseItems.push(
+        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin }
       )
     }
 
@@ -101,7 +120,7 @@ export default function AppLayout() {
                 variant="outline-secondary"
                 size="sm"
                 className="d-lg-none me-3"
-                onClick={() => document.getElementById('offcanvasNavbar')?.classList.add('show')}
+                onClick={handleShowOffcanvas}
               >
                 <Menu size={20} />
               </Button>
@@ -137,11 +156,19 @@ export default function AppLayout() {
         </Navbar>
 
         {/* Offcanvas sidebar for small screens */}
-        <Offcanvas id="offcanvasNavbar" placement="start" className="d-lg-none">
+        <Offcanvas 
+          show={showOffcanvas} 
+          onHide={handleCloseOffcanvas}
+          placement="start" 
+          className="d-lg-none"
+        >
           <Offcanvas.Header closeButton>
-            <Offcanvas.Title className="text-gradient font-bold">Menu</Offcanvas.Title>
+            <Offcanvas.Title className="text-gradient font-bold">🏘️ HMMS</Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body>
+            <div className="mb-4">
+              <p className="text-sm text-neutral-500">Barangay Management</p>
+            </div>
             <Nav className="flex-column gap-2">
               {navItems.map(({ to, label, icon: Icon }) => (
                 <NavLink 
@@ -149,13 +176,28 @@ export default function AppLayout() {
                   to={to} 
                   className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} 
                   end
-                  onClick={() => document.getElementById('offcanvasNavbar')?.classList.remove('show')}
+                  onClick={handleCloseOffcanvas}
                 >
                   <Icon size={20} className="mr-3" />
                   <span className="font-medium">{label}</span>
                 </NavLink>
               ))}
             </Nav>
+            
+            <div className="mt-auto pt-4">
+              <Button 
+                variant="outline-secondary" 
+                size="sm" 
+                onClick={() => {
+                  handleLogout()
+                  handleCloseOffcanvas()
+                }}
+                className="w-full d-flex align-items-center justify-content-center gap-2"
+              >
+                <LogOut size={16} />
+                Logout
+              </Button>
+            </div>
           </Offcanvas.Body>
         </Offcanvas>
 

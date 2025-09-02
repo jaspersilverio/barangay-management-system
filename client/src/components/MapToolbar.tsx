@@ -1,8 +1,8 @@
 import { Button, ButtonGroup, Form } from 'react-bootstrap'
 
 type Props = {
-  mode: 'sketch' | 'real'
-  onToggleMode: () => void
+  mode?: 'sketch' | 'real'
+  onToggleMode?: () => void
   onSave: () => void
   onLoad: () => void
   onExport: () => void
@@ -21,15 +21,18 @@ export default function MapToolbar({ mode, onToggleMode, onSave, onLoad, onExpor
         <Form.Label className="btn btn-outline-secondary mb-0">
           Import
           <Form.Control type="file" accept="application/json" className="d-none" onChange={(e) => {
-            const f = e.target.files?.[0]
+            const target = e.target as HTMLInputElement
+            const f = target.files?.[0]
             if (f) onImport(f)
           }} />
         </Form.Label>
       </ButtonGroup>
 
-      <Button variant="warning" onClick={onToggleMode}>
-        {mode === 'sketch' ? 'Switch to Real Map' : 'Switch to Sketch Map'}
-      </Button>
+      {mode && onToggleMode && (
+        <Button variant="warning" onClick={onToggleMode}>
+          {mode === 'sketch' ? 'Switch to Real Map' : 'Switch to Sketch Map'}
+        </Button>
+      )}
 
       <div className="d-flex align-items-center gap-3">
         {Object.keys(layers).map((k) => (

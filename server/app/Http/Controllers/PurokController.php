@@ -38,9 +38,14 @@ class PurokController extends Controller
     {
         $data = $request->validated();
 
-        // Generate a simple code if not provided
+        // Generate a unique code if not provided
         if (empty($data['code'])) {
-            $data['code'] = 'P' . (Purok::count() + 1);
+            $counter = 1;
+            do {
+                $code = 'P' . $counter;
+                $counter++;
+            } while (Purok::where('code', $code)->exists());
+            $data['code'] = $code;
         }
 
         $purok = Purok::create($data);

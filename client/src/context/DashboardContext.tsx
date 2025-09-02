@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { getSummary } from '../services/dashboard.service'
 import type { DashboardSummary } from '../services/dashboard.service'
+import { useAuth } from './AuthContext'
 
 interface DashboardContextType {
   summaryData: DashboardSummary | null
@@ -12,8 +13,9 @@ interface DashboardContextType {
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined)
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth()
   const [summaryData, setSummaryData] = useState<DashboardSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchSummary = useCallback(async () => {
@@ -38,8 +40,14 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [fetchSummary])
 
   useEffect(() => {
-    fetchSummary()
-  }, [fetchSummary])
+    if (isAuthenticated) {
+      fetchSummary()
+    } else {
+      setLoading(false)
+      setError(null)
+      setSummaryData(null)
+    }
+  }, [fetchSummary, isAuthenticated])
 
   return (
     <DashboardContext.Provider value={{

@@ -17,7 +17,7 @@ class CreateAdminUserSeeder extends Seeder
         $user = User::create([
             'name' => 'Admin User',
             'email' => 'admin@example.com',
-            'password' => Hash::make('password'),
+            'password' => Hash::make('admin123!'),
             'role' => 'admin',
         ]);
 
@@ -26,7 +26,7 @@ class CreateAdminUserSeeder extends Seeder
 
         $this->command->info('Admin user created successfully!');
         $this->command->info('Email: admin@example.com');
-        $this->command->info('Password: password');
+        $this->command->info('Password: admin123!');
         $this->command->info('Token: ' . $token);
         $this->command->info('Copy this token and use it in your frontend!');
     }

@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CertificateRequestController;
+use App\Http\Controllers\IssuedCertificateController;
+use App\Http\Controllers\CertificatePdfController;
 use App\Http\Controllers\HouseholdController;
 use App\Http\Controllers\LandmarkController;
 use App\Http\Controllers\NotificationController;
@@ -13,6 +16,8 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\EventController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\MapMarkerController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
@@ -20,6 +25,8 @@ Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Dev helper (no auth): seed demo data
 Route::post('/dev/seed', [DevController::class, 'seed']);
+
+
 
 // Protected routes (require authentication)
 Route::middleware('auth:sanctum')->group(function () {
@@ -51,12 +58,49 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/households/{household}/members', [HouseholdController::class, 'members']);
         Route::get('/households/{household}/residents', [HouseholdController::class, 'getResidents']);
         Route::get('/residents', [ResidentController::class, 'index']);
+        Route::get('/residents/search', [ResidentController::class, 'search']);
         Route::get('/residents/{resident}', [ResidentController::class, 'show']);
         Route::get('/landmarks', [LandmarkController::class, 'index']);
         Route::get('/landmarks/{landmark}', [LandmarkController::class, 'show']);
         Route::get('/events', [EventController::class, 'index']);
         Route::get('/events/{event}', [EventController::class, 'show']);
+        Route::get('/search/households-residents', [SearchController::class, 'searchHouseholdsAndResidents']);
     });
+
+    // Certificate statistics (all authenticated users)
+    Route::get('/certificate-requests/statistics', [CertificateRequestController::class, 'statistics']);
+    Route::get('/issued-certificates/statistics', [IssuedCertificateController::class, 'statistics']);
+
+    // Certificate routes (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
+        // Certificate requests
+        Route::get('/certificate-requests', [CertificateRequestController::class, 'index']);
+        Route::post('/certificate-requests', [CertificateRequestController::class, 'store']);
+        Route::get('/certificate-requests/{certificateRequest}', [CertificateRequestController::class, 'show']);
+        Route::put('/certificate-requests/{certificateRequest}', [CertificateRequestController::class, 'update']);
+        Route::delete('/certificate-requests/{certificateRequest}', [CertificateRequestController::class, 'destroy']);
+
+        // Issued certificates
+        Route::get('/issued-certificates', [IssuedCertificateController::class, 'index']);
+        Route::post('/issued-certificates', [IssuedCertificateController::class, 'store']);
+        Route::get('/issued-certificates/{issuedCertificate}', [IssuedCertificateController::class, 'show']);
+        Route::put('/issued-certificates/{issuedCertificate}', [IssuedCertificateController::class, 'update']);
+        Route::delete('/issued-certificates/{issuedCertificate}', [IssuedCertificateController::class, 'destroy']);
+        Route::post('/issued-certificates/verify', [IssuedCertificateController::class, 'verifyCertificate']);
+    });
+
+    // Certificate approval routes (admin only)
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/certificate-requests/{certificateRequest}/approve', [CertificateRequestController::class, 'approve']);
+        Route::post('/certificate-requests/{certificateRequest}/reject', [CertificateRequestController::class, 'reject']);
+        Route::post('/certificate-requests/{certificateRequest}/release', [CertificateRequestController::class, 'release']);
+        Route::post('/issued-certificates/{issuedCertificate}/invalidate', [IssuedCertificateController::class, 'invalidate']);
+        Route::post('/issued-certificates/{issuedCertificate}/regenerate-pdf', [IssuedCertificateController::class, 'regeneratePdf']);
+    });
+
+    // PDF routes (all authenticated users)
+    Route::get('/certificates/{issuedCertificate}/download', [CertificatePdfController::class, 'downloadCertificate']);
+    Route::get('/certificates/{issuedCertificate}/preview', [CertificatePdfController::class, 'previewCertificate']);
 
     // Reports (admin only - purok leaders get filtered data)
     Route::middleware('role:admin')->group(function () {
@@ -90,6 +134,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/residents', [ResidentController::class, 'store']);
         Route::put('/residents/{resident}', [ResidentController::class, 'update']);
         Route::delete('/residents/{resident}', [ResidentController::class, 'destroy']);
+        Route::post('/residents/link-to-household', [ResidentController::class, 'linkToHousehold']);
     });
 
     // Events management (purok leaders and admin access)
@@ -104,6 +149,23 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
     });
+
+    // Map markers routes (all authenticated users can view, admin can CRUD)
+    Route::get('/map/markers', [MapMarkerController::class, 'index']);
+    Route::get('/map/markers/types', [MapMarkerController::class, 'getTypeOptions']);
+
+    // Admin only map marker management
+    Route::middleware('role:admin')->group(function () {
+        Route::post('/map/markers', [MapMarkerController::class, 'store']);
+        Route::get('/map/markers/{mapMarker}', [MapMarkerController::class, 'show']);
+        Route::put('/map/markers/{mapMarker}', [MapMarkerController::class, 'update']);
+        Route::delete('/map/markers/{mapMarker}', [MapMarkerController::class, 'destroy']);
+        Route::post('/map/markers/{mapMarker}/assign-household', [MapMarkerController::class, 'assignHousehold']);
+        Route::delete('/map/markers/{mapMarker}/remove-household', [MapMarkerController::class, 'removeHousehold']);
+    });
+
+    // Map marker with household details (all authenticated users)
+    Route::get('/map/markers/{mapMarker}/with-household', [MapMarkerController::class, 'showWithHousehold']);
 
     // Admin only routes
     Route::middleware('role:admin')->group(function () {
