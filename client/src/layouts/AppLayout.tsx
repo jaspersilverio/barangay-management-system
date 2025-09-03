@@ -14,7 +14,8 @@ import {
   Settings, 
   LogOut,
   Menu,
-  Award
+  Award,
+  Shield
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 
@@ -51,7 +52,7 @@ export default function AppLayout() {
         { to: '/certificates', label: 'Certificates', icon: Award },
         { to: '/reports', label: 'Reports', icon: FileText },
         { to: '/users', label: 'Users', icon: Users },
-        { to: '/settings', label: 'Settings', icon: Settings }
+        { to: '/officials', label: 'Officials', icon: Shield }
       )
     } else if (user?.role === 'purok_leader') {
       // Purok leaders get certificates access
@@ -100,6 +101,17 @@ export default function AppLayout() {
           </Nav>
 
           <div className="mt-auto">
+            {user?.role === 'admin' && (
+              <NavLink
+                to="/settings"
+                className={({ isActive }) =>
+                  `sidebar-link ${isActive ? 'active' : ''} mb-2`
+                }
+              >
+                <Settings size={20} className="mr-3" />
+                <span className="font-medium">Settings</span>
+              </NavLink>
+            )}
             <Button 
               variant="outline-secondary" 
               size="sm" 
@@ -185,6 +197,18 @@ export default function AppLayout() {
             </Nav>
             
             <div className="mt-auto pt-4">
+              {user?.role === 'admin' && (
+                <NavLink
+                  to="/settings"
+                  className={({ isActive }) =>
+                    `sidebar-link ${isActive ? 'active' : ''} mb-2 d-block`
+                  }
+                  onClick={handleCloseOffcanvas}
+                >
+                  <Settings size={20} className="mr-3" />
+                  <span className="font-medium">Settings</span>
+                </NavLink>
+              )}
               <Button 
                 variant="outline-secondary" 
                 size="sm" 

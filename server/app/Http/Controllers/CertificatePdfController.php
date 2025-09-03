@@ -128,9 +128,27 @@ class CertificatePdfController extends Controller
             ]);
     }
 
-    public function downloadCertificate(IssuedCertificate $certificate)
+    public function downloadCertificate($id)
     {
+        $certificate = IssuedCertificate::find($id);
+
+        if (!$certificate) {
+            Log::warning('Certificate not found', ['certificate_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Certificate not found'
+            ], 404);
+        }
+
+        Log::info('Download certificate called', [
+            'certificate_id' => $certificate->id,
+            'certificate_number' => $certificate->certificate_number,
+            'pdf_path' => $certificate->pdf_path,
+            'route_parameter' => $id
+        ]);
+
         if (!$certificate->pdf_path) {
+            Log::warning('Certificate has no PDF path', ['certificate_id' => $certificate->id]);
             return response()->json([
                 'success' => false,
                 'message' => 'PDF not found'
@@ -138,31 +156,60 @@ class CertificatePdfController extends Controller
         }
 
         if (!Storage::disk('public')->exists($certificate->pdf_path)) {
+            Log::warning('PDF file does not exist in storage', [
+                'certificate_id' => $certificate->id,
+                'pdf_path' => $certificate->pdf_path
+            ]);
             // Regenerate PDF if file doesn't exist
             $pdfPath = $this->generateCertificatePdf($certificate);
             if (!$pdfPath) {
+                Log::error('Failed to regenerate PDF', ['certificate_id' => $certificate->id]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to generate PDF'
                 ], 500);
             }
+            // Update the certificate with the new PDF path
+            $certificate->pdf_path = $pdfPath;
+            $certificate->save();
         }
 
-        $url = asset('storage/' . $certificate->pdf_path);
+        $filePath = Storage::disk('public')->path($certificate->pdf_path);
         $filename = basename($certificate->pdf_path);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'download_url' => $url,
-                'filename' => $filename
-            ]
+        Log::info('PDF download served directly', [
+            'certificate_id' => $certificate->id,
+            'file_path' => $filePath,
+            'filename' => $filename
+        ]);
+
+        return response()->download($filePath, $filename, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"'
         ]);
     }
 
-    public function previewCertificate(IssuedCertificate $certificate)
+    public function previewCertificate($id)
     {
+        $certificate = IssuedCertificate::find($id);
+
+        if (!$certificate) {
+            Log::warning('Certificate not found', ['certificate_id' => $id]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Certificate not found'
+            ], 404);
+        }
+
+        Log::info('Preview certificate called', [
+            'certificate_id' => $certificate->id,
+            'certificate_number' => $certificate->certificate_number,
+            'pdf_path' => $certificate->pdf_path,
+            'route_parameter' => $id
+        ]);
+
         if (!$certificate->pdf_path) {
+            Log::warning('Certificate has no PDF path', ['certificate_id' => $certificate->id]);
             return response()->json([
                 'success' => false,
                 'message' => 'PDF not found'
@@ -170,24 +217,36 @@ class CertificatePdfController extends Controller
         }
 
         if (!Storage::disk('public')->exists($certificate->pdf_path)) {
+            Log::warning('PDF file does not exist in storage', [
+                'certificate_id' => $certificate->id,
+                'pdf_path' => $certificate->pdf_path
+            ]);
             // Regenerate PDF if file doesn't exist
             $pdfPath = $this->generateCertificatePdf($certificate);
             if (!$pdfPath) {
+                Log::error('Failed to regenerate PDF', ['certificate_id' => $certificate->id]);
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to generate PDF'
                 ], 500);
             }
+            // Update the certificate with the new PDF path
+            $certificate->pdf_path = $pdfPath;
+            $certificate->save();
         }
 
-        $url = asset('storage/' . $certificate->pdf_path);
+        $filePath = Storage::disk('public')->path($certificate->pdf_path);
+        $filename = basename($certificate->pdf_path);
 
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'preview_url' => $url,
-                'download_url' => $url
-            ]
+        Log::info('PDF preview served directly', [
+            'certificate_id' => $certificate->id,
+            'file_path' => $filePath,
+            'filename' => $filename
+        ]);
+
+        return response()->file($filePath, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="' . $filename . '"'
         ]);
     }
 }

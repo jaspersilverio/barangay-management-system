@@ -8,6 +8,7 @@ use App\Http\Controllers\CertificatePdfController;
 use App\Http\Controllers\HouseholdController;
 use App\Http\Controllers\LandmarkController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\OfficialController;
 use App\Http\Controllers\PurokController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResidentController;
@@ -65,6 +66,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/events', [EventController::class, 'index']);
         Route::get('/events/{event}', [EventController::class, 'show']);
         Route::get('/search/households-residents', [SearchController::class, 'searchHouseholdsAndResidents']);
+        Route::get('/officials', [OfficialController::class, 'index']);
+        Route::get('/officials/active', [OfficialController::class, 'active']);
+        Route::get('/officials/{official}', [OfficialController::class, 'show']);
     });
 
     // Certificate statistics (all authenticated users)
@@ -99,8 +103,24 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // PDF routes (all authenticated users)
-    Route::get('/certificates/{issuedCertificate}/download', [CertificatePdfController::class, 'downloadCertificate']);
-    Route::get('/certificates/{issuedCertificate}/preview', [CertificatePdfController::class, 'previewCertificate']);
+    Route::get('/certificates/{id}/download', [CertificatePdfController::class, 'downloadCertificate']);
+    Route::get('/certificates/{id}/preview', [CertificatePdfController::class, 'previewCertificate']);
+
+    // Test route for debugging
+    Route::get('/certificates/{id}/test', function ($id) {
+        $certificate = App\Models\IssuedCertificate::find($id);
+        if (!$certificate) {
+            return response()->json(['success' => false, 'message' => 'Certificate not found'], 404);
+        }
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'id' => $certificate->id,
+                'certificate_number' => $certificate->certificate_number,
+                'pdf_path' => $certificate->pdf_path
+            ]
+        ]);
+    });
 
     // Reports (admin only - purok leaders get filtered data)
     Route::middleware('role:admin')->group(function () {
@@ -178,6 +198,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/users/{user}', [UserController::class, 'show']);
         Route::put('/users/{user}', [UserController::class, 'update']);
         Route::delete('/users/{user}', [UserController::class, 'destroy']);
+
+        // Officials management
+        Route::post('/officials', [OfficialController::class, 'store']);
+        Route::put('/officials/{official}', [OfficialController::class, 'update']);
+        Route::delete('/officials/{official}', [OfficialController::class, 'destroy']);
+        Route::patch('/officials/{official}/toggle-active', [OfficialController::class, 'toggleActive']);
 
         // Settings management
         Route::get('/settings', [SettingsController::class, 'index']);

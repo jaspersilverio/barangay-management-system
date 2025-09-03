@@ -156,7 +156,7 @@ class IssuedCertificate extends Model
             return null;
         }
 
-        return asset('storage/' . $this->pdf_path);
+        return config('app.url') . '/storage/' . $this->pdf_path;
     }
 
     public function sign(string $signedBy, string $position): bool

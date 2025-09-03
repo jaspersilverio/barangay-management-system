@@ -215,7 +215,7 @@ class IssuedCertificateController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
-                'download_url' => asset('storage/' . $issuedCertificate->pdf_path),
+                'download_url' => config('app.url') . '/storage/' . $issuedCertificate->pdf_path,
                 'filename' => basename($issuedCertificate->pdf_path)
             ]
         ]);
@@ -234,7 +234,7 @@ class IssuedCertificateController extends Controller
                 'success' => true,
                 'message' => 'PDF regenerated successfully',
                 'data' => [
-                    'download_url' => asset('storage/' . $pdfPath)
+                    'download_url' => config('app.url') . '/storage/' . $pdfPath
                 ]
             ]);
         }

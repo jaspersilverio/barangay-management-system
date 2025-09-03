@@ -16,6 +16,7 @@ import InteractiveMap from '../pages/InteractiveMap'
 import SketchMap from '../pages/SketchMap'
 import Notifications from '../pages/Notifications'
 import Certificates from '../pages/Certificates'
+import Officials from '../pages/Officials'
 
 const router = createBrowserRouter([
   {
@@ -76,6 +77,10 @@ const router = createBrowserRouter([
           {
             path: 'users',
             element: <Users />
+          },
+          {
+            path: 'officials',
+            element: <Officials />
           },
           {
             path: 'settings',

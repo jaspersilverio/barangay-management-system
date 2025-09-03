@@ -173,23 +173,68 @@ export default function IssuedCertificates() {
 
   const handleDownloadPdf = async (certificate: IssuedCertificateType) => {
     try {
-      const response = await downloadCertificatePdf(certificate.id)
-      if (response.data.download_url) {
-        window.open(response.data.download_url, '_blank')
+      // Make a direct request to download the file
+      const response = await fetch(`http://localhost:8000/api/certificates/${certificate.id}/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/pdf'
+        }
+      });
+
+      if (response.ok) {
+        // Get the filename from the response headers or use a default
+        const contentDisposition = response.headers.get('content-disposition');
+        let filename = `certificate_${certificate.certificate_number}.pdf`;
+        
+        if (contentDisposition) {
+          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+          if (filenameMatch) {
+            filename = filenameMatch[1];
+          }
+        }
+
+        // Create blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error('Failed to download PDF:', response.statusText);
       }
     } catch (error) {
-      console.error('Failed to download PDF:', error)
+      console.error('Failed to download PDF:', error);
     }
   }
 
   const handlePreviewPdf = async (certificate: IssuedCertificateType) => {
     try {
-      const response = await previewCertificatePdf(certificate.id)
-      if (response.data.preview_url) {
-        window.open(response.data.preview_url, '_blank')
+      // Make a direct request to get the PDF for preview
+      const response = await fetch(`http://localhost:8000/api/certificates/${certificate.id}/preview`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Accept': 'application/pdf'
+        }
+      });
+
+      if (response.ok) {
+        // Create blob and open in new tab for preview
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        // Note: We don't revoke the URL immediately as it's being used in the new tab
+        // The browser will clean it up when the tab is closed
+      } else {
+        console.error('Failed to preview PDF:', response.statusText);
       }
     } catch (error) {
-      console.error('Failed to preview PDF:', error)
+      console.error('Failed to preview PDF:', error);
     }
   }
 
