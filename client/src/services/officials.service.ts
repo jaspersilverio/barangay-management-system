@@ -146,3 +146,12 @@ export async function toggleOfficialActive(id: number) {
   const res = await api.patch(`/officials/${id}/toggle-active`)
   return res.data as { success: boolean; data: Official; message: string | null; errors: any }
 }
+
+export const officialsService = {
+  getOfficials: getOfficials,
+  getOfficial: getOfficial,
+  createOfficial: createOfficial,
+  updateOfficial: updateOfficial,
+  deleteOfficial: deleteOfficial,
+  toggleOfficialActive: toggleOfficialActive
+}

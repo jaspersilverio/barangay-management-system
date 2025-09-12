@@ -8,14 +8,14 @@ import {
   Users, 
   UserCheck, 
   Calendar, 
-  Map, 
   MapPin, 
   FileText, 
   Settings, 
   LogOut,
   Menu,
   Award,
-  Shield
+  Shield,
+  ClipboardList
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 
@@ -46,24 +46,25 @@ export default function AppLayout() {
     // Admin gets additional items
     if (user?.role === 'admin') {
       baseItems.push(
-        { to: '/map', label: 'Interactive Map', icon: Map },
-        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin },
+        { to: '/map', label: 'Sketch Map', icon: MapPin },
         { to: '/puroks', label: 'Puroks', icon: MapPin },
         { to: '/certificates', label: 'Certificates', icon: Award },
+        { to: '/blotter', label: 'Blotter', icon: ClipboardList },
         { to: '/reports', label: 'Reports', icon: FileText },
         { to: '/users', label: 'Users', icon: Users },
         { to: '/officials', label: 'Officials', icon: Shield }
       )
     } else if (user?.role === 'purok_leader') {
-      // Purok leaders get certificates access
+      // Purok leaders get certificates and blotter access
       baseItems.push(
-        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin },
-        { to: '/certificates', label: 'Certificates', icon: Award }
+        { to: '/map', label: 'Sketch Map', icon: MapPin },
+        { to: '/certificates', label: 'Certificates', icon: Award },
+        { to: '/blotter', label: 'Blotter', icon: ClipboardList }
       )
     } else {
       // Residents get sketch map access (view-only)
       baseItems.push(
-        { to: '/sketch-map', label: 'Sketch Map', icon: MapPin }
+        { to: '/map', label: 'Sketch Map', icon: MapPin }
       )
     }
 

@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Resident extends Model
@@ -45,6 +46,22 @@ class Resident extends Model
     public function household(): BelongsTo
     {
         return $this->belongsTo(Household::class);
+    }
+
+    /**
+     * Get blotter cases where this resident is the complainant
+     */
+    public function complainantBlotters(): HasMany
+    {
+        return $this->hasMany(Blotter::class, 'complainant_id');
+    }
+
+    /**
+     * Get blotter cases where this resident is the respondent
+     */
+    public function respondentBlotters(): HasMany
+    {
+        return $this->hasMany(Blotter::class, 'respondent_id');
     }
 
     /**

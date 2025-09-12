@@ -7,6 +7,7 @@ use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
@@ -67,5 +68,29 @@ class User extends Authenticatable
     public function isPurokLeader(): bool
     {
         return $this->role === 'purok_leader';
+    }
+
+    /**
+     * Get blotter cases assigned to this official
+     */
+    public function assignedBlotters(): HasMany
+    {
+        return $this->hasMany(Blotter::class, 'official_id');
+    }
+
+    /**
+     * Get blotter cases created by this user
+     */
+    public function createdBlotters(): HasMany
+    {
+        return $this->hasMany(Blotter::class, 'created_by');
+    }
+
+    /**
+     * Get blotter cases updated by this user
+     */
+    public function updatedBlotters(): HasMany
+    {
+        return $this->hasMany(Blotter::class, 'updated_by');
     }
 }

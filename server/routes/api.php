@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\BlotterController;
 use App\Http\Controllers\CertificateRequestController;
 use App\Http\Controllers\IssuedCertificateController;
 use App\Http\Controllers\CertificatePdfController;
@@ -10,6 +11,7 @@ use App\Http\Controllers\LandmarkController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficialController;
 use App\Http\Controllers\PurokController;
+use App\Http\Controllers\PurokBoundaryController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ResidentController;
 use App\Http\Controllers\DevController;
@@ -22,7 +24,14 @@ use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
-Route::post('/auth/login', [AuthController::class, 'login']);
+Route::middleware('throttle:5,1')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+});
+
+// CSRF cookie route for cookie-based authentication
+Route::get('/sanctum/csrf-cookie', function () {
+    return response()->json(['message' => 'CSRF cookie set']);
+});
 
 // Dev helper (no auth): seed demo data
 Route::post('/dev/seed', [DevController::class, 'seed']);
@@ -69,6 +78,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/officials', [OfficialController::class, 'index']);
         Route::get('/officials/active', [OfficialController::class, 'active']);
         Route::get('/officials/{official}', [OfficialController::class, 'show']);
+        Route::get('/blotters', [BlotterController::class, 'index']);
+        Route::get('/blotters/statistics', [BlotterController::class, 'statistics']);
+        Route::get('/blotters/{blotter}', [BlotterController::class, 'show']);
     });
 
     // Certificate statistics (all authenticated users)
@@ -164,10 +176,31 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
     });
 
+    // Blotter management (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
+        Route::post('/blotters', [BlotterController::class, 'store']);
+        Route::put('/blotters/{blotter}', [BlotterController::class, 'update']);
+        Route::delete('/blotters/{blotter}', [BlotterController::class, 'destroy']);
+    });
+
     // Audit logs (admin only)
     Route::middleware('role:admin')->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
+
+        // Blotter archive (admin only)
+        Route::get('/blotters/archived', [BlotterController::class, 'archived']);
+        Route::post('/blotters/verify-archive-password', [BlotterController::class, 'verifyArchivePassword']);
+        Route::post('/blotters/{blotter}/restore', [BlotterController::class, 'restore']);
+        Route::delete('/blotters/{blotter}/force-delete', [BlotterController::class, 'forceDelete']);
+    });
+
+    // Household archive (admin only)
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/households/archived', [HouseholdController::class, 'archived']);
+        Route::post('/households/verify-archive-password', [HouseholdController::class, 'verifyArchivePassword']);
+        Route::post('/households/{household}/restore', [HouseholdController::class, 'restore']);
+        Route::delete('/households/{household}/force-delete', [HouseholdController::class, 'forceDelete']);
     });
 
     // Map markers routes (all authenticated users can view, admin can CRUD)
@@ -210,5 +243,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/settings/barangay-info', [SettingsController::class, 'updateBarangayInfo']);
         Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);
         Route::put('/settings/emergency', [SettingsController::class, 'updateEmergency']);
+
+        // Purok boundaries management (admin only)
+        Route::apiResource('purok-boundaries', PurokBoundaryController::class);
     });
+
+    // Purok summary endpoint (accessible to all authenticated users)
+    Route::get('/puroks/{id}/summary', [PurokController::class, 'summary']);
 });

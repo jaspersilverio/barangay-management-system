@@ -15,6 +15,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         \App\Http\Middleware\TrustProxies::class,
+        // \App\Http\Middleware\SecurityHeaders::class, // Temporarily disabled
     ];
 
     /**

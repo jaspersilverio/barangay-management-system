@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react'
-import { Container, Row, Col, Button, Alert, Spinner } from 'react-bootstrap'
+import { useState, useEffect } from 'react'
+import { Container, Row, Col, Button, Alert } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 import OfficialList from '../components/officials/OfficialList'
 import OfficialForm from '../components/officials/OfficialForm'
@@ -45,10 +45,14 @@ export default function Officials() {
       if (filters.position) params.position = filters.position
       if (filters.active !== null) params.active = filters.active
 
+      console.log('Loading officials with params:', params)
       const response = await getOfficials(params)
+      console.log('Officials response:', response)
       
       if (response.success) {
-        setOfficials(response.data.data || [])
+        const officialsData = response.data.data || []
+        console.log('Setting officials state:', officialsData)
+        setOfficials(officialsData)
       } else {
         setError(response.message || 'Failed to load officials')
       }
@@ -70,6 +74,8 @@ export default function Officials() {
       setFormLoading(true)
       setError(null)
 
+      console.log('Submitting official data:', data)
+
       let response
       if (selectedOfficial) {
         response = await updateOfficial(selectedOfficial.id, data)
@@ -77,11 +83,15 @@ export default function Officials() {
         response = await createOfficial(data)
       }
 
+      console.log('Form submission response:', response)
+
       if (response.success) {
         setSuccess(selectedOfficial ? 'Official updated successfully' : 'Official created successfully')
         setShowForm(false)
         setSelectedOfficial(null)
-        loadOfficials()
+        console.log('Reloading officials after successful submission')
+        await loadOfficials()
+        console.log('Officials reloaded, current state:', officials)
       } else {
         setError(response.message || 'Failed to save official')
       }

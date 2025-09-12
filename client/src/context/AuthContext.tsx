@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import api from '../services/api'
 import * as AuthService from '../services/auth.service'
 
 type User = {
@@ -18,68 +17,83 @@ type AuthContextType = {
   logout: () => Promise<void>
   clearAuth: () => void
   isAuthenticated: boolean
+  loading: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('user')
+    const savedUser = sessionStorage.getItem('user')
     return savedUser ? JSON.parse(savedUser) : null
   })
-  const [token, setToken] = useState<string | null>(
-    localStorage.getItem('token')
-  )
+  const [token, setToken] = useState<string | null>(() => {
+    return sessionStorage.getItem('token')
+  })
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (token) {
-      AuthService.me()
-        .then((res) => {
-          const userData = res.data
-          setUser(userData)
-          localStorage.setItem('user', JSON.stringify(userData))
-        })
-        .catch((error) => {
-          console.log('Auth check failed:', error)
-          clearAuth()
-        })
-    } else {
+    // Check authentication status on app load
+    checkAuth()
+  }, [])
+
+  const checkAuth = async () => {
+    try {
+      setLoading(true)
+      // Only check auth if we have a token
+      if (token) {
+        const res = await AuthService.me()
+        setUser(res.data)
+      } else {
+        setUser(null)
+      }
+    } catch (error: any) {
+      console.log('Auth check failed:', error)
       setUser(null)
+      setToken(null)
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('user')
+    } finally {
+      setLoading(false)
     }
-  }, [token])
+  }
 
   const login = async (email: string, password: string) => {
     const res = await AuthService.login({ email, password })
-    const t = res.data.token as string
     const userData = res.data.user
-    localStorage.setItem('token', t)
-    localStorage.setItem('user', JSON.stringify(userData))
-    setToken(t)
+    const tokenData = res.data.token
+    
+    // Store in sessionStorage (better than localStorage)
+    sessionStorage.setItem('token', tokenData)
+    sessionStorage.setItem('user', JSON.stringify(userData))
+    
     setUser(userData)
+    setToken(tokenData)
   }
 
   const logout = async () => {
     try {
       await AuthService.logout()
     } finally {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      setToken(null)
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('user')
       setUser(null)
+      setToken(null)
     }
   }
 
   const clearAuth = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    setToken(null)
+    sessionStorage.removeItem('token')
+    sessionStorage.removeItem('user')
     setUser(null)
+    setToken(null)
   }
 
   const isAuthenticated = !!(token && user)
-  const value = useMemo(() => ({ user, token, login, logout, clearAuth, isAuthenticated }), [
+  const value = useMemo(() => ({ user, token, login, logout, clearAuth, isAuthenticated, loading }), [
     user,
     token,
+    loading,
   ])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -12,11 +12,11 @@ import PurokDetailsPage from '../pages/puroks/PurokDetailsPage'
 import Reports from '../pages/Reports'
 import Users from '../pages/Users'
 import Settings from '../pages/Settings'
-import InteractiveMap from '../pages/InteractiveMap'
 import SketchMap from '../pages/SketchMap'
 import Notifications from '../pages/Notifications'
 import Certificates from '../pages/Certificates'
 import Officials from '../pages/Officials'
+import BlotterPage from '../pages/BlotterPage'
 
 const router = createBrowserRouter([
   {
@@ -83,15 +83,15 @@ const router = createBrowserRouter([
             element: <Officials />
           },
           {
+            path: 'blotter',
+            element: <BlotterPage />
+          },
+          {
             path: 'settings',
             element: <Settings />
           },
           {
             path: 'map',
-            element: <InteractiveMap />
-          },
-          {
-            path: 'sketch-map',
             element: <SketchMap />
           }
         ]

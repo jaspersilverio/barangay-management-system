@@ -72,4 +72,23 @@ class PurokController extends Controller
         $purok->delete();
         return $this->respondSuccess(null, 'Purok deleted');
     }
+
+    /**
+     * Get purok summary with household count and leader info
+     */
+    public function summary(string $id)
+    {
+        $purok = Purok::findOrFail($id);
+
+        $householdCount = $purok->households()->count();
+
+        return $this->respondSuccess([
+            'id' => $purok->id,
+            'name' => $purok->name,
+            'captain' => $purok->captain,
+            'contact' => $purok->contact,
+            'household_count' => $householdCount,
+            'description' => $purok->description
+        ]);
+    }
 }

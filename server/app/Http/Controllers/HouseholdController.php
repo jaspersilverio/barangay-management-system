@@ -9,6 +9,9 @@ use App\Models\Household;
 use App\Models\User;
 use App\Models\Resident;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class HouseholdController extends Controller
 {
@@ -214,6 +217,150 @@ class HouseholdController extends Controller
                     'household'
                 );
             }
+        }
+    }
+
+    /**
+     * Get archived households
+     */
+    public function archived(Request $request)
+    {
+        try {
+            $query = Household::onlyTrashed()->with('purok')->withCount('residents');
+
+            // Apply search filter
+            if ($search = $request->string('search')->toString()) {
+                $query->search($search);
+            }
+
+            // Pagination
+            $perPage = $request->get('per_page', 15);
+            $households = $query->orderBy('deleted_at', 'desc')->paginate($perPage);
+
+            // Transform the response to include properly formatted data
+            $households->getCollection()->transform(function ($household) {
+                return [
+                    'id' => $household->id,
+                    'address' => $household->address,
+                    'property_type' => $household->property_type,
+                    'head_name' => $household->head_name,
+                    'contact' => $household->contact,
+                    'purok_id' => $household->purok_id,
+                    'residents_count' => $household->residents_count,
+                    'deleted_at' => $household->deleted_at,
+                    'purok' => $household->purok ? [
+                        'id' => $household->purok->id,
+                        'name' => $household->purok->name,
+                    ] : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $households,
+                'message' => 'Archived households retrieved successfully'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error retrieving archived households: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to retrieve archived households'
+            ], 500);
+        }
+    }
+
+    /**
+     * Restore archived household
+     */
+    public function restore(string $id)
+    {
+        try {
+            $household = Household::onlyTrashed()->findOrFail($id);
+            $household->restore();
+
+            // Log the action
+            Log::info('Household restored', [
+                'household_id' => $household->id,
+                'head_name' => $household->head_name,
+                'restored_by' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Household restored successfully'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error restoring household: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to restore household'
+            ], 500);
+        }
+    }
+
+    /**
+     * Permanently delete household
+     */
+    public function forceDelete(string $id)
+    {
+        try {
+            $household = Household::onlyTrashed()->findOrFail($id);
+            $headName = $household->head_name;
+
+            // Delete associated residents first
+            Resident::where('household_id', $household->id)->delete();
+
+            $household->forceDelete();
+
+            // Log the action
+            Log::info('Household permanently deleted', [
+                'household_id' => $id,
+                'head_name' => $headName,
+                'deleted_by' => Auth::id()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Household permanently deleted'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error permanently deleting household: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to permanently delete household'
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify password for archive access
+     */
+    public function verifyArchivePassword(Request $request)
+    {
+        $request->validate([
+            'password' => 'required|string'
+        ]);
+
+        try {
+            $user = Auth::user();
+
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid password'
+                ], 401);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Password verified successfully'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error verifying archive password: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to verify password'
+            ], 500);
         }
     }
 }

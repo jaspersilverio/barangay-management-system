@@ -42,6 +42,7 @@
   .btn-secondary {
     @apply bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2;
   }
+r
 
   .btn-success {
     @apply bg-success hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-success focus:ring-offset-2;

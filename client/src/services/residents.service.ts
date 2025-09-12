@@ -47,3 +47,13 @@ export async function linkResidentToHousehold(residentId: number, householdId: n
   const res = await api.post('/residents/link-to-household', { resident_id: residentId, household_id: householdId })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }
+
+export const residentsService = {
+  getResidents: listResidents,
+  getResident: getResident,
+  createResident: createResident,
+  updateResident: updateResident,
+  deleteResident: deleteResident,
+  searchResidents: searchResidents,
+  linkResidentToHousehold: linkResidentToHousehold
+}

@@ -72,6 +72,7 @@ class Notification extends Model
             'certificate_released' => '📄',
             'certificate_issued' => '📜',
             'certificate_invalidated' => '🚫',
+            'blotter' => '📝',
             default => 'ℹ️'
         };
     }

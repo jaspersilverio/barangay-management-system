@@ -63,4 +63,12 @@ class Purok extends Model
     {
         return $this->hasManyThrough(Resident::class, Household::class);
     }
+
+    /**
+     * Get the boundaries for this purok
+     */
+    public function boundaries(): HasMany
+    {
+        return $this->hasMany(PurokBoundary::class);
+    }
 }

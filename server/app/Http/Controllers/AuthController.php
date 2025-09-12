@@ -7,6 +7,7 @@ use App\Http\Requests\Auth\RegisterUserRequest;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cookie;
 
 class AuthController extends Controller
 {
@@ -26,6 +27,19 @@ class AuthController extends Controller
         // Create a real Sanctum token
         $token = $user->createToken('api')->plainTextToken;
 
+        // Create httpOnly cookie
+        $cookie = cookie(
+            'auth_token',
+            $token,
+            60 * 24 * 7, // 7 days
+            '/',
+            null,
+            true, // secure (HTTPS only)
+            true, // httpOnly
+            false,
+            'strict' // sameSite
+        );
+
         return $this->respondSuccess([
             'token' => $token,
             'user' => $user->only(['id', 'name', 'email', 'role', 'assigned_purok_id']),
@@ -38,6 +52,20 @@ class AuthController extends Controller
         if ($user && $user->currentAccessToken()) {
             $user->currentAccessToken()->delete();
         }
+
+        // Clear the cookie
+        $cookie = cookie(
+            'auth_token',
+            '',
+            -1, // Expire immediately
+            '/',
+            null,
+            true,
+            true,
+            false,
+            'strict'
+        );
+
         return $this->respondSuccess(null, 'Logged out');
     }
 

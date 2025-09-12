@@ -2,11 +2,11 @@ import axios from 'axios'
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
-  withCredentials: false,
+  withCredentials: false, // Disable cookies - using sessionStorage
 })
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = sessionStorage.getItem('token')
   if (token) {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
@@ -24,8 +24,10 @@ api.interceptors.response.use(
       
       // Only logout for 401 (unauthorized), not 403 (forbidden)
       if (error.response?.status === 401) {
-        localStorage.removeItem('token')
-        // Don't redirect immediately, let the auth context handle it
+        sessionStorage.removeItem('token')
+        sessionStorage.removeItem('user')
+        // Don't auto-redirect - let the auth context handle it
+        console.log('Unauthorized access - token cleared')
       }
     }
     return Promise.reject(error)
