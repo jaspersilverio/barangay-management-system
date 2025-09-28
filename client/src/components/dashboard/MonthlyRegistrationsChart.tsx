@@ -68,7 +68,12 @@ export default function MonthlyRegistrationsChart() {
           <AreaChart data={data}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="month" />
-            <YAxis />
+            <YAxis 
+              domain={[0, 'dataMax + 1']}
+              tickCount={6}
+              allowDecimals={false}
+              scale="linear"
+            />
             <Tooltip />
             <Legend />
             <Area

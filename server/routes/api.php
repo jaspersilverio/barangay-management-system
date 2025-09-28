@@ -21,6 +21,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MapMarkerController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\VaccinationController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
@@ -57,6 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/vulnerable-trends', [DashboardController::class, 'vulnerableTrends']);
     Route::get('/dashboard/recent-activities', [DashboardController::class, 'recentActivities']);
     Route::get('/dashboard/upcoming-events', [DashboardController::class, 'upcomingEvents']);
+    Route::get('/dashboard/vaccinations/summary', [DashboardController::class, 'vaccinationSummary']);
+    Route::get('/dashboard/blotters/summary', [DashboardController::class, 'blotterSummary']);
 
     // Read-only routes (all authenticated users)
     Route::middleware('role:admin,purok_leader')->group(function () {
@@ -118,21 +121,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/certificates/{id}/download', [CertificatePdfController::class, 'downloadCertificate']);
     Route::get('/certificates/{id}/preview', [CertificatePdfController::class, 'previewCertificate']);
 
-    // Test route for debugging
-    Route::get('/certificates/{id}/test', function ($id) {
-        $certificate = App\Models\IssuedCertificate::find($id);
-        if (!$certificate) {
-            return response()->json(['success' => false, 'message' => 'Certificate not found'], 404);
-        }
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'id' => $certificate->id,
-                'certificate_number' => $certificate->certificate_number,
-                'pdf_path' => $certificate->pdf_path
-            ]
-        ]);
-    });
 
     // Reports (admin only - purok leaders get filtered data)
     Route::middleware('role:admin')->group(function () {
@@ -187,21 +175,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index']);
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show']);
-
-        // Blotter archive (admin only)
-        Route::get('/blotters/archived', [BlotterController::class, 'archived']);
-        Route::post('/blotters/verify-archive-password', [BlotterController::class, 'verifyArchivePassword']);
-        Route::post('/blotters/{blotter}/restore', [BlotterController::class, 'restore']);
-        Route::delete('/blotters/{blotter}/force-delete', [BlotterController::class, 'forceDelete']);
     });
 
-    // Household archive (admin only)
-    Route::middleware('role:admin')->group(function () {
-        Route::get('/households/archived', [HouseholdController::class, 'archived']);
-        Route::post('/households/verify-archive-password', [HouseholdController::class, 'verifyArchivePassword']);
-        Route::post('/households/{household}/restore', [HouseholdController::class, 'restore']);
-        Route::delete('/households/{household}/force-delete', [HouseholdController::class, 'forceDelete']);
-    });
 
     // Map markers routes (all authenticated users can view, admin can CRUD)
     Route::get('/map/markers', [MapMarkerController::class, 'index']);
@@ -247,6 +222,19 @@ Route::middleware('auth:sanctum')->group(function () {
         // Purok boundaries management (admin only)
         Route::apiResource('purok-boundaries', PurokBoundaryController::class);
     });
+
+    // Vaccination routes (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
+        Route::get('/vaccinations', [VaccinationController::class, 'index']);
+        Route::post('/vaccinations', [VaccinationController::class, 'store']);
+        Route::get('/vaccinations/statistics', [VaccinationController::class, 'statistics']);
+        Route::get('/vaccinations/{vaccination}', [VaccinationController::class, 'show']);
+        Route::put('/vaccinations/{vaccination}', [VaccinationController::class, 'update']);
+        Route::delete('/vaccinations/{vaccination}', [VaccinationController::class, 'destroy']);
+    });
+
+    // Resident vaccination routes (all authenticated users can view, purok leaders and admin can manage)
+    Route::get('/residents/{resident}/vaccinations', [VaccinationController::class, 'getResidentVaccinations']);
 
     // Purok summary endpoint (accessible to all authenticated users)
     Route::get('/puroks/{id}/summary', [PurokController::class, 'summary']);

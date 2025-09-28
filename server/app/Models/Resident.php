@@ -23,6 +23,7 @@ class Resident extends Model
         'last_name',
         'sex',
         'birthdate',
+        'civil_status',
         'relationship_to_head',
         'occupation_status',
         'is_pwd',
@@ -62,6 +63,14 @@ class Resident extends Model
     public function respondentBlotters(): HasMany
     {
         return $this->hasMany(Blotter::class, 'respondent_id');
+    }
+
+    /**
+     * Get vaccinations for this resident
+     */
+    public function vaccinations(): HasMany
+    {
+        return $this->hasMany(Vaccination::class);
     }
 
     /**
@@ -126,5 +135,43 @@ class Resident extends Model
                 ->orWhere('last_name', 'like', $like)
                 ->orWhere('relationship_to_head', 'like', $like);
         });
+    }
+
+    /**
+     * Scope for filtering by purok through household relationship.
+     */
+    public function scopeByPurok($query, $purokId)
+    {
+        return $query->whereHas('household', function ($q) use ($purokId) {
+            $q->where('purok_id', $purokId);
+        });
+    }
+
+    /**
+     * Scope for filtering by age range.
+     */
+    public function scopeByAgeRange($query, $minAge, $maxAge = null)
+    {
+        if ($maxAge) {
+            return $query->whereDate('birthdate', '<=', now()->subYears($minAge)->toDateString())
+                ->whereDate('birthdate', '>', now()->subYears($maxAge)->toDateString());
+        }
+        return $query->whereDate('birthdate', '<=', now()->subYears($minAge)->toDateString());
+    }
+
+    /**
+     * Scope for filtering by occupation status.
+     */
+    public function scopeByOccupation($query, $status)
+    {
+        return $query->where('occupation_status', $status);
+    }
+
+    /**
+     * Scope for filtering by gender.
+     */
+    public function scopeByGender($query, $gender)
+    {
+        return $query->where('sex', $gender);
     }
 }

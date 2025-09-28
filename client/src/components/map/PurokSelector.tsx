@@ -38,7 +38,7 @@ export default function PurokSelector({
       const response = await getPuroks({ per_page: 100 }) // Get all puroks
       setPuroks(response.data.data)
     } catch (err) {
-      console.error('Error loading puroks:', err)
+      // Error loading puroks
       setError('Failed to load puroks')
     } finally {
       setIsLoading(false)

@@ -15,7 +15,8 @@ import {
   Menu,
   Award,
   Shield,
-  ClipboardList
+  ClipboardList,
+  Syringe
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 
@@ -27,7 +28,7 @@ export default function AppLayout() {
     try {
       await logout()
     } catch (error) {
-      console.error('Logout failed:', error)
+      // Logout failed
     }
   }
 
@@ -49,16 +50,18 @@ export default function AppLayout() {
         { to: '/map', label: 'Sketch Map', icon: MapPin },
         { to: '/puroks', label: 'Puroks', icon: MapPin },
         { to: '/certificates', label: 'Certificates', icon: Award },
+        { to: '/vaccinations', label: 'Vaccinations', icon: Syringe },
         { to: '/blotter', label: 'Blotter', icon: ClipboardList },
         { to: '/reports', label: 'Reports', icon: FileText },
         { to: '/users', label: 'Users', icon: Users },
         { to: '/officials', label: 'Officials', icon: Shield }
       )
     } else if (user?.role === 'purok_leader') {
-      // Purok leaders get certificates and blotter access
+      // Purok leaders get certificates, vaccinations and blotter access
       baseItems.push(
         { to: '/map', label: 'Sketch Map', icon: MapPin },
         { to: '/certificates', label: 'Certificates', icon: Award },
+        { to: '/vaccinations', label: 'Vaccinations', icon: Syringe },
         { to: '/blotter', label: 'Blotter', icon: ClipboardList }
       )
     } else {

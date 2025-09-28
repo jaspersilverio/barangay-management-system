@@ -63,4 +63,38 @@ class Household extends Model
                 ->orWhere('contact', 'like', $like);
         });
     }
+
+    /**
+     * Scope for filtering by purok.
+     */
+    public function scopeByPurok($query, $purokId)
+    {
+        return $query->where('purok_id', $purokId);
+    }
+
+    /**
+     * Scope for filtering by property type.
+     */
+    public function scopeByPropertyType($query, $type)
+    {
+        return $query->where('property_type', $type);
+    }
+
+    /**
+     * Scope for households with residents count.
+     */
+    public function scopeWithResidentsCount($query)
+    {
+        return $query->withCount('residents');
+    }
+
+    /**
+     * Scope for households with active residents only.
+     */
+    public function scopeWithActiveResidents($query)
+    {
+        return $query->withCount(['residents' => function ($q) {
+            $q->whereNull('deleted_at');
+        }]);
+    }
 }

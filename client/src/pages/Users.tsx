@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, Spinner, InputGroup } from 'react-bootstrap'
-import { Plus, Search, Filter, Edit, Trash2, RotateCcw, Users as UsersIcon } from 'lucide-react'
+import { Search } from 'lucide-react'
 import type { User, UserFilters } from '../services/users.service'
 import { getUsers, createUser, updateUser, deleteUser, restoreUser } from '../services/users.service'
 import UserFormModal from '../components/users/UserFormModal'
@@ -196,45 +196,34 @@ export default function Users() {
   }
 
   return (
-    <Container fluid className="p-4">
-      {/* Header */}
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex align-items-center gap-3">
-                         <div className="bg-primary bg-opacity-10 p-3 rounded">
-               <UsersIcon className="h-6 w-6 text-primary" />
-             </div>
-            <div>
-              <h2 className="mb-0">User Management</h2>
-              <p className="text-muted mb-0">Manage system users and their roles</p>
-            </div>
-          </div>
-        </Col>
-        <Col xs="auto">
+    <div className="page-container">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2 className="mb-0">User Management</h2>
+          <p className="text-muted mb-0">Manage system users and their roles</p>
+        </div>
+        <div className="page-actions">
           <Button 
             variant="primary" 
+            size="lg"
             onClick={() => setShowCreateModal(true)}
-            className="d-flex align-items-center gap-2"
+            disabled={loading}
+            className="btn-primary-custom btn-action-add"
           >
-            <Plus className="h-4 w-4" />
+            <i className="fas fa-plus me-2"></i>
             Add User
           </Button>
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      {/* Filters */}
-      <Card className="mb-4">
-        <Card.Header>
-          <div className="d-flex align-items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
-          </div>
-        </Card.Header>
-        <Card.Body>
+      {/* Filters Section */}
+      <Card className="filters-card">
+        <Card.Body className="p-3">
           <Row>
             <Col md={4}>
-              <Form.Group>
-                <Form.Label>Search</Form.Label>
+              <Form.Group className="mb-0">
+                <Form.Label className="form-label-custom">Search</Form.Label>
                 <InputGroup>
                   <InputGroup.Text>
                     <Search className="h-4 w-4" />
@@ -244,16 +233,20 @@ export default function Users() {
                     placeholder="Search by name or email..."
                     value={filters.search || ''}
                     onChange={(e) => handleFilterChange('search', e.target.value)}
+                    disabled={loading}
+                    className="form-control-custom"
                   />
                 </InputGroup>
               </Form.Group>
             </Col>
             <Col md={3}>
-              <Form.Group>
-                <Form.Label>Role</Form.Label>
+              <Form.Group className="mb-0">
+                <Form.Label className="form-label-custom">Role</Form.Label>
                 <Form.Select
                   value={filters.role || ''}
                   onChange={(e) => handleFilterChange('role', e.target.value || undefined)}
+                  disabled={loading}
+                  className="form-select-custom"
                 >
                   <option value="">All Roles</option>
                   <option value="admin">Administrator</option>
@@ -263,11 +256,13 @@ export default function Users() {
               </Form.Group>
             </Col>
             <Col md={3}>
-              <Form.Group>
-                <Form.Label>Per Page</Form.Label>
+              <Form.Group className="mb-0">
+                <Form.Label className="form-label-custom">Per Page</Form.Label>
                 <Form.Select
                   value={filters.per_page || 15}
                   onChange={(e) => handleFilterChange('per_page', Number(e.target.value))}
+                  disabled={loading}
+                  className="form-select-custom"
                 >
                   <option value={15}>15</option>
                   <option value={25}>25</option>
@@ -302,141 +297,143 @@ export default function Users() {
       {/* Users Table */}
       <Card>
         <Card.Body className="p-0">
-          <Table responsive hover className="mb-0">
-            <thead className="table-light">
-              <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Role</th>
-                <th>Assigned Purok</th>
-                <th>Status</th>
-                <th>Created</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.length === 0 ? (
+          <div className="table-responsive">
+            <Table className="data-table" striped hover>
+              <thead className="table-header">
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
-                                         <UsersIcon size={32} className="mx-auto mb-2 d-block" />
-                    No users found matching the criteria
-                  </td>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Assigned Purok</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th className="actions-column">Actions</th>
                 </tr>
-              ) : (
-                users.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div>
-                        <strong>{user.name}</strong>
-                        <br />
-                        <small className="text-muted">ID: {user.id}</small>
-                      </div>
-                    </td>
-                    <td>{user.email}</td>
-                    <td>{getRoleBadge(user.role)}</td>
-                    <td>
-                      {user.assigned_purok ? (
-                        <Badge bg="info">{user.assigned_purok.name}</Badge>
-                      ) : (
-                        <span className="text-muted">Not assigned</span>
-                      )}
-                    </td>
-                    <td>
-                      {user.deleted_at ? (
-                        <Badge bg="danger">Deleted</Badge>
-                      ) : (
-                        <Badge bg="success">Active</Badge>
-                      )}
-                    </td>
-                    <td>
-                      <small className="text-muted">
-                        {formatDate(user.created_at)}
-                      </small>
-                    </td>
-                    <td>
-                      <div className="d-flex gap-1">
-                        {user.deleted_at ? (
-                          <Button
-                            size="sm"
-                            variant="outline-success"
-                            onClick={() => handleRestoreUser(user.id)}
-                            title="Restore user"
-                          >
-                            <RotateCcw className="h-3 w-3" />
-                          </Button>
-                        ) : (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline-primary"
-                              onClick={() => openEditModal(user)}
-                              title="Edit user"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline-danger"
-                              onClick={() => openDeleteModal(user)}
-                              title="Delete user"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </>
-                        )}
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-5">
+                      <div className="loading-state">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p className="mt-2 text-muted">Loading users...</p>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </Table>
+                ) : users.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-5">
+                      <div className="empty-state">
+                        <i className="fas fa-users text-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-muted mb-0">No users found</p>
+                        <small className="text-muted">Try adjusting your search criteria</small>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  users.map((user) => (
+                    <tr key={user.id} className="table-row">
+                      <td>
+                        <div>
+                          <strong className="fw-medium">{user.name}</strong>
+                          <br />
+                          <small className="text-muted">ID: {user.id}</small>
+                        </div>
+                      </td>
+                      <td>{user.email}</td>
+                      <td>{getRoleBadge(user.role)}</td>
+                      <td>
+                        {user.assigned_purok ? (
+                          <Badge bg="info">{user.assigned_purok.name}</Badge>
+                        ) : (
+                          <span className="text-muted">Not assigned</span>
+                        )}
+                      </td>
+                      <td>
+                        {user.deleted_at ? (
+                          <Badge bg="danger">Deleted</Badge>
+                        ) : (
+                          <Badge bg="success">Active</Badge>
+                        )}
+                      </td>
+                      <td>
+                        <small className="text-muted">
+                          {formatDate(user.created_at)}
+                        </small>
+                      </td>
+                      <td>
+                        <div className="action-buttons">
+                          {user.deleted_at ? (
+                            <Button
+                              size="sm"
+                              onClick={() => handleRestoreUser(user.id)}
+                              className="btn-action btn-action-add"
+                              title="Restore user"
+                            >
+                              <i className="fas fa-undo"></i>
+                              Restore
+                            </Button>
+                          ) : (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => openEditModal(user)}
+                                className="btn-action btn-action-edit"
+                                title="Edit user"
+                              >
+                                <i className="fas fa-edit"></i>
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => openDeleteModal(user)}
+                                className="btn-action btn-action-delete"
+                                title="Delete user"
+                              >
+                                <i className="fas fa-trash"></i>
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </div>
         </Card.Body>
       </Card>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Row className="mt-4">
-          <Col>
-            <div className="d-flex justify-content-center">
-              <Pagination>
-                <Pagination.First 
-                  onClick={() => handlePageChange(1)}
-                  disabled={currentPage === 1}
-                />
+        <Card className="pagination-card">
+          <Card.Body className="p-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="pagination-info">
+                <span className="text-muted">
+                  Showing page {currentPage} of {totalPages}
+                </span>
+              </div>
+              <Pagination className="mb-0">
                 <Pagination.Prev 
+                  disabled={currentPage === 1 || loading}
                   onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage === 1}
+                  className="pagination-btn"
                 />
-                
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
-                  .map((page, index, array) => (
-                    <React.Fragment key={page}>
-                      {index > 0 && array[index - 1] !== page - 1 && (
-                        <Pagination.Ellipsis />
-                      )}
-                      <Pagination.Item
-                        active={page === currentPage}
-                        onClick={() => handlePageChange(page)}
-                      >
-                        {page}
-                      </Pagination.Item>
-                    </React.Fragment>
-                  ))}
-                
+                <Pagination.Item active className="pagination-item">{currentPage}</Pagination.Item>
                 <Pagination.Next 
+                  disabled={currentPage === totalPages || loading}
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                />
-                <Pagination.Last 
-                  onClick={() => handlePageChange(totalPages)}
-                  disabled={currentPage === totalPages}
+                  className="pagination-btn"
                 />
               </Pagination>
             </div>
-          </Col>
-        </Row>
+          </Card.Body>
+        </Card>
       )}
 
       {/* Modals */}
@@ -468,6 +465,6 @@ export default function Users() {
         onConfirm={handleDeleteUser}
         loading={modalLoading}
       />
-    </Container>
+    </div>
   )
 }

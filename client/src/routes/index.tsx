@@ -1,22 +1,136 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Spinner } from 'react-bootstrap'
 import AppLayout from '../layouts/AppLayout'
 import ProtectedRoute from './ProtectedRoute'
-import Login from '../pages/Login'
-import Dashboard from '../pages/Dashboard'
-import HouseholdListPage from '../pages/households/HouseholdListPage'
-import HouseholdDetailsPage from '../pages/households/HouseholdDetailsPage'
-import ResidentListPage from '../pages/residents/ResidentListPage'
-import EventsPage from '../pages/events/EventsPage'
-import PurokListPage from '../pages/puroks/PurokListPage'
-import PurokDetailsPage from '../pages/puroks/PurokDetailsPage'
-import Reports from '../pages/Reports'
-import Users from '../pages/Users'
-import Settings from '../pages/Settings'
-import SketchMap from '../pages/SketchMap'
-import Notifications from '../pages/Notifications'
-import Certificates from '../pages/Certificates'
-import Officials from '../pages/Officials'
-import BlotterPage from '../pages/BlotterPage'
+
+// Loading component for Suspense fallback
+const PageLoader = () => (
+  <div className="d-flex justify-content-center align-items-center" style={{ height: '50vh' }}>
+    <Spinner animation="border" role="status">
+      <span className="visually-hidden">Loading...</span>
+    </Spinner>
+  </div>
+)
+
+// Lazy load critical pages immediately
+const Login = lazy(() => import('../pages/Login'))
+const Dashboard = lazy(() => import('../pages/Dashboard'))
+
+// Lazy load heavy components and non-critical pages
+const HouseholdListPage = lazy(() => import('../pages/households/HouseholdListPage'))
+const HouseholdDetailsPage = lazy(() => import('../pages/households/HouseholdDetailsPage'))
+const ResidentListPage = lazy(() => import('../pages/residents/ResidentListPage'))
+const ResidentProfilePage = lazy(() => import('../pages/residents/ResidentProfilePage'))
+const EventsPage = lazy(() => import('../pages/events/EventsPage'))
+const PurokListPage = lazy(() => import('../pages/puroks/PurokListPage'))
+const PurokDetailsPage = lazy(() => import('../pages/puroks/PurokDetailsPage'))
+const Reports = lazy(() => import('../pages/Reports'))
+const Users = lazy(() => import('../pages/Users'))
+const Settings = lazy(() => import('../pages/Settings'))
+const SketchMap = lazy(() => import('../pages/SketchMap'))
+const Notifications = lazy(() => import('../pages/Notifications'))
+const Certificates = lazy(() => import('../pages/Certificates'))
+const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
+const Officials = lazy(() => import('../pages/Officials'))
+const BlotterPage = lazy(() => import('../pages/BlotterPage'))
+
+// Create wrapped components with Suspense
+const HouseholdListPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <HouseholdListPage />
+  </Suspense>
+)
+
+const HouseholdDetailsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <HouseholdDetailsPage />
+  </Suspense>
+)
+
+const ResidentListPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <ResidentListPage />
+  </Suspense>
+)
+
+const ResidentProfilePageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <ResidentProfilePage />
+  </Suspense>
+)
+
+const EventsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <EventsPage />
+  </Suspense>
+)
+
+const PurokListPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <PurokListPage />
+  </Suspense>
+)
+
+const PurokDetailsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <PurokDetailsPage />
+  </Suspense>
+)
+
+const CertificatesWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Certificates />
+  </Suspense>
+)
+
+const VaccinationsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <VaccinationsPage />
+  </Suspense>
+)
+
+const NotificationsWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Notifications />
+  </Suspense>
+)
+
+const ReportsWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Reports />
+  </Suspense>
+)
+
+const UsersWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Users />
+  </Suspense>
+)
+
+const OfficialsWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Officials />
+  </Suspense>
+)
+
+const BlotterPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <BlotterPage />
+  </Suspense>
+)
+
+const SettingsWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Settings />
+  </Suspense>
+)
+
+const SketchMapWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <SketchMap />
+  </Suspense>
+)
 
 const router = createBrowserRouter([
   {
@@ -40,59 +154,67 @@ const router = createBrowserRouter([
           },
           {
             path: 'households',
-            element: <HouseholdListPage />
+            element: <HouseholdListPageWithSuspense />
           },
           {
             path: 'households/:id',
-            element: <HouseholdDetailsPage />
+            element: <HouseholdDetailsPageWithSuspense />
           },
           {
             path: 'residents',
-            element: <ResidentListPage />
+            element: <ResidentListPageWithSuspense />
+          },
+          {
+            path: 'residents/:id',
+            element: <ResidentProfilePageWithSuspense />
           },
           {
             path: 'events',
-            element: <EventsPage />
+            element: <EventsPageWithSuspense />
           },
           {
             path: 'puroks',
-            element: <PurokListPage />
+            element: <PurokListPageWithSuspense />
           },
           {
             path: 'puroks/:id',
-            element: <PurokDetailsPage />
+            element: <PurokDetailsPageWithSuspense />
           },
           {
             path: 'certificates',
-            element: <Certificates />
+            element: <CertificatesWithSuspense />
+          },
+          {
+            path: 'vaccinations',
+            element: <VaccinationsPageWithSuspense />
           },
           {
             path: 'notifications',
-            element: <Notifications />
+            element: <NotificationsWithSuspense />
           },
           {
             path: 'reports',
-            element: <Reports />
+            element: <ReportsWithSuspense />
           },
           {
             path: 'users',
-            element: <Users />
+            element: <UsersWithSuspense />
           },
           {
             path: 'officials',
-            element: <Officials />
+            element: <OfficialsWithSuspense />
           },
           {
             path: 'blotter',
-            element: <BlotterPage />
+            element: <BlotterPageWithSuspense />
           },
           {
             path: 'settings',
-            element: <Settings />
+            element: <SettingsWithSuspense />
           },
           {
             path: 'map',
-            element: <SketchMap />
+            element: <SketchMapWithSuspense />
           }
         ]
       }

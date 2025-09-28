@@ -80,29 +80,5 @@ export async function deleteHousehold(id: number | string) {
 	return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }
 
-// Archive methods (admin only)
-export async function getArchivedHouseholds(params: { search?: string; page?: number; per_page?: number }) {
-	const res = await api.get('/households/archived', { params })
-	return res.data as { success: boolean; data: any; message: string | null; errors: any }
-}
-
-export async function verifyArchivePassword(password: string) {
-	try {
-		const res = await api.post('/households/verify-archive-password', { password })
-		return res.data.success
-	} catch (error) {
-		return false
-	}
-}
-
-export async function restoreHousehold(id: number) {
-	const res = await api.post(`/households/${id}/restore`)
-	return res.data as { success: boolean; data: any; message: string | null; errors: any }
-}
-
-export async function forceDeleteHousehold(id: number) {
-	const res = await api.delete(`/households/${id}/force-delete`)
-	return res.data as { success: boolean; data: any; message: string | null; errors: any }
-}
 
 

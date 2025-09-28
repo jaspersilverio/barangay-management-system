@@ -62,7 +62,7 @@ export default function PurokInfoModal({
       const count = countPointsInPolygon(housePoints, boundary.points)
       setHousesInsideCount(count)
     } catch (err) {
-      console.error('Error calculating houses inside boundary:', err)
+      // Error calculating houses inside boundary
       setHousesInsideCount(0)
     } finally {
       setIsLoadingHouses(false)

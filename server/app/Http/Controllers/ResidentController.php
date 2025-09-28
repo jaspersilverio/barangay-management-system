@@ -7,7 +7,10 @@ use App\Http\Requests\Resident\StoreResidentRequest;
 use App\Http\Requests\Resident\UpdateResidentRequest;
 use App\Models\Resident;
 use App\Models\User;
+use App\Models\AuditLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ResidentController extends Controller
 {
@@ -93,21 +96,98 @@ class ResidentController extends Controller
         $user = $request->user();
         $data = $request->validated();
 
-        // Auto-assign purok_id for purok leaders
-        if ($user->isPurokLeader()) {
-            // Verify that the household belongs to the assigned purok
-            $household = \App\Models\Household::find($data['household_id']);
-            if (!$household || $household->purok_id != $user->assigned_purok_id) {
-                return $this->respondError('You can only add residents to households in your assigned purok.', null, 403);
+        // Debug: Log the received data
+        Log::info('Resident creation request data:', [
+            'user_id' => $user->id,
+            'validated_data' => $data,
+            'raw_data' => $request->all()
+        ]);
+
+        // Remove purok_id from data as it's not needed (residents get purok through household)
+        unset($data['purok_id']);
+
+        try {
+            // Start database transaction for data consistency
+            DB::beginTransaction();
+
+            // Auto-assign purok_id for purok leaders
+            if ($user->isPurokLeader()) {
+                // Verify that the household belongs to the assigned purok
+                $household = \App\Models\Household::find($data['household_id']);
+                if (!$household || $household->purok_id != $user->assigned_purok_id) {
+                    DB::rollBack();
+                    return $this->respondError('You can only add residents to households in your assigned purok.', null, 403);
+                }
             }
+
+            // Additional validation: Check for duplicate resident in same household
+            $existingResident = Resident::where('household_id', $data['household_id'])
+                ->where('first_name', $data['first_name'])
+                ->where('last_name', $data['last_name'])
+                ->where('birthdate', $data['birthdate'])
+                ->first();
+
+            if ($existingResident) {
+                DB::rollBack();
+                return $this->respondError('A resident with the same name and birthdate already exists in this household.', [
+                    'duplicate_resident' => [
+                        'A resident with the same first name, last name, and birthdate already exists in this household.'
+                    ]
+                ], 422);
+            }
+
+            // Create the resident
+            $resident = Resident::create($data);
+
+            // Log the audit trail
+            $this->logResidentCreation($resident, $user, $request->ip());
+
+            // Create notifications
+            $this->createResidentNotifications($resident, $user);
+
+            // Commit the transaction
+            DB::commit();
+
+            // Load relationships for response
+            $resident->load(['household.purok']);
+
+            return $this->respondSuccess($resident, 'Resident created successfully', 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            DB::rollBack();
+
+            Log::error('Resident creation validation failed: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'data' => $data,
+                'errors' => $e->errors()
+            ]);
+
+            return $this->respondError('Validation failed', $e->errors(), 422);
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+
+            // Handle specific database errors
+            if ($e->getCode() == 23000) { // Integrity constraint violation
+                return $this->respondError('Database integrity constraint violation. Please check your data and try again.', null, 422);
+            }
+
+            Log::error('Resident creation failed: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'data' => $data,
+                'exception' => $e
+            ]);
+
+            return $this->respondError('Failed to create resident. Please try again.', null, 500);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            Log::error('Unexpected error during resident creation: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'data' => $data,
+                'exception' => $e
+            ]);
+
+            return $this->respondError('An unexpected error occurred. Please try again.', null, 500);
         }
-
-        $resident = Resident::create($data);
-
-        // Create notifications
-        $this->createResidentNotifications($resident, $user);
-
-        return $this->respondSuccess($resident, 'Resident created', 201);
     }
 
     public function show(Request $request, Resident $resident)
@@ -280,6 +360,45 @@ class ResidentController extends Controller
         $resident->load(['household.purok']);
 
         return $this->respondSuccess($resident, 'Resident linked to household successfully');
+    }
+
+    /**
+     * Log resident creation to audit trail
+     */
+    private function logResidentCreation($resident, $user, $ipAddress)
+    {
+        try {
+            AuditLog::create([
+                'user_id' => $user->id,
+                'action' => 'Created Resident',
+                'model_type' => 'App\Models\Resident',
+                'model_id' => $resident->id,
+                'changes' => [
+                    'resident_details' => [
+                        'name' => $resident->full_name,
+                        'household_id' => $resident->household_id,
+                        'sex' => $resident->sex,
+                        'birthdate' => $resident->birthdate?->format('Y-m-d'),
+                        'relationship_to_head' => $resident->relationship_to_head,
+                        'occupation_status' => $resident->occupation_status,
+                        'is_pwd' => $resident->is_pwd,
+                    ],
+                    'household_info' => [
+                        'head_name' => $resident->household?->head_name,
+                        'address' => $resident->household?->address,
+                        'purok_id' => $resident->household?->purok_id,
+                    ]
+                ],
+                'ip_address' => $ipAddress,
+            ]);
+        } catch (\Exception $e) {
+            // Log the audit failure but don't fail the main operation
+            Log::warning('Failed to create audit log for resident creation: ' . $e->getMessage(), [
+                'resident_id' => $resident->id,
+                'user_id' => $user->id,
+                'exception' => $e
+            ]);
+        }
     }
 
     /**

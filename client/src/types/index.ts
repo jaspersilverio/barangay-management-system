@@ -49,6 +49,63 @@ export type Landmark = {
   deleted_at?: string | null
 }
 
+export type Vaccination = {
+  id: number
+  resident_id: number
+  vaccine_name: string
+  dose_number: string
+  date_administered: string
+  next_due_date?: string | null
+  status: 'Completed' | 'Pending' | 'Scheduled'
+  administered_by?: string | null
+  created_at: string
+  updated_at: string
+  resident?: {
+    id: number
+    first_name: string
+    last_name: string
+    full_name: string
+    household?: {
+      id: number
+      address: string
+      purok?: {
+        id: number
+        name: string
+      }
+    }
+  }
+}
+
+export type VaccinationPayload = {
+  resident_id: number
+  vaccine_name: string
+  dose_number: string
+  date_administered: string
+  next_due_date?: string | null
+  status: 'Completed' | 'Pending' | 'Scheduled'
+  administered_by?: string | null
+}
+
+export type VaccinationFilters = {
+  resident_id?: number
+  status?: string
+  vaccine_name?: string
+  purok_id?: number
+  date_from?: string
+  date_to?: string
+  age_group?: 'children' | 'adults' | 'seniors'
+  search?: string
+  per_page?: number
+  page?: number
+}
+
+export type VaccinationStatistics = {
+  total_vaccinations: number
+  by_status: Record<string, number>
+  by_vaccine: Record<string, number>
+  by_purok: Record<string, number>
+}
+
 export type ApiEnvelope<T> = {
   success: boolean
   data: T

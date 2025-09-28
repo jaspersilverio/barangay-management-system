@@ -7,26 +7,24 @@ export default function DashboardSummary() {
 
   if (loading) {
     return (
-      <div className="row g-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="col-12 col-sm-6 col-lg-3">
+      <>
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="col-12 col-sm-6 col-lg-4">
             <div className="card-modern animate-pulse">
               <div className="h-8 bg-neutral-200 rounded w-1/2 mb-2"></div>
               <div className="h-6 bg-neutral-200 rounded w-1/3"></div>
             </div>
           </div>
         ))}
-      </div>
+      </>
     )
   }
 
   if (!summaryData) {
     return (
-      <div className="row g-4">
-        <div className="col-12">
-          <div className="card-modern text-center text-neutral-500">
-            No summary data available
-          </div>
+      <div className="col-12">
+        <div className="card-modern text-center text-neutral-500">
+          No summary data available
         </div>
       </div>
     )
@@ -38,8 +36,8 @@ export default function DashboardSummary() {
     summaryData.vulnerable_population.infants
 
   return (
-    <div className="row g-4">
-      <div className="col-12 col-sm-6 col-lg-3">
+    <>
+      <div className="col-12 col-sm-6 col-lg-4">
         <SummaryCard
           title="Total Households"
           value={summaryData.total_households}
@@ -49,7 +47,7 @@ export default function DashboardSummary() {
         />
       </div>
       
-      <div className="col-12 col-sm-6 col-lg-3">
+      <div className="col-12 col-sm-6 col-lg-4">
         <SummaryCard
           title="Total Residents"
           value={summaryData.total_residents}
@@ -59,17 +57,7 @@ export default function DashboardSummary() {
         />
       </div>
       
-      <div className="col-12 col-sm-6 col-lg-3">
-        <SummaryCard
-          title="Active Puroks"
-          value={summaryData.active_puroks}
-          subtext="Operational puroks"
-          icon={<MapPin className="w-6 h-6" />}
-          color="info"
-        />
-      </div>
-      
-      <div className="col-12 col-sm-6 col-lg-3">
+      <div className="col-12 col-sm-6 col-lg-4">
         <SummaryCard
           title="Vulnerable Population"
           value={totalVulnerable}
@@ -78,7 +66,7 @@ export default function DashboardSummary() {
           color="warning"
         />
       </div>
-    </div>
+    </>
   )
 }
 

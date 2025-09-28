@@ -12,6 +12,16 @@ export type DashboardSummary = {
   active_puroks: number
   residents_by_purok: Array<{ purok: string; count: number }>
   households_by_purok: Array<{ purok: string; count: number }>
+  vaccination_summary: {
+    completed: number
+    pending: number
+    scheduled: number
+    total: number
+  }
+  blotter_summary: {
+    active: number
+    resolvedThisMonth: number
+  }
 }
 
 export async function getSummary() {
@@ -87,6 +97,34 @@ export async function getRecentActivities() {
 export async function getUpcomingEvents() {
   const res = await api.get('/dashboard/upcoming-events')
   return res.data as { success: boolean; data: UpcomingEvent[]; message: string | null; errors: any }
+}
+
+export type VaccinationSummary = {
+  completed: number
+  pending: number
+  scheduled: number
+  total: number
+}
+
+export async function getVaccinationSummary() {
+  const res = await api.get('/dashboard/vaccinations/summary')
+  return res.data as { success: boolean; data: VaccinationSummary; message: string | null; errors: any }
+}
+
+export type BlotterSummary = {
+  active: number
+  resolvedThisMonth: number
+  monthlyTrend: Array<{
+    month: string
+    open: number
+    ongoing: number
+    resolved: number
+  }>
+}
+
+export async function getBlotterSummary() {
+  const res = await api.get('/dashboard/blotters/summary')
+  return res.data as { success: boolean; data: BlotterSummary; message: string | null; errors: any }
 }
 
 

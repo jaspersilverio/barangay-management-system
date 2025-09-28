@@ -1,7 +1,11 @@
 
 import DashboardSummary from '../components/dashboard/DashboardSummary'
+import VaccinationSummaryCard from '../components/dashboard/VaccinationSummaryCard'
+import BlotterSummaryCard from '../components/dashboard/BlotterSummaryCard'
 import DashboardCharts from '../components/dashboard/DashboardCharts'
 import ResidentsByPurokChart from '../components/dashboard/ResidentsByPurokChart'
+import VaccinationStatusChart from '../components/dashboard/VaccinationStatusChart'
+import BlotterTrendChart from '../components/dashboard/BlotterTrendChart'
 import MonthlyRegistrationsChart from '../components/dashboard/MonthlyRegistrationsChart'
 import VulnerabilityTrendsChart from '../components/dashboard/VulnerabilityTrendsChart'
 import QuickActions from '../components/dashboard/QuickActions'
@@ -20,7 +24,11 @@ export default function Dashboard() {
 
         {/* Summary Cards Section */}
         <div className="mb-6">
-          <DashboardSummary />
+          <div className="row g-4">
+            <DashboardSummary />
+            <VaccinationSummaryCard />
+            <BlotterSummaryCard />
+          </div>
         </div>
 
         {/* Charts Section - Row 1 */}
@@ -56,6 +64,19 @@ export default function Dashboard() {
           {/* Vulnerability Trends Chart */}
           <div className="col-12 col-lg-6">
             <VulnerabilityTrendsChart />
+          </div>
+        </div>
+
+        {/* Charts Section - Row 3 */}
+        <div className="row g-6 mb-6">
+          {/* Vaccination Status Chart */}
+          <div className="col-12 col-lg-6">
+            <VaccinationStatusChart />
+          </div>
+          
+          {/* Blotter Trend Chart */}
+          <div className="col-12 col-lg-6">
+            <BlotterTrendChart />
           </div>
         </div>
 

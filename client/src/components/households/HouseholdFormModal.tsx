@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Modal, Button, Form, Row, Col } from 'react-bootstrap'
+import { Modal, Button, Form } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -58,10 +58,12 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
   return (
     <Modal show={show} onHide={onHide} centered>
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{initial ? 'Edit Household' : 'Add Household'}</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom">
+            {initial ? 'Edit Household' : 'Add Household'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           <Form.Group className="mb-3">
             <Form.Label>Address</Form.Label>
             <Form.Control 
@@ -139,9 +141,13 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
             <Form.Control.Feedback type="invalid">{errors.contact?.message}</Form.Control.Feedback>
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>Cancel</Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={onHide} className="btn-cancel">
+            <i className="fas fa-times me-1"></i>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-submit">
+            <i className="fas fa-save me-1"></i>
             {isSubmitting ? (initial ? 'Updating...' : 'Creating...') : (initial ? 'Update Household' : 'Create Household')}
           </Button>
         </Modal.Footer>

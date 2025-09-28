@@ -1,4 +1,4 @@
-import React from 'react'
+// React import removed as it's not needed
 import {
   BarChart,
   Bar,
@@ -40,7 +40,12 @@ export default function ResidentsByPurokChart() {
       <BarChart data={summaryData.residents_by_purok}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="purok" />
-        <YAxis />
+        <YAxis 
+          domain={[0, 'dataMax + 1']}
+          tickCount={6}
+          allowDecimals={false}
+          scale="linear"
+        />
         <Tooltip />
         <Bar dataKey="count" fill="#3B82F6" />
       </BarChart>

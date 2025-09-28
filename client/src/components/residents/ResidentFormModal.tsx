@@ -14,6 +14,7 @@ const schema = z.object({
   last_name: z.string().min(1, 'Last name is required'),
   sex: z.enum(['male', 'female', 'other']),
   birthdate: z.string().min(1, 'Birthdate is required'),
+  civil_status: z.enum(['single', 'married', 'widowed', 'divorced', 'separated']),
   relationship_to_head: z.string().min(1, 'Relationship is required'),
   occupation_status: z.enum(['employed', 'unemployed', 'student', 'retired', 'other']),
   is_pwd: z.boolean().default(false),
@@ -42,6 +43,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       last_name: '',
       sex: 'male',
       birthdate: '',
+      civil_status: 'single',
       relationship_to_head: '',
       occupation_status: 'other',
       is_pwd: false,
@@ -135,14 +137,16 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
         reset()
         setSelectedHousehold(null)
       })}>
-        <Modal.Header closeButton>
-          <Modal.Title>{initial ? 'Edit Resident' : 'Add Resident'}</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom">
+            {initial ? 'Edit Resident' : 'Add Resident'}
+          </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           <Row className="g-3">
             <Col md={12}>
-              <Form.Group className="mb-3">
-                <Form.Label>Household *</Form.Label>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Household *</Form.Label>
                 <Select
                   value={selectedHousehold}
                   onChange={handleHouseholdChange}
@@ -235,9 +239,15 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
             </Col>
             <Col md={4}>
               <Form.Group className="mb-3">
-                <Form.Label>Relationship to Head</Form.Label>
-                <Form.Control {...register('relationship_to_head')} isInvalid={!!errors.relationship_to_head} />
-                <Form.Control.Feedback type="invalid">{errors.relationship_to_head?.message}</Form.Control.Feedback>
+                <Form.Label>Civil Status</Form.Label>
+                <Form.Select {...register('civil_status')} isInvalid={!!errors.civil_status}>
+                  <option value="single">Single</option>
+                  <option value="married">Married</option>
+                  <option value="widowed">Widowed</option>
+                  <option value="divorced">Divorced</option>
+                  <option value="separated">Separated</option>
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">{errors.civil_status?.message}</Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={4}>
@@ -254,6 +264,15 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
               </Form.Group>
             </Col>
           </Row>
+          <Row className="g-3">
+            <Col md={12}>
+              <Form.Group className="mb-3">
+                <Form.Label>Relationship to Head</Form.Label>
+                <Form.Control {...register('relationship_to_head')} isInvalid={!!errors.relationship_to_head} />
+                <Form.Control.Feedback type="invalid">{errors.relationship_to_head?.message}</Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+          </Row>
           <Form.Group className="mb-3">
             <Form.Check
               type="checkbox"
@@ -262,9 +281,13 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
             />
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>Cancel</Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={onHide} className="btn-cancel">
+            <i className="fas fa-times me-1"></i>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-submit">
+            <i className="fas fa-save me-1"></i>
             {isSubmitting ? 'Saving...' : (initial ? 'Update' : 'Create')}
           </Button>
         </Modal.Footer>

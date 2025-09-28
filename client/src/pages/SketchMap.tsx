@@ -60,6 +60,7 @@ export default function SketchMap() {
   const imageRef = useRef<HTMLImageElement>(null)
   // Use original image dimensions for coordinate calculations to avoid zoom issues
   const originalImageDimensions = { width: 800, height: 600 }
+  
 
   // Modal states
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -84,6 +85,7 @@ export default function SketchMap() {
     { value: 'waterway', label: '🌊 Waterway' },
   ]
 
+
   // Load markers and boundaries on component mount
   useEffect(() => {
     loadMarkers()
@@ -96,7 +98,7 @@ export default function SketchMap() {
       const data = await MapService.getMarkers()
       setMarkers(data)
     } catch (error) {
-      console.error('Failed to load markers:', error)
+      // Failed to load markers
     } finally {
       setIsLoadingMarkers(false)
     }
@@ -110,7 +112,7 @@ export default function SketchMap() {
       // Update available puroks (puroks without boundaries)
       await updateAvailablePuroks(data)
     } catch (error) {
-      console.error('Error loading boundaries:', error)
+      // Error loading boundaries
     }
   }
 
@@ -127,7 +129,7 @@ export default function SketchMap() {
       
       setAvailablePuroks(available)
     } catch (error) {
-      console.error('Error updating available puroks:', error)
+      // Error updating available puroks
       setAvailablePuroks([])
     }
   }
@@ -230,7 +232,7 @@ export default function SketchMap() {
           })
         }
       } catch (error) {
-        console.error('Error in handleAddMarker:', error)
+        // Error in handleAddMarker
       }
       
       setNewMarker({ name: '', type: 'household', description: '' })
@@ -238,8 +240,7 @@ export default function SketchMap() {
       setClickPosition(null)
       setSelectedMarkerForInfo(null) // Close any open marker info
     } else {
-      if (!clickPosition) console.log('No click position')
-      if (!newMarker.name.trim()) console.log('No marker name')
+      if (!clickPosition || !newMarker.name.trim()) return
     }
   }
 
@@ -368,7 +369,7 @@ export default function SketchMap() {
       // Refresh boundaries to update available puroks
       await loadBoundaries()
     } catch (error) {
-      console.error('Failed to save boundary:', error)
+      // Failed to save boundary
       // Still clear the current polygon even if save failed
       setCurrentPolygon([])
       setIsDrawingMode(false)
@@ -412,7 +413,7 @@ export default function SketchMap() {
       await loadBoundaries()
       
     } catch (error) {
-      console.error('Failed to delete boundary:', error)
+      // Failed to delete boundary
       alert('Failed to delete polygon. Please try again.')
     }
   }
@@ -641,9 +642,9 @@ export default function SketchMap() {
                     }}
                     onClick={handleImageClick}
                     onLoad={() => {
-                      console.log('Image loaded successfully!')
+                      // Image loaded successfully
                     }}
-                    onError={(e) => console.error('Image failed to load:', e)}
+                    onError={() => {/* Image failed to load */}}
                     draggable={false}
                   />
                   

@@ -266,35 +266,6 @@ export const blotterService = {
     return response.data.data;
   },
 
-  // Archive methods (admin only)
-  async getArchivedBlotters(filters?: BlotterFilters): Promise<{ success: boolean; data: any; message: string | null; errors: any }> {
-    const params = new URLSearchParams();
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) params.append(key, value.toString());
-      });
-    }
-    
-    const response = await api.get(`/blotters/archived?${params.toString()}`);
-    return response.data as { success: boolean; data: any; message: string | null; errors: any };
-  },
-
-  async verifyArchivePassword(password: string): Promise<boolean> {
-    try {
-      const response = await api.post('/blotters/verify-archive-password', { password });
-      return response.data.success;
-    } catch (error) {
-      return false;
-    }
-  },
-
-  async restoreBlotter(id: number): Promise<void> {
-    await api.post(`/blotters/${id}/restore`);
-  },
-
-  async forceDeleteBlotter(id: number): Promise<void> {
-    await api.delete(`/blotters/${id}/force-delete`);
-  },
 };
 
 export default blotterService;

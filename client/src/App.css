@@ -6,27 +6,3 @@
   text-align: left;
 }
 
-/* Animation for logo spin (if needed) */
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-/* Legacy card styles - will be replaced by new design system */
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}

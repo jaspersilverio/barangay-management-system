@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Container, Row, Col, Card, Button, Table, Badge } from 'react-bootstrap'
-import { Plus, Edit, Trash2, Calendar, MapPin, Users } from 'lucide-react'
+import { Calendar, MapPin, Users } from 'lucide-react'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
 import EventFormModal from '../../components/events/EventFormModal'
@@ -144,24 +144,28 @@ export default function EventsPage() {
   }
 
   return (
-    <Container fluid className="p-4">
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex justify-content-between align-items-center">
-            <h2 className="mb-0">Events Management</h2>
-            {canManage && (
-              <Button 
-                variant="primary" 
-                onClick={() => setShowForm(true)}
-                className="d-flex align-items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                Add Event
-              </Button>
-            )}
-          </div>
-        </Col>
-      </Row>
+    <div className="page-container">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2 className="mb-0">Events Management</h2>
+          <p className="text-muted mb-0">Manage barangay events and activities</p>
+        </div>
+        <div className="page-actions">
+          {canManage && (
+            <Button 
+              variant="primary" 
+              size="lg"
+              onClick={() => setShowForm(true)} 
+              disabled={loading}
+              className="btn-primary-custom btn-action-add"
+            >
+              <i className="fas fa-plus me-2"></i>
+              Add Event
+            </Button>
+          )}
+        </div>
+      </div>
 
       {error && (
         <Row className="mb-4">
@@ -175,107 +179,115 @@ export default function EventsPage() {
 
       <Row>
         <Col>
-          <Card>
+          <Card className="data-table-card">
             <Card.Header>
               <h5 className="mb-0">All Events ({events.length})</h5>
             </Card.Header>
             <Card.Body className="p-0">
               {events.length === 0 ? (
                 <div className="text-center py-5">
-                  <Calendar className="h-12 w-12 text-muted mb-3" />
-                  <h5 className="text-muted">No events found</h5>
-                  <p className="text-muted">Create your first event to get started.</p>
-                  {canManage && (
-                    <Button variant="primary" onClick={() => setShowForm(true)}>
-                      <Plus className="h-4 w-4 me-2" />
-                      Add Event
-                    </Button>
-                  )}
+                  <div className="empty-state">
+                    <i className="fas fa-calendar-alt text-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                    <h5>No events found</h5>
+                    <p className="text-muted">Create your first event to get started.</p>
+                    {canManage && (
+                      <Button 
+                        variant="primary" 
+                        onClick={() => setShowForm(true)}
+                        className="btn-primary-custom btn-action-add"
+                      >
+                        <i className="fas fa-plus me-2"></i>
+                        Add Event
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ) : (
-                <Table responsive hover className="mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Title</th>
-                      <th>Date</th>
-                      <th>Location</th>
-                      <th>Purok</th>
-                      <th>Status</th>
-                      <th>Description</th>
-                      <th style={{ width: '120px' }}>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {events.map((event) => (
-                      <tr key={event.id}>
-                        <td>
-                          <strong>{event.title}</strong>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <Calendar className="h-4 w-4 text-muted" />
-                            {formatDate(event.date)}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted" />
-                            {event.location}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <Users className="h-4 w-4 text-muted" />
-                            {event.purok ? event.purok.name : 'Barangay-wide'}
-                          </div>
-                        </td>
-                        <td>
-                          {getEventStatus(event.date)}
-                        </td>
-                        <td>
-                          {event.description ? (
-                            <span className="text-muted">
-                              {event.description.length > 50 
-                                ? `${event.description.substring(0, 50)}...` 
-                                : event.description
-                              }
-                            </span>
-                          ) : (
-                            <span className="text-muted">No description</span>
-                          )}
-                        </td>
-                        <td>
-                          {canManage && (
-                            <div className="d-flex gap-1">
-                              <Button
-                                variant="outline-primary"
-                                size="sm"
-                                onClick={() => {
-                                  setEditingEvent(event)
-                                  setShowForm(true)
-                                }}
-                                title="Edit Event"
-                              >
-                                <Edit className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => {
-                                  setDeletingEvent(event)
-                                  setShowDeleteConfirm(true)
-                                }}
-                                title="Delete Event"
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                        </td>
+                <div className="table-responsive">
+                  <Table className="data-table" striped hover>
+                    <thead className="table-header">
+                      <tr>
+                        <th>Title</th>
+                        <th>Date</th>
+                        <th>Location</th>
+                        <th>Purok</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                        <th className="actions-column">Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                    </thead>
+                    <tbody>
+                      {events.map((event) => (
+                        <tr key={event.id} className="table-row">
+                          <td className="fw-medium">{event.title}</td>
+                          <td>
+                            <div className="d-flex align-items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted" />
+                              {formatDate(event.date)}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center gap-2">
+                              <MapPin className="h-4 w-4 text-muted" />
+                              {event.location}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center gap-2">
+                              <Users className="h-4 w-4 text-muted" />
+                              {event.purok ? event.purok.name : 'Barangay-wide'}
+                            </div>
+                          </td>
+                          <td>
+                            {getEventStatus(event.date)}
+                          </td>
+                          <td>
+                            {event.description ? (
+                              <span className="text-muted">
+                                {event.description.length > 50 
+                                  ? `${event.description.substring(0, 50)}...` 
+                                  : event.description
+                                }
+                              </span>
+                            ) : (
+                              <span className="text-muted">No description</span>
+                            )}
+                          </td>
+                          <td>
+                            {canManage && (
+                              <div className="action-buttons">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setEditingEvent(event)
+                                    setShowForm(true)
+                                  }}
+                                  className="btn-action btn-action-edit"
+                                  title="Edit Event"
+                                >
+                                  <i className="fas fa-edit"></i>
+                                  Edit
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setDeletingEvent(event)
+                                    setShowDeleteConfirm(true)
+                                  }}
+                                  className="btn-action btn-action-delete"
+                                  title="Delete Event"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                  Delete
+                                </Button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </div>
               )}
             </Card.Body>
           </Card>
@@ -304,6 +316,6 @@ export default function EventsPage() {
           setDeletingEvent(null)
         }}
       />
-    </Container>
+    </div>
   )
 }

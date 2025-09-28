@@ -40,67 +40,158 @@ export default function PurokListPage() {
   }, [search, page]) // These dependencies are fine as they're primitive values
 
   return (
-    <Card className="shadow rounded-3 p-4">
-      <Row className="align-items-end g-3 mb-3">
-        <Col md={6}>
-          <Form.Group className="mb-0">
-            <Form.Label>Search</Form.Label>
-            <Form.Control placeholder="Purok name, leader, or contact" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </Form.Group>
-        </Col>
-        <Col className="text-end">
+    <div className="page-container">
+      {/* Page Header */}
+      <div className="page-header">
+        <div className="page-title">
+          <h2 className="mb-0">Puroks</h2>
+          <p className="text-muted mb-0">Manage purok information and records</p>
+        </div>
+        <div className="page-actions">
           {isAdmin && (
-            <Button variant="primary" onClick={() => { setEditingId(null); setShowForm(true) }}>Add Purok</Button>
+            <Button 
+              variant="primary" 
+              size="lg"
+              onClick={() => { setEditingId(null); setShowForm(true) }} 
+              disabled={loading}
+              className="btn-primary-custom btn-action-add"
+            >
+              <i className="fas fa-plus me-2"></i>
+              Add Purok
+            </Button>
           )}
-        </Col>
-      </Row>
-
-      <div className="table-responsive">
-        <Table striped bordered hover responsive>
-          <thead>
-            <tr>
-              <th>Purok Name</th>
-              <th>Purok Leader</th>
-              <th>Leader Contact</th>
-              <th style={{ width: 200 }}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id}>
-                <td>{p.name}</td>
-                <td>{p.captain || '-'}</td>
-                <td>{p.contact || '-'}</td>
-                <td>
-                  <div className="d-flex gap-2">
-                    <Button size="sm" variant="secondary" onClick={() => navigate(`/puroks/${p.id}`)}>View</Button>
-                    {isAdmin && (
-                      <>
-                        <Button size="sm" variant="primary" onClick={() => { setEditingId(p.id); setShowForm(true) }}>Edit</Button>
-                        <Button size="sm" variant="danger" onClick={() => setDeletingId(p.id)}>Delete</Button>
-                      </>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {items.length === 0 && (
-              <tr>
-                <td colSpan={4} className="text-center py-4">{loading ? 'Loading...' : 'No puroks found.'}</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
+        </div>
       </div>
 
+      {/* Filters Section */}
+      <Card className="filters-card">
+        <Card.Body className="p-3">
+          <Row className="align-items-end g-3">
+            <Col md={6}>
+              <Form.Group className="mb-0">
+                <Form.Label className="form-label-custom">Search</Form.Label>
+                <Form.Control 
+                  placeholder="Purok name, leader, or contact" 
+                  value={search} 
+                  onChange={(e) => setSearch(e.target.value)}
+                  disabled={loading}
+                  className="form-control-custom"
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* Data Table */}
+      <Card className="data-table-card">
+        <Card.Body className="p-0">
+
+          <div className="table-responsive">
+            <Table className="data-table" striped hover>
+              <thead className="table-header">
+                <tr>
+                  <th>Purok Name</th>
+                  <th>Purok Leader</th>
+                  <th>Leader Contact</th>
+                  <th className="actions-column">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-5">
+                      <div className="loading-state">
+                        <div className="spinner-border text-primary" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                        <p className="mt-2 text-muted">Loading puroks...</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : items.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-5">
+                      <div className="empty-state">
+                        <i className="fas fa-map-marker-alt text-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-muted mb-0">No puroks found</p>
+                        <small className="text-muted">Try adjusting your search criteria</small>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  items.map((p) => (
+                    <tr key={p.id} className="table-row">
+                      <td className="fw-medium">{p.name}</td>
+                      <td>{p.captain || '-'}</td>
+                      <td>{p.contact || '-'}</td>
+                      <td>
+                        <div className="action-buttons">
+                          <Button 
+                            size="sm" 
+                            onClick={() => navigate(`/puroks/${p.id}`)}
+                            className="btn-action btn-action-view"
+                          >
+                            <i className="fas fa-eye"></i>
+                            View
+                          </Button>
+                          {isAdmin && (
+                            <>
+                              <Button 
+                                size="sm" 
+                                onClick={() => { setEditingId(p.id); setShowForm(true) }}
+                                className="btn-action btn-action-edit"
+                              >
+                                <i className="fas fa-edit"></i>
+                                Edit
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                onClick={() => setDeletingId(p.id)}
+                                className="btn-action btn-action-delete"
+                              >
+                                <i className="fas fa-trash"></i>
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </Table>
+          </div>
+        </Card.Body>
+      </Card>
+
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="d-flex justify-content-end">
-          <Pagination>
-            <Pagination.Prev disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} />
-            <Pagination.Item active>{page}</Pagination.Item>
-            <Pagination.Next disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)} />
-          </Pagination>
-        </div>
+        <Card className="pagination-card">
+          <Card.Body className="p-3">
+            <div className="d-flex justify-content-between align-items-center">
+              <div className="pagination-info">
+                <span className="text-muted">
+                  Showing page {page} of {totalPages}
+                </span>
+              </div>
+              <Pagination className="mb-0">
+                <Pagination.Prev 
+                  disabled={page <= 1 || loading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="pagination-btn"
+                />
+                <Pagination.Item active className="pagination-item">{page}</Pagination.Item>
+                <Pagination.Next 
+                  disabled={page >= totalPages || loading}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="pagination-btn"
+                />
+              </Pagination>
+            </div>
+          </Card.Body>
+        </Card>
       )}
 
       <PurokFormModal
@@ -162,12 +253,13 @@ export default function PurokListPage() {
         onHide={() => setDeletingId(null)}
       />
 
+      {/* Toast Notifications */}
       <ToastContainer position="top-end" className="p-3">
         <Toast bg={toast.variant} onClose={() => setToast((t) => ({ ...t, show: false }))} show={toast.show} delay={2500} autohide>
           <Toast.Body className="text-white">{toast.message}</Toast.Body>
         </Toast>
       </ToastContainer>
-    </Card>
+    </div>
   )
 }
 
