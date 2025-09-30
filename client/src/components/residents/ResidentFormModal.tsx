@@ -18,6 +18,7 @@ const schema = z.object({
   relationship_to_head: z.string().min(1, 'Relationship is required'),
   occupation_status: z.enum(['employed', 'unemployed', 'student', 'retired', 'other']),
   is_pwd: z.boolean().default(false),
+  is_pregnant: z.boolean().default(false),
 })
 
 export type ResidentFormValues = z.infer<typeof schema>
@@ -33,6 +34,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
   const [households, setHouseholds] = useState<HouseholdOption[]>([])
   const [loadingHouseholds, setLoadingHouseholds] = useState(false)
   const [selectedHousehold, setSelectedHousehold] = useState<HouseholdOption | null>(null)
+  const [selectedSex, setSelectedSex] = useState<'male' | 'female' | 'other'>('male')
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<ResidentFormValues>({
     resolver: zodResolver(schema),
@@ -47,6 +49,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       relationship_to_head: '',
       occupation_status: 'other',
       is_pwd: false,
+      is_pregnant: false,
     },
   })
 
@@ -82,23 +85,39 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
     }
   }
 
+  // Handle sex selection
+  const handleSexChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const sex = e.target.value as 'male' | 'female' | 'other'
+    setSelectedSex(sex)
+    setValue('sex', sex)
+
+    // Reset pregnant status if not female
+    if (sex !== 'female') {
+      setValue('is_pregnant', false)
+    }
+  }
+
   // Reset form and set initial values when modal opens/closes or initial changes
   useEffect(() => {
     if (show) {
-      const defaultValues = {
-        household_id: '',
-        first_name: '',
-        middle_name: '',
-        last_name: '',
-        sex: 'male' as const,
-        birthdate: '',
-        relationship_to_head: '',
-        occupation_status: 'other' as const,
-        is_pwd: false,
-        ...initial,
-      }
+        const defaultValues = {
+          household_id: '',
+          first_name: '',
+          middle_name: '',
+          last_name: '',
+          sex: 'male' as const,
+          birthdate: '',
+          relationship_to_head: '',
+          occupation_status: 'other' as const,
+          is_pwd: false,
+          is_pregnant: false,
+          ...initial,
+        }
       
       reset(defaultValues)
+      
+      // Set sex state
+      setSelectedSex(defaultValues.sex)
       
       // Set household selection if editing
       if (initial?.household_id && households.length > 0) {
@@ -113,6 +132,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       // Reset form when modal closes
       reset()
       setSelectedHousehold(null)
+      setSelectedSex('male')
     }
   }, [show, initial, reset, households])
 
@@ -229,7 +249,11 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
             <Col md={4}>
               <Form.Group className="mb-3">
                 <Form.Label>Sex</Form.Label>
-                <Form.Select {...register('sex')} isInvalid={!!errors.sex}>
+                <Form.Select 
+                  value={selectedSex} 
+                  onChange={handleSexChange} 
+                  isInvalid={!!errors.sex}
+                >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
@@ -264,6 +288,8 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
               </Form.Group>
             </Col>
           </Row>
+          
+          
           <Row className="g-3">
             <Col md={12}>
               <Form.Group className="mb-3">
@@ -280,6 +306,17 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
               {...register('is_pwd')}
             />
           </Form.Group>
+          
+          {/* Pregnant checkbox - only show when female is selected */}
+          {selectedSex === 'female' && (
+            <Form.Group className="mb-3">
+              <Form.Check
+                type="checkbox"
+                label="Pregnant"
+                {...register('is_pregnant')}
+              />
+            </Form.Group>
+          )}
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
           <Button variant="secondary" onClick={onHide} className="btn-cancel">

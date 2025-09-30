@@ -23,9 +23,11 @@ return new class extends Migration
             $table->string('last_name');
             $table->enum('sex', ['male', 'female', 'other']);
             $table->date('birthdate');
+            $table->enum('civil_status', ['single', 'married', 'widowed', 'divorced', 'separated'])->default('single');
             $table->string('relationship_to_head');
             $table->enum('occupation_status', ['employed', 'unemployed', 'student', 'retired', 'other']);
             $table->boolean('is_pwd')->default(false);
+            $table->boolean('is_pregnant')->default(false);
             $table->timestamps();
             $table->softDeletes();
 

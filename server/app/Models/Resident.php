@@ -27,6 +27,7 @@ class Resident extends Model
         'relationship_to_head',
         'occupation_status',
         'is_pwd',
+        'is_pregnant',
     ];
 
     /**
@@ -37,6 +38,7 @@ class Resident extends Model
         return [
             'birthdate' => 'date',
             'is_pwd' => 'boolean',
+            'is_pregnant' => 'boolean',
             'deleted_at' => 'datetime',
         ];
     }

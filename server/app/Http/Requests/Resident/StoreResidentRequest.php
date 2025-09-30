@@ -69,6 +69,10 @@ class StoreResidentRequest extends BaseFormRequest
                 'boolean',
                 'sometimes'
             ],
+            'is_pregnant' => [
+                'boolean',
+                'sometimes'
+            ],
             'purok_id' => [
                 'nullable',
                 'string'
