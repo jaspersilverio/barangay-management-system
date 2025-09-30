@@ -66,10 +66,39 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
 
   if (loading) {
     return (
-      <div className="text-center py-4">
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
+      <div className="table-responsive">
+        <Table striped hover>
+          <thead>
+            <tr>
+              <th>Resident</th>
+              <th>Vaccine</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(5)].map((_, index) => (
+              <tr key={index}>
+                <td>
+                  <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-button" style={{ width: '60px', height: '28px' }}></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       </div>
     )
   }

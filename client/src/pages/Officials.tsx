@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Container, Row, Col, Button, Alert } from 'react-bootstrap'
+import { Row, Col, Button, Alert } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 import OfficialList from '../components/officials/OfficialList'
 import OfficialForm from '../components/officials/OfficialForm'
@@ -188,7 +188,7 @@ export default function Officials() {
   }, [error, success])
 
   return (
-    <Container fluid className="p-4">
+    <div className="page-container">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -267,6 +267,6 @@ export default function Officials() {
         onSubmit={handleFormSubmit}
         loading={formLoading}
       />
-    </Container>
+    </div>
   )
 }

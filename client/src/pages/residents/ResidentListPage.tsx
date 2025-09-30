@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { listResidents, deleteResident, createResident, updateResident } from '../../services/residents.service'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -10,7 +9,6 @@ import { useAuth } from '../../context/AuthContext'
 const ResidentListPage = React.memo(() => {
   const { puroks } = usePuroks()
   const { user } = useAuth()
-  const queryClient = useQueryClient()
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
@@ -21,6 +19,12 @@ const ResidentListPage = React.memo(() => {
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
   const [editingId, setEditingId] = useState<null | number>(null)
+  
+  // Manual state management
+  const [residentsData, setResidentsData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isError, setIsError] = useState(false)
+  const [error, setError] = useState<any>(null)
 
   const canManage = role === 'admin' || role === 'purok_leader' || role === 'staff'
 
@@ -30,44 +34,52 @@ const ResidentListPage = React.memo(() => {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // React Query for fetching residents
-  const { data: residentsData, isLoading, isError, error } = useQuery({
-    queryKey: ['residents', { search, page, purok_id: effectivePurokId }],
-    queryFn: () => listResidents({ 
-      search, 
-      page, 
-      purok_id: effectivePurokId || undefined 
-    }),
-    placeholderData: (previousData) => previousData,
-  })
+  // Manual data fetching
+  const loadResidents = useCallback(async () => {
+    setIsLoading(true)
+    setIsError(false)
+    try {
+      const data = await listResidents({ 
+        search, 
+        page, 
+        purok_id: effectivePurokId || undefined 
+      })
+      setResidentsData(data)
+    } catch (err) {
+      setIsError(true)
+      setError(err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [search, page, effectivePurokId])
 
-  // React Query for delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: deleteResident,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['residents'] })
-      setToast({ show: true, message: 'Resident deleted', variant: 'success' })
-      setShowDelete(null)
-    },
-    onError: (e: any) => {
-      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
-      setShowDelete(null)
-    },
-  })
+  // Load data on mount and when dependencies change
+  useEffect(() => {
+    loadResidents()
+  }, [loadResidents])
 
   const items = useMemo(() => {
     if (!residentsData?.data?.data) return []
-    return (residentsData as any).data.data
+    return residentsData.data.data
   }, [residentsData])
 
   const totalPages = useMemo(() => {
-    return (residentsData as any)?.data?.last_page ?? 1
+    return residentsData?.data?.last_page ?? 1
   }, [residentsData])
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (showDelete == null) return
-    deleteMutation.mutate(showDelete)
-  }, [showDelete, deleteMutation])
+    try {
+      await deleteResident(showDelete)
+      setToast({ show: true, message: 'Resident deleted', variant: 'success' })
+      setShowDelete(null)
+      // Reload data after successful deletion
+      loadResidents()
+    } catch (e: any) {
+      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
+      setShowDelete(null)
+    }
+  }, [showDelete, loadResidents])
 
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value)
@@ -203,16 +215,43 @@ const ResidentListPage = React.memo(() => {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr>
-                    <td colSpan={9} className="text-center py-5">
-                      <div className="loading-state">
-                        <div className="spinner-border text-primary" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2 text-muted">Loading residents...</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={index} className="table-row">
+                        <td>
+                          <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '60px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '70px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '40px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '90px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <div className="skeleton-button" style={{ width: '60px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ) : items.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="text-center py-5">
@@ -257,7 +296,7 @@ const ResidentListPage = React.memo(() => {
                               <Button
                                 size="sm"
                                 onClick={() => handleShowDelete(resident.id)}
-                                disabled={deleteMutation.isPending}
+                                disabled={isLoading}
                                 className="btn-action btn-action-delete"
                               >
                                 <i className="fas fa-trash"></i>
@@ -358,7 +397,8 @@ const ResidentListPage = React.memo(() => {
             }
             setShowForm(false)
             setEditingId(null)
-            queryClient.invalidateQueries({ queryKey: ['residents'] })
+            // Reload data after successful save
+            loadResidents()
           } catch (e: any) {
             setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
           }

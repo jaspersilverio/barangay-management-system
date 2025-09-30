@@ -75,11 +75,24 @@ export default function PuroksReport() {
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading puroks report...</p>
+      <div className="row">
+        {[...Array(6)].map((_, index) => (
+          <div key={index} className="col-md-6 col-lg-4 mb-4">
+            <div className="skeleton-card" style={{ height: '200px' }}>
+              <div className="d-flex align-items-center mb-3">
+                <div className="skeleton-circle" style={{ width: '40px', height: '40px', marginRight: '12px' }}></div>
+                <div className="skeleton-line" style={{ width: '60%', height: '18px' }}></div>
+              </div>
+              <div className="skeleton-line" style={{ width: '100%', height: '16px', marginBottom: '10px' }}></div>
+              <div className="skeleton-line" style={{ width: '80%', height: '16px', marginBottom: '10px' }}></div>
+              <div className="skeleton-line" style={{ width: '90%', height: '16px', marginBottom: '15px' }}></div>
+              <div className="d-flex justify-content-between">
+                <div className="skeleton-badge" style={{ width: '80px', height: '24px' }}></div>
+                <div className="skeleton-badge" style={{ width: '60px', height: '24px' }}></div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

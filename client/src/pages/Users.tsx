@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Container, Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, Spinner, InputGroup } from 'react-bootstrap'
+import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, InputGroup } from 'react-bootstrap'
 import { Search } from 'lucide-react'
 import type { User, UserFilters } from '../services/users.service'
 import { getUsers, createUser, updateUser, deleteUser, restoreUser } from '../services/users.service'
@@ -186,11 +186,51 @@ export default function Users() {
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading users...</p>
+      <div className="table-responsive">
+        <Table className="data-table" striped hover>
+          <thead className="table-header">
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Purok</th>
+              <th>Status</th>
+              <th>Last Login</th>
+              <th className="actions-column">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(5)].map((_, index) => (
+              <tr key={index} className="table-row">
+                <td>
+                  <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-badge" style={{ width: '70px', height: '20px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="action-buttons">
+                    <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                    <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                    <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
       </div>
     )
   }
@@ -312,16 +352,37 @@ export default function Users() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-5">
-                      <div className="loading-state">
-                        <div className="spinner-border text-primary" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2 text-muted">Loading users...</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={index} className="table-row">
+                        <td>
+                          <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-badge" style={{ width: '70px', height: '20px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ) : users.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-5">

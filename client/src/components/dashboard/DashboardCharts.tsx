@@ -20,7 +20,17 @@ const DashboardCharts = memo(() => {
 
   if (loading) {
     return (
-      <div className="w-full h-full animate-pulse bg-neutral-200 rounded"></div>
+      <div className="w-full h-full">
+        <div className="skeleton-card" style={{ height: '320px' }}>
+          <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
+          <div className="skeleton-line" style={{ width: '100%', height: '200px', marginBottom: '10px' }}></div>
+          <div className="d-flex justify-content-between">
+            <div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div>
+            <div className="skeleton-line" style={{ width: '60px', height: '16px' }}></div>
+            <div className="skeleton-line" style={{ width: '70px', height: '16px' }}></div>
+          </div>
+        </div>
+      </div>
     )
   }
 

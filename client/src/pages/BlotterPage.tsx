@@ -386,13 +386,37 @@ const BlotterPage: React.FC = () => {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={7} className="text-center py-4">
-                      <div className="spinner-border" role="status">
-                        <span className="visually-hidden">Loading...</span>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={index} className="table-row">
+                        <td>
+                          <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ) : blotters.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-4 text-muted">

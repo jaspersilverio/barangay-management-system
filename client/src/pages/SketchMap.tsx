@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
-import { Container, Button, ButtonGroup, Modal, Form, Row, Col } from 'react-bootstrap'
+import { Button, ButtonGroup, Modal, Form, Row, Col } from 'react-bootstrap'
 import { Stage, Layer, Line, Circle, Group } from 'react-konva'
 import { useAuth } from '../context/AuthContext'
 import MapService, { type MapMarker, type CreateMapMarkerData } from '../services/map.service'
@@ -473,7 +473,7 @@ export default function SketchMap() {
   }
 
   return (
-    <Container fluid className="p-4">
+    <div className="page-container">
       <div className="d-flex gap-4" style={{ minHeight: '80vh' }}>
         {/* Left Sidebar - Controls */}
         <div style={{ width: '300px', flexShrink: 0 }}>
@@ -989,6 +989,6 @@ export default function SketchMap() {
           </Button>
         </Modal.Footer>
       </Modal>
-    </Container>
+    </div>
   )
 }

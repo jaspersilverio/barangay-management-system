@@ -9,7 +9,7 @@ export default function Reports() {
   const [activeTab, setActiveTab] = useState('households')
 
   return (
-    <Container fluid className="p-4">
+    <div className="page-container">
       <Row className="mb-4">
         <Col>
           <div className="d-flex align-items-center gap-3">
@@ -71,6 +71,6 @@ export default function Reports() {
           </Tab.Container>
         </Col>
       </Row>
-    </Container>
+    </div>
   )
 }

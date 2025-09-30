@@ -1,6 +1,5 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import { useQuery } from '@tanstack/react-query'
 import { getVaccinationSummary } from '../../services/dashboard.service'
 import { Syringe } from 'lucide-react'
 
@@ -11,18 +10,33 @@ const COLORS = {
 }
 
 const VaccinationStatusChart = React.memo(() => {
-  const { data, isError, error } = useQuery({
-    queryKey: ['vaccination-summary'],
-    queryFn: async () => {
-      const response = await getVaccinationSummary()
-      if (response.success) {
-        return response.data
-      } else {
-        throw new Error(response.message || 'Failed to fetch vaccination data')
+  const [data, setData] = useState<any>(null)
+  const [isError, setIsError] = useState(false)
+  const [error, setError] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Manual data fetching
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      setIsError(false)
+      try {
+        const response = await getVaccinationSummary()
+        if (response.success) {
+          setData(response.data)
+        } else {
+          throw new Error(response.message || 'Failed to fetch vaccination data')
+        }
+      } catch (err) {
+        setIsError(true)
+        setError(err)
+      } finally {
+        setIsLoading(false)
       }
-    },
-    staleTime: 10 * 60 * 1000, // 10 minutes
-  })
+    }
+
+    fetchData()
+  }, [])
 
   const chartData = useMemo(() => {
     if (!data) return []
@@ -71,13 +85,14 @@ const VaccinationStatusChart = React.memo(() => {
     )
   }
 
-  if (!data) {
+  if (isLoading) {
     return (
       <div className="card-modern">
         <h5 className="h5 font-bold text-neutral-800 mb-4">Vaccination Status Breakdown</h5>
         <div className="w-full h-80 flex items-center justify-center">
-          <div className="animate-pulse">
-            <div className="w-64 h-64 bg-neutral-200 rounded-full"></div>
+          <div className="skeleton-card" style={{ height: '320px' }}>
+            <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
+            <div className="skeleton-circle" style={{ width: '200px', height: '200px', margin: '0 auto' }}></div>
           </div>
         </div>
       </div>

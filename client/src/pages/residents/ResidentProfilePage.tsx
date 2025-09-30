@@ -127,7 +127,7 @@ export default function ResidentProfilePage() {
   }
 
   return (
-    <Container className="py-4">
+    <div className="page-container">
       {/* Header */}
       <div className="d-flex align-items-center mb-4">
         <Button 
@@ -272,6 +272,6 @@ export default function ResidentProfilePage() {
         vaccination={editingVaccination}
         residentName={`${resident.first_name} ${resident.last_name}`}
       />
-    </Container>
+    </div>
   )
 }

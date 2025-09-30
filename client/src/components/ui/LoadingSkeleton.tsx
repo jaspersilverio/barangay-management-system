@@ -13,18 +13,18 @@ export default function LoadingSkeleton({
   width, 
   height 
 }: LoadingSkeletonProps) {
-  const baseClasses = 'animate-pulse bg-neutral-200 rounded'
+  const baseClasses = 'skeleton-line'
   
   const typeClasses = {
-    card: 'h-32',
-    table: 'h-4',
-    text: 'h-4',
-    circle: 'rounded-full'
+    card: 'skeleton-card',
+    table: 'skeleton-line',
+    text: 'skeleton-line',
+    circle: 'skeleton-circle'
   }
 
   const style = {
     width: width,
-    height: height || typeClasses[type]
+    height: height
   }
 
   return (
@@ -38,30 +38,38 @@ export default function LoadingSkeleton({
 // Predefined skeleton layouts
 export function CardSkeleton() {
   return (
-    <div className="card-modern">
-      <div className="animate-pulse">
-        <div className="h-4 bg-neutral-200 rounded w-1/3 mb-4"></div>
-        <div className="space-y-3">
-          <div className="h-4 bg-neutral-200 rounded"></div>
-          <div className="h-4 bg-neutral-200 rounded w-5/6"></div>
-          <div className="h-4 bg-neutral-200 rounded w-4/6"></div>
-        </div>
-      </div>
+    <div className="skeleton-card" style={{ height: '200px' }}>
+      <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '15px' }}></div>
+      <div className="skeleton-line" style={{ width: '100%', height: '16px', marginBottom: '10px' }}></div>
+      <div className="skeleton-line" style={{ width: '80%', height: '16px', marginBottom: '10px' }}></div>
+      <div className="skeleton-line" style={{ width: '70%', height: '16px' }}></div>
     </div>
   )
 }
 
 export function TableSkeleton() {
   return (
-    <div className="table-modern">
-      <div className="animate-pulse">
-        <div className="px-6 py-3 bg-neutral-200 h-12"></div>
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="px-6 py-4 border-b border-neutral-100">
-            <div className="h-4 bg-neutral-200 rounded"></div>
-          </div>
-        ))}
-      </div>
+    <div className="table-responsive">
+      <table className="table">
+        <thead>
+          <tr>
+            <th><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></th>
+            <th><div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div></th>
+            <th><div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div></th>
+            <th><div className="skeleton-line" style={{ width: '90px', height: '16px' }}></div></th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...Array(5)].map((_, i) => (
+            <tr key={i}>
+              <td><div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div></td>
+              <td><div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div></td>
+              <td><div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div></td>
+              <td><div className="skeleton-button" style={{ width: '60px', height: '28px' }}></div></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

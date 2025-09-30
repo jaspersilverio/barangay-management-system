@@ -149,13 +149,36 @@ export default function OfficialList({
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={7} className="text-center py-4">
-                  <div className="spinner-border text-primary" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </td>
-              </tr>
+              <>
+                {[...Array(5)].map((_, index) => (
+                  <tr key={index}>
+                    <td>
+                      <div className="d-flex align-items-center">
+                        <div className="skeleton-circle" style={{ width: '40px', height: '40px', marginRight: '12px' }}></div>
+                        <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-badge" style={{ width: '70px', height: '20px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-button" style={{ width: '60px', height: '28px' }}></div>
+                    </td>
+                  </tr>
+                ))}
+              </>
             ) : officials.length === 0 ? (
               <tr>
                 <td colSpan={7} className="text-center py-4 text-muted">

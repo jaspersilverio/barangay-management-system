@@ -1,4 +1,4 @@
-import { Users, Home, MapPin, Calendar } from 'lucide-react'
+import { Users, Home, Calendar } from 'lucide-react'
 import { useDashboard } from '../../context/DashboardContext'
 import SummaryCard from './SummaryCard'
 
@@ -10,9 +10,13 @@ export default function DashboardSummary() {
       <>
         {[...Array(3)].map((_, i) => (
           <div key={i} className="col-12 col-sm-6 col-lg-4">
-            <div className="card-modern animate-pulse">
-              <div className="h-8 bg-neutral-200 rounded w-1/2 mb-2"></div>
-              <div className="h-6 bg-neutral-200 rounded w-1/3"></div>
+            <div className="skeleton-card" style={{ height: '120px' }}>
+              <div className="d-flex align-items-center mb-3">
+                <div className="skeleton-circle" style={{ width: '40px', height: '40px', marginRight: '12px' }}></div>
+                <div className="skeleton-line" style={{ width: '60%', height: '18px' }}></div>
+              </div>
+              <div className="skeleton-line" style={{ width: '40%', height: '24px', marginBottom: '8px' }}></div>
+              <div className="skeleton-line" style={{ width: '30%', height: '14px' }}></div>
             </div>
           </div>
         ))}

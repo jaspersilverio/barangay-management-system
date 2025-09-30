@@ -89,11 +89,29 @@ export default function HouseholdsReport() {
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading households report...</p>
+      <div className="table-responsive">
+        <table className="table">
+          <thead>
+            <tr>
+              <th><div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '90px', height: '16px' }}></div></th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(8)].map((_, i) => (
+              <tr key={i}>
+                <td><div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div></td>
+                <td><div className="skeleton-badge" style={{ width: '60px', height: '20px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )
   }

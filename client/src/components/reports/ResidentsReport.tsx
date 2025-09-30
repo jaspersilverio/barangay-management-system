@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, Spinner } from 'react-bootstrap'
+import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter, Users, Calendar, MapPin } from 'lucide-react'
 import { getResidentsReport, exportReport, type ResidentReport, type ReportFilters } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
@@ -121,11 +121,31 @@ export default function ResidentsReport() {
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading residents report...</p>
+      <div className="table-responsive">
+        <table className="table">
+          <thead>
+            <tr>
+              <th><div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></th>
+              <th><div className="skeleton-line" style={{ width: '90px', height: '16px' }}></div></th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...Array(10)].map((_, i) => (
+              <tr key={i}>
+                <td><div className="skeleton-line" style={{ width: '180px', height: '16px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div></td>
+                <td><div className="skeleton-badge" style={{ width: '60px', height: '20px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div></td>
+                <td><div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     )
   }

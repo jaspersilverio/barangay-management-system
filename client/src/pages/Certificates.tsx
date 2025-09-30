@@ -9,7 +9,7 @@ export default function Certificates() {
   const [activeTab, setActiveTab] = useState('requests')
 
   return (
-    <div className="certificates-page">
+    <div className="page-container">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h1 className="h3 mb-1">Barangay Clearance & Certificates</h1>

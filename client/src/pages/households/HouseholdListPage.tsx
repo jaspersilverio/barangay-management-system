@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer, Badge } from 'react-bootstrap'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type Household } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
@@ -9,14 +8,12 @@ import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import { useDashboard } from '../../context/DashboardContext'
-// Removed unused imports
 
 const HouseholdListPage = React.memo(() => {
   const navigate = useNavigate()
   const { puroks } = usePuroks()
   const { user } = useAuth()
   const { refreshData: refreshDashboard } = useDashboard()
-  const queryClient = useQueryClient()
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
@@ -29,6 +26,10 @@ const HouseholdListPage = React.memo(() => {
   const [editingId, setEditingId] = useState<null | number>(null)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' | 'warning' }>({ show: false, message: '', variant: 'success' })
 
+  // Manual state management
+  const [householdsData, setHouseholdsData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(false)
+
   const canManage = role === 'admin' || role === 'purok_leader'
 
   const effectivePurokId = useMemo(() => {
@@ -37,27 +38,23 @@ const HouseholdListPage = React.memo(() => {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // React Query for fetching households
-  const { data: householdsData, isLoading } = useQuery({
-    queryKey: ['households', { search, page, purok_id: effectivePurokId }],
-    queryFn: () => listHouseholds({ search, page, purok_id: effectivePurokId || undefined }),
-    placeholderData: (previousData) => previousData,
-  })
+  // Manual data fetching
+  const loadHouseholds = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const data = await listHouseholds({ search, page, purok_id: effectivePurokId || undefined })
+      setHouseholdsData(data)
+    } catch (err) {
+      console.error('Failed to load households:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [search, page, effectivePurokId])
 
-  // React Query for delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: deleteHousehold,
-    onSuccess: async () => {
-      queryClient.invalidateQueries({ queryKey: ['households'] })
-      await refreshDashboard()
-      setToast({ show: true, message: 'Household deleted', variant: 'success' })
-      setShowDelete(null)
-    },
-    onError: (e: any) => {
-      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
-      setShowDelete(null)
-    },
-  })
+  // Load data on mount and when dependencies change
+  useEffect(() => {
+    loadHouseholds()
+  }, [loadHouseholds])
 
   const items = useMemo(() => {
     if (!householdsData?.data?.data) return []
@@ -68,10 +65,20 @@ const HouseholdListPage = React.memo(() => {
     return (householdsData as any)?.data?.last_page ?? 1
   }, [householdsData])
 
-  const handleDelete = useCallback(() => {
+  const handleDelete = useCallback(async () => {
     if (showDelete == null) return
-    deleteMutation.mutate(showDelete)
-  }, [showDelete, deleteMutation])
+    try {
+      await deleteHousehold(showDelete)
+      await refreshDashboard()
+      setToast({ show: true, message: 'Household deleted', variant: 'success' })
+      setShowDelete(null)
+      // Reload data after successful deletion
+      loadHouseholds()
+    } catch (e: any) {
+      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
+      setShowDelete(null)
+    }
+  }, [showDelete, refreshDashboard, loadHouseholds])
 
   const handleViewResidents = useCallback((household: Household) => {
     setShowViewResidents(household)
@@ -193,7 +200,46 @@ const HouseholdListPage = React.memo(() => {
                 </tr>
               </thead>
           <tbody>
-            {items.map((hh: any) => (
+            {isLoading ? (
+              <>
+                {[...Array(5)].map((_, index) => (
+                  <tr key={index} className="table-row">
+                    <td>
+                      <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div>
+                      <div className="skeleton-line" style={{ width: '120px', height: '12px', marginTop: '4px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
+                    </td>
+                    <td>
+                      <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                    </td>
+                    <td>
+                      <div className="action-buttons">
+                        <div className="skeleton-button" style={{ width: '60px', height: '28px', marginRight: '5px' }}></div>
+                        <div className="skeleton-button" style={{ width: '70px', height: '28px', marginRight: '5px' }}></div>
+                        <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                        <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </>
+            ) : items.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="text-center py-5">
+                  <div className="empty-state">
+                    <i className="fas fa-home text-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                    <p className="text-muted mb-0">No households found</p>
+                    <small className="text-muted">Try adjusting your search criteria</small>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              items.map((hh: any) => (
               <tr key={hh.id}>
                 <td>
                   <div className="d-flex align-items-center gap-2">
@@ -257,7 +303,8 @@ const HouseholdListPage = React.memo(() => {
                   </div>
                 </td>
               </tr>
-            ))}
+            ))
+            )}
               </tbody>
             </Table>
           </div>
@@ -335,7 +382,8 @@ const HouseholdListPage = React.memo(() => {
             }
             setShowForm(false)
             setEditingId(null)
-            queryClient.invalidateQueries({ queryKey: ['households'] })
+            // Reload data after successful save
+            loadHouseholds()
             // Refresh dashboard data to update counts
             await refreshDashboard()
           } catch (e: any) {
@@ -352,7 +400,7 @@ const HouseholdListPage = React.memo(() => {
           onHide={() => {
             setShowViewResidents(null)
             // Refresh the household list to update resident counts
-            queryClient.invalidateQueries({ queryKey: ['households'] })
+            loadHouseholds()
           }}
         />
       )}

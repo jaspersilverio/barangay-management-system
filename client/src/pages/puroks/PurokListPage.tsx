@@ -99,16 +99,27 @@ export default function PurokListPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan={4} className="text-center py-5">
-                      <div className="loading-state">
-                        <div className="spinner-border text-primary" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="mt-2 text-muted">Loading puroks...</p>
-                      </div>
-                    </td>
-                  </tr>
+                  <>
+                    {[...Array(5)].map((_, index) => (
+                      <tr key={index} className="table-row">
+                        <td>
+                          <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-line" style={{ width: '200px', height: '16px' }}></div>
+                        </td>
+                        <td>
+                          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+                        </td>
+                        <td>
+                          <div className="action-buttons">
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
+                            <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </>
                 ) : items.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="text-center py-5">

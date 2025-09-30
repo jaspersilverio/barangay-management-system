@@ -134,10 +134,22 @@ export default function EventsPage() {
   if (loading) {
     return (
       <Container fluid className="p-4">
-        <div className="text-center py-5">
-          <div className="spinner-border" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
+        <div className="row">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="col-md-6 col-lg-4 mb-4">
+              <div className="skeleton-card" style={{ height: '200px' }}>
+                <div className="skeleton-line" style={{ width: '80%', height: '20px', marginBottom: '10px' }}></div>
+                <div className="skeleton-line" style={{ width: '60%', height: '16px', marginBottom: '15px' }}></div>
+                <div className="skeleton-line" style={{ width: '100%', height: '14px', marginBottom: '8px' }}></div>
+                <div className="skeleton-line" style={{ width: '90%', height: '14px', marginBottom: '8px' }}></div>
+                <div className="skeleton-line" style={{ width: '70%', height: '14px', marginBottom: '15px' }}></div>
+                <div className="d-flex justify-content-between align-items-center">
+                  <div className="skeleton-badge" style={{ width: '80px', height: '24px' }}></div>
+                  <div className="skeleton-button" style={{ width: '60px', height: '32px' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </Container>
     )

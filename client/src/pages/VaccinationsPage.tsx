@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Container, Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
+import { Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { Syringe, Filter, Download, Plus } from 'lucide-react'
 import { getVaccinations, getVaccinationStatistics, COMMON_VACCINES, VACCINATION_STATUSES, AGE_GROUPS } from '../services/vaccination.service'
 import { usePuroks } from '../context/PurokContext'
@@ -124,7 +124,7 @@ export default function VaccinationsPage() {
   }
 
   return (
-    <Container className="py-4">
+    <div className="page-container">
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -377,6 +377,6 @@ export default function VaccinationsPage() {
         onSuccess={handleVaccinationSuccess}
         vaccination={editingVaccination}
       />
-    </Container>
+    </div>
   )
 }

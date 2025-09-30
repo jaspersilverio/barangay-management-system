@@ -54,12 +54,13 @@ export default function BlotterTrendChart() {
 
   if (loading) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Monthly Blotter Cases Trend</h5>
-        <div className="w-full h-80 flex items-center justify-center">
-          <div className="animate-pulse">
-            <div className="w-full h-64 bg-neutral-200 rounded"></div>
-          </div>
+      <div className="skeleton-card" style={{ height: '400px' }}>
+        <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
+        <div className="skeleton-line" style={{ width: '100%', height: '250px', marginBottom: '20px' }}></div>
+        <div className="d-flex justify-content-between">
+          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
         </div>
       </div>
     )

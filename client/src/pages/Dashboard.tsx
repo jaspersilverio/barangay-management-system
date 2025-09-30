@@ -15,8 +15,7 @@ import StatusCards from '../components/dashboard/StatusCards'
 
 export default function Dashboard() {
   return (
-    <div className="min-h-screen bg-neutral-50">
-      <div className="container-fluid p-6">
+    <div className="page-container">
         <div className="mb-6">
           <h1 className="h2 text-neutral-800 font-bold mb-2">Dashboard</h1>
           <p className="text-neutral-600">Welcome to your barangay management dashboard</p>
@@ -101,7 +100,6 @@ export default function Dashboard() {
             <StatusCards />
           </div>
         </div>
-      </div>
     </div>
   )
 }
