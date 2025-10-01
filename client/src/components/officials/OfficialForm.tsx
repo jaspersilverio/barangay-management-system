@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Form, Button, Row, Col, Alert, Image } from 'react-bootstrap'
+import { Modal, Form, Button, Row, Col, Image } from 'react-bootstrap'
 import { type Official, type CreateOfficialData, POSITION_OPTIONS } from '../../services/officials.service'
 
 interface OfficialFormProps {
@@ -131,24 +131,25 @@ export default function OfficialForm({
 
   return (
     <Modal show={show} onHide={handleClose} size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>
+      <Modal.Header closeButton className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary">
           {isEditing ? 'Edit Official' : 'Add New Official'}
         </Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           <Row>
             <Col md={8}>
               <Row>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Name *</Form.Label>
+                  <Form.Group className="modal-form-group">
+                    <Form.Label className="modal-form-label">Name *</Form.Label>
                     <Form.Control
                       type="text"
                       value={formData.name}
                       onChange={(e) => handleInputChange('name', e.target.value)}
                       isInvalid={!!errors.name}
+                      className="modal-form-control"
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.name}
@@ -156,12 +157,13 @@ export default function OfficialForm({
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Position *</Form.Label>
+                  <Form.Group className="modal-form-group">
+                    <Form.Label className="modal-form-label">Position *</Form.Label>
                     <Form.Select
                       value={formData.position}
                       onChange={(e) => handleInputChange('position', e.target.value)}
                       isInvalid={!!errors.position}
+                      className="modal-form-control"
                     >
                       <option value="">Select Position</option>
                       {POSITION_OPTIONS.map((position) => (
@@ -179,23 +181,25 @@ export default function OfficialForm({
 
               <Row>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Term Start</Form.Label>
+                  <Form.Group className="modal-form-group">
+                    <Form.Label className="modal-form-label">Term Start</Form.Label>
                     <Form.Control
                       type="date"
                       value={formData.term_start}
                       onChange={(e) => handleInputChange('term_start', e.target.value)}
+                      className="modal-form-control"
                     />
                   </Form.Group>
                 </Col>
                 <Col md={6}>
-                  <Form.Group className="mb-3">
-                    <Form.Label>Term End</Form.Label>
+                  <Form.Group className="modal-form-group">
+                    <Form.Label className="modal-form-label">Term End</Form.Label>
                     <Form.Control
                       type="date"
                       value={formData.term_end}
                       onChange={(e) => handleInputChange('term_end', e.target.value)}
                       isInvalid={!!errors.term_end}
+                      className="modal-form-control"
                     />
                     <Form.Control.Feedback type="invalid">
                       {errors.term_end}
@@ -204,30 +208,32 @@ export default function OfficialForm({
                 </Col>
               </Row>
 
-              <Form.Group className="mb-3">
-                <Form.Label>Contact Information</Form.Label>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Contact Information</Form.Label>
                 <Form.Control
                   type="text"
                   placeholder="Phone number or email"
                   value={formData.contact}
                   onChange={(e) => handleInputChange('contact', e.target.value)}
+                  className="modal-form-control"
                 />
               </Form.Group>
 
-              <Form.Group className="mb-3">
+              <Form.Group className="modal-form-group">
                 <Form.Check
                   type="switch"
                   id="active-switch"
                   label="Active Official"
                   checked={formData.active}
                   onChange={(e) => handleInputChange('active', e.target.checked)}
+                  className="form-check-input"
                 />
               </Form.Group>
             </Col>
 
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Photo</Form.Label>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Photo</Form.Label>
                 <div className="text-center">
                   {photoPreview ? (
                     <Image
@@ -237,7 +243,7 @@ export default function OfficialForm({
                       style={{ maxHeight: '200px', maxWidth: '100%' }}
                     />
                   ) : (
-                    <div className="border rounded p-4 text-muted mb-2">
+                    <div className="border rounded p-4 text-brand-muted mb-2">
                       <div>📷</div>
                       <small>No photo selected</small>
                     </div>
@@ -247,11 +253,12 @@ export default function OfficialForm({
                     accept="image/*"
                     onChange={handlePhotoChange}
                     isInvalid={!!errors.photo}
+                    className="modal-form-control"
                   />
                   <Form.Control.Feedback type="invalid">
                     {errors.photo}
                   </Form.Control.Feedback>
-                  <Form.Text className="text-muted">
+                  <Form.Text className="text-brand-muted">
                     JPG, PNG, GIF up to 2MB
                   </Form.Text>
                 </div>
@@ -259,11 +266,13 @@ export default function OfficialForm({
             </Col>
           </Row>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={handleClose} disabled={loading} className="btn-brand-secondary">
+            <i className="fas fa-times me-2"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={loading}>
+          <Button variant="primary" type="submit" disabled={loading} className="btn-brand-primary">
+            <i className="fas fa-save me-2"></i>
             {loading ? 'Saving...' : (isEditing ? 'Update Official' : 'Add Official')}
           </Button>
         </Modal.Footer>

@@ -123,11 +123,11 @@ export default function EventsPage() {
     today.setHours(0, 0, 0, 0)
     
     if (eventDate < today) {
-      return <Badge bg="secondary">Past</Badge>
+      return <Badge bg="secondary" className="rounded-pill">Past</Badge>
     } else if (eventDate.getTime() === today.getTime()) {
-      return <Badge bg="success">Today</Badge>
+      return <Badge bg="success" className="rounded-pill">Today</Badge>
     } else {
-      return <Badge bg="primary">Upcoming</Badge>
+      return <Badge bg="primary" className="rounded-pill">Upcoming</Badge>
     }
   }
 
@@ -160,8 +160,8 @@ export default function EventsPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">Events Management</h2>
-          <p className="text-muted mb-0">Manage barangay events and activities</p>
+          <h2 className="mb-0 text-brand-primary">Events Management</h2>
+          <p className="text-brand-muted mb-0">Manage barangay events and activities</p>
         </div>
         <div className="page-actions">
           {canManage && (
@@ -170,7 +170,7 @@ export default function EventsPage() {
               size="lg"
               onClick={() => setShowForm(true)} 
               disabled={loading}
-              className="btn-primary-custom btn-action-add"
+              className="btn-brand-primary"
             >
               <i className="fas fa-plus me-2"></i>
               Add Event
@@ -193,25 +193,15 @@ export default function EventsPage() {
         <Col>
           <Card className="data-table-card">
             <Card.Header>
-              <h5 className="mb-0">All Events ({events.length})</h5>
+              <h5 className="mb-0 text-brand-primary">All Events ({events.length})</h5>
             </Card.Header>
             <Card.Body className="p-0">
               {events.length === 0 ? (
                 <div className="text-center py-5">
                   <div className="empty-state">
-                    <i className="fas fa-calendar-alt text-muted mb-3" style={{ fontSize: '3rem' }}></i>
-                    <h5>No events found</h5>
-                    <p className="text-muted">Create your first event to get started.</p>
-                    {canManage && (
-                      <Button 
-                        variant="primary" 
-                        onClick={() => setShowForm(true)}
-                        className="btn-primary-custom btn-action-add"
-                      >
-                        <i className="fas fa-plus me-2"></i>
-                        Add Event
-                      </Button>
-                    )}
+                    <i className="fas fa-calendar-alt text-brand-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                    <h5 className="text-brand-primary">No events found</h5>
+                    <p className="text-brand-muted">Create your first event to get started.</p>
                   </div>
                 </div>
               ) : (
@@ -255,14 +245,14 @@ export default function EventsPage() {
                           </td>
                           <td>
                             {event.description ? (
-                              <span className="text-muted">
+                              <span className="text-brand-muted">
                                 {event.description.length > 50 
                                   ? `${event.description.substring(0, 50)}...` 
                                   : event.description
                                 }
                               </span>
                             ) : (
-                              <span className="text-muted">No description</span>
+                              <span className="text-brand-muted">No description</span>
                             )}
                           </td>
                           <td>

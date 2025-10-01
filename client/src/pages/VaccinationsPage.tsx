@@ -3,12 +3,14 @@ import { Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { Syringe, Filter, Download, Plus } from 'lucide-react'
 import { getVaccinations, getVaccinationStatistics, COMMON_VACCINES, VACCINATION_STATUSES, AGE_GROUPS } from '../services/vaccination.service'
 import { usePuroks } from '../context/PurokContext'
+import { useDashboard } from '../context/DashboardContext'
 import VaccinationTable from '../components/vaccinations/VaccinationTable'
 import AddVaccinationModal from '../components/vaccinations/AddVaccinationModal'
 import type { Vaccination, VaccinationFilters, VaccinationStatistics } from '../types'
 
 export default function VaccinationsPage() {
   const { puroks } = usePuroks()
+  const { refreshData: refreshDashboard } = useDashboard()
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [statistics, setStatistics] = useState<VaccinationStatistics | null>(null)
   const [loading, setLoading] = useState(false)
@@ -93,10 +95,19 @@ export default function VaccinationsPage() {
     setFilters(prev => ({ ...prev, page }))
   }
 
-  const handleVaccinationSuccess = () => {
+  const handleVaccinationSuccess = async () => {
     loadVaccinations()
     loadStatistics()
     setEditingVaccination(null)
+    // Refresh dashboard data to reflect new vaccination statistics
+    await refreshDashboard()
+  }
+
+  const handleVaccinationRefresh = async () => {
+    loadVaccinations()
+    loadStatistics()
+    // Refresh dashboard data to reflect updated vaccination statistics
+    await refreshDashboard()
   }
 
   const handleEditVaccination = (vaccination: Vaccination) => {
@@ -128,13 +139,13 @@ export default function VaccinationsPage() {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-0">
+          <h1 className="h3 mb-0 text-brand-primary">
             <Syringe size={24} className="me-2" />
             Vaccination Records
           </h1>
-          <p className="text-muted mb-0">Manage and track vaccination records across all residents</p>
+          <p className="text-brand-muted mb-0">Manage and track vaccination records across all residents</p>
         </div>
-        <Button variant="primary" onClick={() => setShowAddModal(true)}>
+        <Button variant="primary" onClick={() => setShowAddModal(true)} className="btn-brand-primary">
           <Plus size={16} className="me-2" />
           Add Vaccination
         </Button>
@@ -146,8 +157,8 @@ export default function VaccinationsPage() {
           <Col md={3}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-primary mb-1">{statistics.total_vaccinations}</h3>
-                <p className="text-muted mb-0">Total Vaccinations</p>
+                <h3 className="text-brand-primary mb-1">{statistics.total_vaccinations}</h3>
+                <p className="text-brand-muted mb-0">Total Vaccinations</p>
               </Card.Body>
             </Card>
           </Col>
@@ -155,7 +166,7 @@ export default function VaccinationsPage() {
             <Card className="text-center">
               <Card.Body>
                 <h3 className="text-success mb-1">{statistics.by_status.Completed || 0}</h3>
-                <p className="text-muted mb-0">Completed</p>
+                <p className="text-brand-muted mb-0">Completed</p>
               </Card.Body>
             </Card>
           </Col>
@@ -163,7 +174,7 @@ export default function VaccinationsPage() {
             <Card className="text-center">
               <Card.Body>
                 <h3 className="text-warning mb-1">{statistics.by_status.Pending || 0}</h3>
-                <p className="text-muted mb-0">Pending</p>
+                <p className="text-brand-muted mb-0">Pending</p>
               </Card.Body>
             </Card>
           </Col>
@@ -171,7 +182,7 @@ export default function VaccinationsPage() {
             <Card className="text-center">
               <Card.Body>
                 <h3 className="text-info mb-1">{statistics.by_status.Scheduled || 0}</h3>
-                <p className="text-muted mb-0">Scheduled</p>
+                <p className="text-brand-muted mb-0">Scheduled</p>
               </Card.Body>
             </Card>
           </Col>
@@ -183,7 +194,7 @@ export default function VaccinationsPage() {
         <Card.Header>
           <div className="d-flex align-items-center">
             <Filter size={20} className="me-2" />
-            <h5 className="mb-0">Filters</h5>
+            <h5 className="mb-0 text-brand-primary">Filters</h5>
           </div>
         </Card.Header>
         <Card.Body>
@@ -302,8 +313,8 @@ export default function VaccinationsPage() {
       <Card>
         <Card.Header>
           <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">Vaccination Records</h5>
-            <div className="text-muted">
+            <h5 className="mb-0 text-brand-primary">Vaccination Records</h5>
+            <div className="text-brand-muted">
               {pagination.total > 0 && (
                 <span>
                   Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
@@ -324,7 +335,7 @@ export default function VaccinationsPage() {
           <VaccinationTable
             vaccinations={vaccinations}
             onEdit={handleEditVaccination}
-            onRefresh={loadVaccinations}
+            onRefresh={handleVaccinationRefresh}
             loading={loading}
           />
 

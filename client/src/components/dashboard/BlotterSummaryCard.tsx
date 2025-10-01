@@ -8,9 +8,13 @@ export default function BlotterSummaryCard() {
   if (loading) {
     return (
       <div className="col-12 col-sm-6 col-lg-4">
-        <div className="card-modern animate-pulse">
-          <div className="h-8 bg-neutral-200 rounded w-1/2 mb-2"></div>
-          <div className="h-6 bg-neutral-200 rounded w-1/3"></div>
+        <div className="skeleton-card" style={{ height: '120px' }}>
+          <div className="d-flex align-items-center mb-3">
+            <div className="skeleton-circle" style={{ width: '40px', height: '40px', marginRight: '12px' }}></div>
+            <div className="skeleton-line" style={{ width: '60%', height: '18px' }}></div>
+          </div>
+          <div className="skeleton-line" style={{ width: '40%', height: '24px', marginBottom: '8px' }}></div>
+          <div className="skeleton-line" style={{ width: '30%', height: '14px' }}></div>
         </div>
       </div>
     )
@@ -19,7 +23,7 @@ export default function BlotterSummaryCard() {
   if (!summaryData?.blotter_summary) {
     return (
       <div className="col-12 col-sm-6 col-lg-4">
-        <div className="card-modern text-center text-neutral-500">
+        <div className="card-modern p-4 text-center text-brand-muted">
           <div className="flex items-center justify-center mb-2">
             <FileText className="w-6 h-6 text-neutral-400" />
           </div>

@@ -1,7 +1,6 @@
 import React, { useState } from 'react'
 import { Table, Button, Badge, Image, Form, InputGroup, Dropdown } from 'react-bootstrap'
 import { type Official } from '../../services/officials.service'
-import { format } from 'date-fns'
 
 interface OfficialListProps {
   officials: Official[]
@@ -45,9 +44,9 @@ export default function OfficialList({
 
   const getStatusBadge = (active: boolean) => {
     return active ? (
-      <Badge bg="success">Active</Badge>
+      <Badge bg="success" className="rounded-pill">Active</Badge>
     ) : (
-      <Badge bg="secondary">Inactive</Badge>
+      <Badge bg="secondary" className="rounded-pill">Inactive</Badge>
     )
   }
 
@@ -181,7 +180,7 @@ export default function OfficialList({
               </>
             ) : officials.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-4 text-muted">
+                <td colSpan={7} className="text-center py-4 text-brand-muted">
                   No officials found
                 </td>
               </tr>
@@ -201,17 +200,17 @@ export default function OfficialList({
                     <div>
                       <div className="fw-medium">{official.name}</div>
                       {official.user && (
-                        <small className="text-muted">{official.user.email}</small>
+                        <small className="text-brand-muted">{official.user.email}</small>
                       )}
                     </div>
                   </td>
                   <td>
-                    <Badge bg={getPositionColor(official.position)}>
+                    <Badge bg={getPositionColor(official.position)} className="rounded-pill">
                       {official.position}
                     </Badge>
                   </td>
                   <td>
-                    <small className="text-muted">
+                    <small className="text-brand-muted">
                       {official.term_period || 'No term specified'}
                     </small>
                   </td>
@@ -219,7 +218,7 @@ export default function OfficialList({
                     {official.contact ? (
                       <small>{official.contact}</small>
                     ) : (
-                      <small className="text-muted">No contact</small>
+                      <small className="text-brand-muted">No contact</small>
                     )}
                   </td>
                   <td>

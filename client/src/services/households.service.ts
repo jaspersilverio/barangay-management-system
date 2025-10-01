@@ -45,7 +45,7 @@ export type Resident = {
 	is_pwd: boolean
 }
 
-export async function listHouseholds(params: { search?: string; purok_id?: number | string; page?: number }) {
+export async function listHouseholds(params: { search?: string; purok_id?: number | string; page?: number; per_page?: number }) {
 	const res = await api.get('/households', { params })
 	return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }

@@ -106,9 +106,9 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
   if (vaccinations.length === 0) {
     return (
       <div className="text-center py-5">
-        <div className="text-muted">
+        <div className="text-brand-muted">
           <Calendar size={48} className="mb-3" />
-          <h5>No vaccination records found</h5>
+          <h5 className="text-brand-primary">No vaccination records found</h5>
           <p>Start by adding a vaccination record for this resident.</p>
         </div>
       </div>
@@ -137,35 +137,35 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
                   <div className="fw-medium">{vaccination.vaccine_name}</div>
                 </td>
                 <td>
-                  <Badge bg="light" text="dark">
+                  <Badge bg="light" text="dark" className="rounded-pill">
                     {vaccination.dose_number}
                   </Badge>
                 </td>
                 <td>
                   <div className="d-flex align-items-center">
-                    <Calendar size={16} className="me-2 text-muted" />
+                    <Calendar size={16} className="me-2 text-brand-muted" />
                     {formatDate(vaccination.date_administered)}
                   </div>
                 </td>
                 <td>
                   {vaccination.next_due_date ? (
                     <div className="d-flex align-items-center">
-                      <Calendar size={16} className="me-2 text-muted" />
+                      <Calendar size={16} className="me-2 text-brand-muted" />
                       {formatDate(vaccination.next_due_date)}
                     </div>
                   ) : (
-                    <span className="text-muted">-</span>
+                    <span className="text-brand-muted">-</span>
                   )}
                 </td>
                 <td>{getStatusBadge(vaccination.status)}</td>
                 <td>
                   {vaccination.administered_by ? (
                     <div className="d-flex align-items-center">
-                      <User size={16} className="me-2 text-muted" />
+                      <User size={16} className="me-2 text-brand-muted" />
                       {vaccination.administered_by}
                     </div>
                   ) : (
-                    <span className="text-muted">-</span>
+                    <span className="text-brand-muted">-</span>
                   )}
                 </td>
                 <td>
@@ -196,10 +196,10 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
 
       {/* Delete Confirmation Modal */}
       <Modal show={deleteModal.show} onHide={() => setDeleteModal({ show: false, vaccination: null })} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Confirm Delete</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">Confirm Delete</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           {error && (
             <Alert variant="danger" className="mb-3">
               {error}
@@ -209,23 +209,27 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
             Are you sure you want to delete this vaccination record for{' '}
             <strong>{deleteModal.vaccination?.vaccine_name}</strong>?
           </p>
-          <p className="text-muted small">
+          <p className="text-brand-muted small">
             This action cannot be undone.
           </p>
         </Modal.Body>
-        <Modal.Footer>
+        <Modal.Footer className="modal-footer-custom">
           <Button 
             variant="secondary" 
             onClick={() => setDeleteModal({ show: false, vaccination: null })}
             disabled={deleting}
+            className="btn-brand-secondary"
           >
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
           <Button 
             variant="danger" 
             onClick={confirmDelete}
             disabled={deleting}
+            className="btn-danger"
           >
+            <i className="fas fa-trash me-1"></i>
             {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </Modal.Footer>

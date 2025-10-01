@@ -62,7 +62,7 @@ const DashboardCharts = memo(() => {
           scale="linear"
         />
         <Tooltip />
-        <Bar dataKey="count" fill="#059669" />
+        <Bar dataKey="count" fill="var(--color-accent)" />
       </BarChart>
     </ResponsiveContainer>
   )

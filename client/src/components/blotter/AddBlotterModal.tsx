@@ -257,18 +257,18 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} size="xl" centered>
-      <Modal.Header className="bg-primary text-white">
-        <Modal.Title className="d-flex align-items-center">
+      <Modal.Header className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary d-flex align-items-center">
           <FileText className="me-2" size={20} />
           Add New Blotter Case
         </Modal.Title>
-        <Button variant="link" onClick={onHide} className="text-white p-0">
+        <Button variant="link" onClick={onHide} className="text-brand-primary p-0">
           <X size={24} />
         </Button>
       </Modal.Header>
 
       <Form onSubmit={handleSubmit}>
-        <Modal.Body className="p-4">
+        <Modal.Body className="modal-body-custom">
           {errors.general && (
             <Alert variant="danger" className="mb-4">
               {errors.general}
@@ -324,7 +324,9 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                         {filteredResidents.map(resident => (
                           <div
                             key={resident.id}
-                            className="p-2 border-bottom cursor-pointer hover-bg-light"
+                            className="p-2 border-bottom cursor-pointer"
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                             onClick={() => selectResident('complainant', resident)}
                           >
                             {resident.first_name} {resident.last_name}
@@ -456,7 +458,9 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                         {filteredResidents.map(resident => (
                           <div
                             key={resident.id}
-                            className="p-2 border-bottom cursor-pointer hover-bg-light"
+                            className="p-2 border-bottom cursor-pointer"
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                             onClick={() => selectResident('respondent', resident)}
                           >
                             {resident.first_name} {resident.last_name}
@@ -561,7 +565,9 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                       {filteredOfficials.map(official => (
                         <div
                           key={official.id}
-                          className="p-2 border-bottom cursor-pointer hover-bg-light"
+                          className="p-2 border-bottom cursor-pointer"
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                           onClick={() => selectOfficial(official)}
                         >
                           {official.name} - {official.position}
@@ -692,11 +698,13 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
           </div>
         </Modal.Body>
 
-        <Modal.Footer className="bg-light">
-          <Button variant="secondary" onClick={onHide} disabled={loading}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={onHide} disabled={loading} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={loading}>
+          <Button variant="primary" type="submit" disabled={loading} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
             {loading ? 'Creating...' : 'Create Blotter Case'}
           </Button>
         </Modal.Footer>

@@ -1,9 +1,7 @@
-import React, { useEffect, useState } from 'react'
-import { getUpcomingEvents } from '../../services/dashboard.service'
+import { useEffect, useState } from 'react'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
-import type { UpcomingEvent } from '../../services/dashboard.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
-import { Calendar, MapPin, Clock, Plus, Edit, Trash2 } from 'lucide-react'
+import { Calendar, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import EventFormModal from '../events/EventFormModal'
 import ConfirmModal from '../modals/ConfirmModal'
@@ -110,8 +108,8 @@ export default function UpcomingEvents() {
   if (loading) {
     return (
       <div className="col-span-12 lg:col-span-4">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Upcoming Events</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Upcoming Events</h5>
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="animate-pulse">
@@ -128,8 +126,8 @@ export default function UpcomingEvents() {
   if (error) {
     return (
       <div className="col-span-12 lg:col-span-4">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Upcoming Events</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Upcoming Events</h5>
           <div className="text-red-600 text-center py-8">Error: {error}</div>
         </div>
       </div>
@@ -139,8 +137,8 @@ export default function UpcomingEvents() {
   if (!events || events.length === 0) {
     return (
       <div className="col-span-12 lg:col-span-4">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Upcoming Events</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Upcoming Events</h5>
           <div className="text-gray-500 text-center py-8">No upcoming events</div>
         </div>
       </div>
@@ -149,12 +147,12 @@ export default function UpcomingEvents() {
 
   return (
     <div className="col-span-12 lg:col-span-4">
-      <div className="bg-white shadow rounded-lg p-4 flex flex-col">
+      <div className="card-modern p-4 flex flex-col">
         <div className="flex items-center justify-between mb-4">
-          <h5 className="font-semibold text-gray-900">Upcoming Events</h5>
+          <h5 className="font-semibold text-brand-primary">Upcoming Events</h5>
           <button
             onClick={() => setShowForm(true)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
             title="Add Event"
           >
             <Plus className="h-4 w-4" />
@@ -169,7 +167,7 @@ export default function UpcomingEvents() {
         
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {events?.slice(0, 5).map((event) => (
-            <div key={event.id} className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <div key={event.id} className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50">
               <div className="flex items-start justify-between mb-2">
                 <h6 className="font-medium text-gray-900 text-sm flex-1">{event.title}</h6>
                 <div className="flex gap-1 ml-2">
@@ -178,7 +176,7 @@ export default function UpcomingEvents() {
                       setEditingEvent(event)
                       setShowForm(true)
                     }}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    className="p-1 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
                     title="Edit Event"
                   >
                     <Edit className="h-3 w-3" />
@@ -188,7 +186,7 @@ export default function UpcomingEvents() {
                       setDeletingEvent(event)
                       setShowDeleteConfirm(true)
                     }}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                    className="p-1 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                     title="Delete Event"
                   >
                     <Trash2 className="h-3 w-3" />

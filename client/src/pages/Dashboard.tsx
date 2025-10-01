@@ -17,8 +17,8 @@ export default function Dashboard() {
   return (
     <div className="page-container">
         <div className="mb-6">
-          <h1 className="h2 text-neutral-800 font-bold mb-2">Dashboard</h1>
-          <p className="text-neutral-600">Welcome to your barangay management dashboard</p>
+          <h1 className="h2 text-brand-primary font-bold mb-2">Dashboard</h1>
+          <p className="text-brand-muted">Welcome to your barangay management dashboard</p>
         </div>
 
         {/* Summary Cards Section */}
@@ -34,8 +34,8 @@ export default function Dashboard() {
         <div className="row g-6 mb-6">
           {/* Households by Purok Chart */}
           <div className="col-12 col-lg-6">
-            <div className="card-modern">
-              <h5 className="h5 font-bold text-neutral-800 mb-4">Households by Purok</h5>
+            <div className="card-modern p-4">
+              <h5 className="h5 font-bold text-brand-primary mb-4">Households by Purok</h5>
               <div className="w-full h-80">
                 <DashboardCharts />
               </div>
@@ -44,8 +44,8 @@ export default function Dashboard() {
           
           {/* Residents by Purok Chart */}
           <div className="col-12 col-lg-6">
-            <div className="card-modern">
-              <h5 className="h5 font-bold text-neutral-800 mb-4">Residents by Purok</h5>
+            <div className="card-modern p-4">
+              <h5 className="h5 font-bold text-brand-primary mb-4">Residents by Purok</h5>
               <div className="w-full h-80">
                 <ResidentsByPurokChart />
               </div>

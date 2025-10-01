@@ -1,4 +1,3 @@
-import React from 'react'
 import { Card, Badge, Image } from 'react-bootstrap'
 import { type Official } from '../../services/officials.service'
 
@@ -26,9 +25,9 @@ export default function OfficialCard({ official, className = '' }: OfficialCardP
 
   const getStatusBadge = (active: boolean) => {
     return active ? (
-      <Badge bg="success" className="mb-2">Active</Badge>
+      <Badge bg="success" className="mb-2 rounded-pill">Active</Badge>
     ) : (
-      <Badge bg="secondary" className="mb-2">Inactive</Badge>
+      <Badge bg="secondary" className="mb-2 rounded-pill">Inactive</Badge>
     )
   }
 
@@ -49,13 +48,13 @@ export default function OfficialCard({ official, className = '' }: OfficialCardP
           {getStatusBadge(official.active)}
         </div>
 
-        <Card.Title className="h5 mb-2">{official.name}</Card.Title>
+        <Card.Title className="h5 mb-2 text-brand-primary">{official.name}</Card.Title>
         
-        <Badge bg={getPositionColor(official.position)} className="mb-3">
+        <Badge bg={getPositionColor(official.position)} className="mb-3 rounded-pill">
           {official.position}
         </Badge>
 
-        <div className="text-muted small">
+        <div className="text-brand-muted small">
           {official.term_period && (
             <div className="mb-2">
               <strong>Term:</strong> {official.term_period}

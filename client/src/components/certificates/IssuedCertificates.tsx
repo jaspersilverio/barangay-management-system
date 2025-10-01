@@ -20,8 +20,6 @@ import { format } from 'date-fns'
 import { 
   getIssuedCertificates, 
   createIssuedCertificate,
-  downloadCertificatePdf,
-  previewCertificatePdf,
   regenerateCertificatePdf,
   invalidateCertificate,
   type IssuedCertificate as IssuedCertificateType,
@@ -280,8 +278,8 @@ export default function IssuedCertificates() {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h5 className="mb-1">Issued Certificates</h5>
-          <p className="text-muted mb-0">Manage and track issued certificates</p>
+          <h5 className="mb-1 text-brand-primary">Issued Certificates</h5>
+          <p className="text-brand-muted mb-0">Manage and track issued certificates</p>
         </div>
         <ButtonComponent onClick={() => setShowCreateModal(true)}>
           <Plus size={16} className="me-2" />
@@ -357,12 +355,12 @@ export default function IssuedCertificates() {
                   <tr key={certificate.id}>
                     <td>
                       <div className="fw-medium">{certificate.certificate_number}</div>
-                      <small className="text-muted">{certificate.certificate_type}</small>
+                      <small className="text-brand-muted">{certificate.certificate_type}</small>
                     </td>
                     <td>
                       <div>
                         <div className="fw-medium">{certificate.resident?.full_name}</div>
-                        <small className="text-muted">ID: {certificate.resident_id}</small>
+                        <small className="text-brand-muted">ID: {certificate.resident_id}</small>
                       </div>
                     </td>
                     <td>{getCertificateTypeLabel(certificate.certificate_type)}</td>
@@ -381,7 +379,7 @@ export default function IssuedCertificates() {
                     <td>
                       <div>
                         <div>{format(new Date(certificate.valid_until), 'MMM dd, yyyy')}</div>
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           {daysUntilExpiry > 0 ? `${daysUntilExpiry} days left` : 'Expired'}
                         </small>
                       </div>
@@ -389,7 +387,7 @@ export default function IssuedCertificates() {
                     <td>
                       <div>
                         <div>{format(new Date(certificate.created_at), 'MMM dd, yyyy')}</div>
-                        <small className="text-muted">{format(new Date(certificate.created_at), 'hh:mm a')}</small>
+                        <small className="text-brand-muted">{format(new Date(certificate.created_at), 'hh:mm a')}</small>
                       </div>
                     </td>
                     <td>
@@ -478,10 +476,10 @@ export default function IssuedCertificates() {
 
       {/* Create Certificate Modal */}
       <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>Issue New Certificate</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">Issue New Certificate</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           <Form>
                          <Form.Group className="mb-3">
                <Form.Label>Certificate Request</Form.Label>
@@ -501,7 +499,9 @@ export default function IssuedCertificates() {
                        filteredRequests.map((request) => (
                          <div
                            key={request.id}
-                           className="px-3 py-2 cursor-pointer hover-bg-light"
+                           className="px-3 py-2"
+                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                            style={{ cursor: 'pointer' }}
                            onClick={() => {
                              setFormData({ 
@@ -513,8 +513,6 @@ export default function IssuedCertificates() {
                              })
                              setRequestSearchTerm(`${request.resident?.full_name} - ${getCertificateTypeLabel(request.certificate_type)}`)
                            }}
-                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                          >
                            <div className="fw-medium">{request.resident?.full_name}</div>
                            <small className="text-muted">
@@ -555,14 +553,14 @@ export default function IssuedCertificates() {
                       filteredResidents.map((resident) => (
                         <div
                           key={resident.id}
-                          className="px-3 py-2 cursor-pointer hover-bg-light"
+                          className="px-3 py-2"
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                           style={{ cursor: 'pointer' }}
                           onClick={() => {
                             setFormData({ ...formData, resident_id: resident.id })
                             setResidentSearchTerm(resident.full_name)
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                         >
                           <div className="fw-medium">{resident.full_name}</div>
                           <small className="text-muted">
@@ -668,11 +666,13 @@ export default function IssuedCertificates() {
             </div>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowCreateModal(false)} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <ButtonComponent onClick={handleCreateCertificate}>
+          <ButtonComponent onClick={handleCreateCertificate} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
             Issue Certificate
           </ButtonComponent>
         </Modal.Footer>
@@ -680,13 +680,13 @@ export default function IssuedCertificates() {
 
       {/* Action Modal */}
       <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
             {actionType === 'invalidate' && 'Invalidate Certificate'}
             {actionType === 'regenerate' && 'Regenerate PDF'}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           {selectedCertificate && (
             <div className="mb-3">
               <p>
@@ -713,14 +713,17 @@ export default function IssuedCertificates() {
             </Alert>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowActionModal(false)}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowActionModal(false)} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
           <ButtonComponent 
             variant={actionType === 'invalidate' ? 'danger' : 'primary'}
             onClick={handleAction}
+            className={actionType === 'invalidate' ? 'btn-danger' : 'btn-brand-primary'}
           >
+            <i className={`fas ${actionType === 'invalidate' ? 'fa-ban' : 'fa-redo'} me-1`}></i>
             {actionType === 'invalidate' && 'Invalidate'}
             {actionType === 'regenerate' && 'Regenerate'}
           </ButtonComponent>

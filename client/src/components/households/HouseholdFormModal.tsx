@@ -59,29 +59,31 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
     <Modal show={show} onHide={onHide} centered>
       <Form onSubmit={handleSubmit(onSubmit)}>
         <Modal.Header closeButton className="modal-header-custom">
-          <Modal.Title className="modal-title-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
             {initial ? 'Edit Household' : 'Add Household'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="modal-body-custom">
-          <Form.Group className="mb-3">
-            <Form.Label>Address</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Address</Form.Label>
             <Form.Control 
               placeholder="Enter complete address" 
               {...register('address')} 
-              isInvalid={!!errors.address} 
+              isInvalid={!!errors.address}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.address?.message}</Form.Control.Feedback>
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Purok</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Purok</Form.Label>
             {isPurokLeader ? (
               <>
                 <Form.Control
                   type="text"
                   value={puroks.find(p => p.id === assignedPurokId)?.name || 'Your Assigned Purok'}
                   disabled
+                  className="modal-form-control"
                 />
                 <Form.Text className="text-muted">
                   You can only manage households in your assigned purok.
@@ -94,6 +96,7 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
                 <Form.Select 
                   {...register('purok_id')} 
                   isInvalid={!!errors.purok_id}
+                  className="modal-form-control"
                 >
                   <option value="">Select purok</option>
                   {puroks.map((purok) => (
@@ -107,9 +110,9 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
             )}
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Property Type</Form.Label>
-            <Form.Select {...register('property_type')} isInvalid={!!errors.property_type}>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Property Type</Form.Label>
+            <Form.Select {...register('property_type')} isInvalid={!!errors.property_type} className="modal-form-control">
               <option value="">Select property type</option>
               <option value="house">House</option>
               <option value="apartment">Apartment</option>
@@ -121,32 +124,34 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
             <Form.Control.Feedback type="invalid">{errors.property_type?.message}</Form.Control.Feedback>
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Head of Household</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Head of Household</Form.Label>
             <Form.Control 
               placeholder="Enter head of household name" 
               {...register('head_name')} 
-              isInvalid={!!errors.head_name} 
+              isInvalid={!!errors.head_name}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.head_name?.message}</Form.Control.Feedback>
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Contact</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Contact</Form.Label>
             <Form.Control 
               placeholder="Enter contact number" 
               {...register('contact')} 
-              isInvalid={!!errors.contact} 
+              isInvalid={!!errors.contact}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.contact?.message}</Form.Control.Feedback>
           </Form.Group>
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
-          <Button variant="secondary" onClick={onHide} className="btn-cancel">
+          <Button variant="secondary" onClick={onHide} className="btn-brand-secondary">
             <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-submit">
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-brand-primary">
             <i className="fas fa-save me-1"></i>
             {isSubmitting ? (initial ? 'Updating...' : 'Creating...') : (initial ? 'Update Household' : 'Create Household')}
           </Button>

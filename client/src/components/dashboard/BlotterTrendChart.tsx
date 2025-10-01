@@ -5,9 +5,9 @@ import type { BlotterSummary } from '../../services/dashboard.service'
 import { FileText } from 'lucide-react'
 
 const COLORS = {
-  open: '#f59e0b',     // amber-500
-  ongoing: '#3b82f6',  // blue-500
-  resolved: '#10b981'  // green-500
+  open: 'var(--color-warning)',     // amber-500
+  ongoing: 'var(--color-primary)',  // blue-500
+  resolved: 'var(--color-accent)'  // green-500
 }
 
 export default function BlotterTrendChart() {
@@ -68,8 +68,8 @@ export default function BlotterTrendChart() {
 
   if (error) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Monthly Blotter Cases Trend</h5>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Monthly Blotter Cases Trend</h5>
         <div className="w-full h-80 flex items-center justify-center">
           <div className="text-center text-red-600">
             <FileText className="w-12 h-12 mx-auto mb-2 text-red-400" />
@@ -83,8 +83,8 @@ export default function BlotterTrendChart() {
 
   if (!data || !data.monthlyTrend || data.monthlyTrend.length === 0) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Monthly Blotter Cases Trend</h5>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Monthly Blotter Cases Trend</h5>
         <div className="w-full h-80 flex items-center justify-center">
           <div className="text-center text-gray-500">
             <FileText className="w-12 h-12 mx-auto mb-2 text-gray-400" />
@@ -97,8 +97,8 @@ export default function BlotterTrendChart() {
   }
 
   return (
-    <div className="card-modern">
-      <h5 className="h5 font-bold text-neutral-800 mb-4">Monthly Blotter Cases Trend</h5>
+    <div className="card-modern p-4">
+      <h5 className="h5 font-bold text-brand-primary mb-4">Monthly Blotter Cases Trend</h5>
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data.monthlyTrend} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>

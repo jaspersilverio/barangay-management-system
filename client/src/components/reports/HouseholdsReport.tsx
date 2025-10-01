@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
-import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert, Spinner } from 'react-bootstrap'
-import { Download, Search, Filter, Home } from 'lucide-react'
+import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
+import { Download, Filter, Home } from 'lucide-react'
 import { getHouseholdsReport, exportReport, type HouseholdReport, type ReportFilters } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 
@@ -122,8 +122,8 @@ export default function HouseholdsReport() {
       <Card className="mb-4">
         <Card.Header>
           <div className="d-flex align-items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
+            <Filter className="h-4 w-4 text-brand-primary" />
+            <span className="text-brand-primary">Filters</span>
           </div>
         </Card.Header>
         <Card.Body>
@@ -190,7 +190,7 @@ export default function HouseholdsReport() {
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-brand-primary"
             >
               <Download className="h-4 w-4" />
               Export PDF
@@ -199,7 +199,7 @@ export default function HouseholdsReport() {
               variant="outline-success"
               onClick={() => handleExport('excel')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-success"
             >
               <Download className="h-4 w-4" />
               Export Excel
@@ -219,8 +219,8 @@ export default function HouseholdsReport() {
       <Row className="mb-3">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">Households Report</h5>
-            <span className="text-muted">
+            <h5 className="mb-0 text-brand-primary">Households Report</h5>
+            <span className="text-brand-muted">
               Showing {households.length} of {total} households
             </span>
           </div>
@@ -245,7 +245,7 @@ export default function HouseholdsReport() {
             <tbody>
               {households.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
+                  <td colSpan={7} className="text-center py-4 text-brand-muted">
                     <Home className="h-8 w-8 mx-auto mb-2 d-block" />
                     No households found matching the criteria
                   </td>
@@ -257,15 +257,15 @@ export default function HouseholdsReport() {
                       <div>
                         <strong>{household.head_name}</strong>
                         <br />
-                        <small className="text-muted">ID: {household.id}</small>
+                        <small className="text-brand-muted">ID: {household.id}</small>
                       </div>
                     </td>
                     <td>{household.address}</td>
                     <td>
-                      <Badge bg="info">{household.purok?.name}</Badge>
+                      <Badge bg="info" className="rounded-pill">{household.purok?.name}</Badge>
                     </td>
                     <td>
-                      <Badge bg="primary">{household.member_count} members</Badge>
+                      <Badge bg="primary" className="rounded-pill">{household.member_count} members</Badge>
                     </td>
                     <td>{household.property_type}</td>
                     <td>{household.contact}</td>

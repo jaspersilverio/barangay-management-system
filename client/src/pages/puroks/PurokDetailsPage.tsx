@@ -35,7 +35,7 @@ export default function PurokDetailsPage() {
         <Col md={5}>
           <Card className="shadow rounded-3 p-4">
             <h5 className="mb-3">Map</h5>
-            <div className="bg-light border rounded" style={{ height: 400 }} />
+            <div className="bg-brand-surface border rounded" style={{ height: 400 }} />
           </Card>
         </Col>
       </Row>

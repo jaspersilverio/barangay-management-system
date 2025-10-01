@@ -173,7 +173,7 @@ export default function Users() {
       staff: 'secondary'
     }
     
-    return <Badge bg={variants[role] || 'secondary'}>{role.replace('_', ' ').toUpperCase()}</Badge>
+    return <Badge bg={variants[role] || 'secondary'} className="rounded-pill">{role.replace('_', ' ').toUpperCase()}</Badge>
   }
 
   const formatDate = (dateString: string) => {
@@ -240,8 +240,8 @@ export default function Users() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">User Management</h2>
-          <p className="text-muted mb-0">Manage system users and their roles</p>
+          <h2 className="mb-0 text-brand-primary">User Management</h2>
+          <p className="text-brand-muted mb-0">Manage system users and their roles</p>
         </div>
         <div className="page-actions">
           <Button 
@@ -249,7 +249,7 @@ export default function Users() {
             size="lg"
             onClick={() => setShowCreateModal(true)}
             disabled={loading}
-            className="btn-primary-custom btn-action-add"
+            className="btn-brand-primary"
           >
             <i className="fas fa-plus me-2"></i>
             Add User
@@ -326,8 +326,8 @@ export default function Users() {
       <Row className="mb-3">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">Users</h5>
-            <span className="text-muted">
+            <h5 className="mb-0 text-brand-primary">Users</h5>
+            <span className="text-brand-muted">
               Showing {users.length} of {total} users
             </span>
           </div>
@@ -387,9 +387,9 @@ export default function Users() {
                   <tr>
                     <td colSpan={7} className="text-center py-5">
                       <div className="empty-state">
-                        <i className="fas fa-users text-muted mb-3" style={{ fontSize: '3rem' }}></i>
-                        <p className="text-muted mb-0">No users found</p>
-                        <small className="text-muted">Try adjusting your search criteria</small>
+                        <i className="fas fa-users text-brand-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-brand-muted mb-0">No users found</p>
+                        <small className="text-brand-muted">Try adjusting your search criteria</small>
                       </div>
                     </td>
                   </tr>
@@ -400,27 +400,27 @@ export default function Users() {
                         <div>
                           <strong className="fw-medium">{user.name}</strong>
                           <br />
-                          <small className="text-muted">ID: {user.id}</small>
+                          <small className="text-brand-muted">ID: {user.id}</small>
                         </div>
                       </td>
                       <td>{user.email}</td>
                       <td>{getRoleBadge(user.role)}</td>
                       <td>
                         {user.assigned_purok ? (
-                          <Badge bg="info">{user.assigned_purok.name}</Badge>
+                          <Badge bg="info" className="rounded-pill">{user.assigned_purok.name}</Badge>
                         ) : (
-                          <span className="text-muted">Not assigned</span>
+                          <span className="text-brand-muted">Not assigned</span>
                         )}
                       </td>
                       <td>
                         {user.deleted_at ? (
-                          <Badge bg="danger">Deleted</Badge>
+                          <Badge bg="danger" className="rounded-pill">Deleted</Badge>
                         ) : (
-                          <Badge bg="success">Active</Badge>
+                          <Badge bg="success" className="rounded-pill">Active</Badge>
                         )}
                       </td>
                       <td>
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           {formatDate(user.created_at)}
                         </small>
                       </td>
@@ -475,7 +475,7 @@ export default function Users() {
           <Card.Body className="p-3">
             <div className="d-flex justify-content-between align-items-center">
               <div className="pagination-info">
-                <span className="text-muted">
+                <span className="text-brand-muted">
                   Showing page {currentPage} of {totalPages}
                 </span>
               </div>

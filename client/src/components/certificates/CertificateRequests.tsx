@@ -173,8 +173,8 @@ export default function CertificateRequests() {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h5 className="mb-1">Certificate Requests</h5>
-          <p className="text-muted mb-0">Manage and track certificate requests from residents</p>
+          <h5 className="mb-1 text-brand-primary">Certificate Requests</h5>
+          <p className="text-brand-muted mb-0">Manage and track certificate requests from residents</p>
         </div>
         <ButtonComponent onClick={() => setShowCreateModal(true)}>
           <Plus size={16} className="me-2" />
@@ -250,7 +250,7 @@ export default function CertificateRequests() {
                   <td>
                     <div>
                       <div className="fw-medium">{request.resident?.full_name}</div>
-                      <small className="text-muted">ID: {request.resident_id}</small>
+                      <small className="text-brand-muted">ID: {request.resident_id}</small>
                     </div>
                   </td>
                   <td>{getCertificateTypeLabel(request.certificate_type)}</td>
@@ -263,7 +263,7 @@ export default function CertificateRequests() {
                   <td>
                     <div>
                       <div>{format(new Date(request.requested_at), 'MMM dd, yyyy')}</div>
-                      <small className="text-muted">{format(new Date(request.requested_at), 'hh:mm a')}</small>
+                      <small className="text-brand-muted">{format(new Date(request.requested_at), 'hh:mm a')}</small>
                     </div>
                   </td>
                   <td>
@@ -350,10 +350,10 @@ export default function CertificateRequests() {
 
       {/* Create Request Modal */}
       <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>New Certificate Request</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">New Certificate Request</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Resident</Form.Label>
@@ -373,14 +373,14 @@ export default function CertificateRequests() {
                       filteredResidents.map((resident) => (
                         <div
                           key={resident.id}
-                          className="px-3 py-2 cursor-pointer hover-bg-light"
+                          className="px-3 py-2"
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                           style={{ cursor: 'pointer' }}
                           onClick={() => {
                             setFormData({ ...formData, resident_id: resident.id })
                             setResidentSearchTerm(resident.full_name)
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                         >
                           <div className="fw-medium">{resident.full_name}</div>
                           <small className="text-muted">
@@ -445,11 +445,13 @@ export default function CertificateRequests() {
             </Form.Group>
           </Form>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowCreateModal(false)}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowCreateModal(false)} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <ButtonComponent onClick={handleCreateRequest}>
+          <ButtonComponent onClick={handleCreateRequest} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
             Create Request
           </ButtonComponent>
         </Modal.Footer>
@@ -457,15 +459,15 @@ export default function CertificateRequests() {
 
       {/* Action Modal */}
       <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
             {actionType === 'approve' && 'Approve Request'}
             {actionType === 'reject' && 'Reject Request'}
             {actionType === 'release' && 'Release Certificate'}
             {actionType === 'delete' && 'Delete Request'}
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           {selectedRequest && (
             <div className="mb-3">
               <p>
@@ -502,15 +504,23 @@ export default function CertificateRequests() {
             </Alert>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowActionModal(false)}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowActionModal(false)} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
           <ButtonComponent 
             variant={actionType === 'reject' || actionType === 'delete' ? 'danger' : 'primary'}
             onClick={handleAction}
             disabled={actionType === 'reject' && !remarks.trim()}
+            className={actionType === 'reject' || actionType === 'delete' ? 'btn-danger' : 'btn-brand-primary'}
           >
+            <i className={`fas ${
+              actionType === 'approve' ? 'fa-check' : 
+              actionType === 'reject' ? 'fa-times' : 
+              actionType === 'release' ? 'fa-paper-plane' : 
+              'fa-trash'
+            } me-1`}></i>
             {actionType === 'approve' && 'Approve'}
             {actionType === 'reject' && 'Reject'}
             {actionType === 'release' && 'Release'}

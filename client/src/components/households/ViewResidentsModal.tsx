@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Table, Button, Badge, Row, Col, Toast, ToastContainer } from 'react-bootstrap'
 import { getHouseholdResidents, type Resident } from '../../services/households.service'
 import { createResident, updateResident, deleteResident } from '../../services/residents.service'
@@ -121,10 +121,10 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
   return (
     <>
       <Modal show={show} onHide={onHide} size="xl" centered>
-        <Modal.Header closeButton>
-          <Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
             Residents of {household.head_name}'s Household
-            <div className="text-muted" style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>
+            <div className="text-brand-muted" style={{ fontSize: '0.9rem', fontWeight: 'normal' }}>
               {household.address} {household.purok && `• ${household.purok.name}`}
             </div>
           </Modal.Title>
@@ -132,8 +132,8 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
         <Modal.Body>
           <Row className="mb-3">
             <Col>
-              <h6>
-                Total Residents: <Badge bg="primary">{residents.length}</Badge>
+              <h6 className="text-brand-primary">
+                Total Residents: <Badge bg="primary" className="rounded-pill">{residents.length}</Badge>
               </h6>
             </Col>
             <Col className="text-end">
@@ -142,6 +142,7 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
                   variant="primary" 
                   size="sm" 
                   onClick={handleAddResident}
+                  className="btn-brand-primary"
                 >
                   <FaPlus className="me-1" />
                   Add Resident

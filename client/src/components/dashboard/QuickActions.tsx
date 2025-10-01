@@ -55,25 +55,25 @@ export default function QuickActions() {
 
   const getColorClasses = (color: string) => {
     const colorMap = {
-      primary: 'bg-primary-50 text-primary-600 hover:bg-primary-100',
-      success: 'bg-success-50 text-success-600 hover:bg-success-100',
-      warning: 'bg-accent-50 text-accent-600 hover:bg-accent-100',
+      primary: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
+      success: 'bg-green-50 text-green-600 hover:bg-green-100',
+      warning: 'bg-orange-50 text-orange-600 hover:bg-orange-100',
       danger: 'bg-red-50 text-red-600 hover:bg-red-100',
       info: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
-      neutral: 'bg-neutral-50 text-neutral-600 hover:bg-neutral-100'
+      neutral: 'bg-gray-50 text-gray-600 hover:bg-gray-100'
     }
     return colorMap[color as keyof typeof colorMap] || colorMap.neutral
   }
 
   return (
-    <div className="card-modern">
-      <h5 className="h5 font-bold text-neutral-800 mb-4">Quick Actions</h5>
+    <div className="card-modern p-4">
+      <h5 className="h5 font-bold text-brand-primary mb-4">Quick Actions</h5>
       <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => (
           <a
             key={index}
             href={action.href}
-            className={`p-4 rounded-lg border border-neutral-200 transition-all duration-200 hover:shadow-soft ${getColorClasses(action.color)}`}
+            className={`p-4 rounded-xl border border-gray-200 transition-all duration-200 hover:shadow-soft ${getColorClasses(action.color)}`}
           >
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${getColorClasses(action.color)}`}>

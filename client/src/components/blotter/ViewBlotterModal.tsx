@@ -98,17 +98,17 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
 
   return (
     <Modal show={show} onHide={onHide} size="xl" centered>
-      <Modal.Header className="bg-primary text-white">
-        <Modal.Title className="d-flex align-items-center">
+      <Modal.Header className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary d-flex align-items-center">
           <FileText className="me-2" size={20} />
           Blotter Case: {blotter.case_number}
         </Modal.Title>
-        <Button variant="link" onClick={onHide} className="text-white p-0">
+        <Button variant="link" onClick={onHide} className="text-brand-primary p-0">
           <X size={24} />
         </Button>
       </Modal.Header>
 
-      <Modal.Body className="p-4">
+      <Modal.Body className="modal-body-custom">
         {/* Case Status */}
         <Row className="mb-4">
           <Col md={12}>
@@ -128,7 +128,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
               <User className="me-2" size={20} />
               Complainant Information
             </h5>
-            <div className="border rounded p-3 bg-light">
+            <div className="border rounded p-3 bg-brand-surface">
               <Row>
                 <Col md={6}>
                   <strong>Name:</strong> {complainantInfo.name}
@@ -164,7 +164,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
               <User className="me-2" size={20} />
               Respondent Information
             </h5>
-            <div className="border rounded p-3 bg-light">
+            <div className="border rounded p-3 bg-brand-surface">
               <Row>
                 <Col md={6}>
                   <strong>Name:</strong> {respondentInfo.name}
@@ -234,7 +234,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
               <Row className="mb-3">
                 <Col md={12}>
                   <strong>Description:</strong>
-                  <div className="mt-2 p-3 bg-light rounded">
+                  <div className="mt-2 p-3 bg-brand-surface rounded">
                     {blotter.description}
                   </div>
                 </Col>
@@ -244,7 +244,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
                 <Row>
                   <Col md={12}>
                     <strong>Resolution:</strong>
-                    <div className="mt-2 p-3 bg-light rounded">
+                    <div className="mt-2 p-3 bg-brand-surface rounded">
                       {blotter.resolution}
                     </div>
                   </Col>
@@ -262,7 +262,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
                 <User className="me-2" size={20} />
                 Assigned Official
               </h5>
-              <div className="border rounded p-3 bg-light">
+              <div className="border rounded p-3 bg-brand-surface">
                 <Row>
                   <Col md={6}>
                     <strong>Name:</strong> {blotter.official.name}
@@ -328,7 +328,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
               <FileText className="me-2" size={20} />
               Case Information
             </h5>
-            <div className="border rounded p-3 bg-light">
+            <div className="border rounded p-3 bg-brand-surface">
               <Row>
                 <Col md={6}>
                   <strong>Case Number:</strong> {blotter.case_number}
@@ -365,8 +365,9 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
         </Row>
       </Modal.Body>
 
-      <Modal.Footer className="bg-light">
-        <Button variant="secondary" onClick={onHide}>
+      <Modal.Footer className="modal-footer-custom">
+        <Button variant="secondary" onClick={onHide} className="btn-brand-secondary">
+          <i className="fas fa-times me-1"></i>
           Close
         </Button>
       </Modal.Footer>

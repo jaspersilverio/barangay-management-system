@@ -114,10 +114,9 @@ class DashboardController extends Controller
 
             $pwd = $residentQuery->clone()->where('is_pwd', true)->count();
 
-            // Temporary rule for pregnant: female and occupation_status = 'other'
+            // Count pregnant women using the is_pregnant field
             $pregnant = $residentQuery->clone()
-                ->where('sex', 'female')
-                ->where('occupation_status', 'other')
+                ->where('is_pregnant', true)
                 ->count();
 
             $activePuroks = $purokCount;
@@ -394,8 +393,7 @@ class DashboardController extends Controller
                     ->count();
 
                 $pregnantCount = Resident::query()
-                    ->where('sex', 'female')
-                    ->where('occupation_status', 'other')
+                    ->where('is_pregnant', true)
                     ->whereYear('created_at', $month->year)
                     ->whereMonth('created_at', $month->month)
                     ->count();

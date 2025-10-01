@@ -279,11 +279,11 @@ export default function AddVaccinationModal({
 
   return (
     <Modal show={show} onHide={handleClose} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
+      <Modal.Header closeButton className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary">
           {vaccination ? 'Edit Vaccination Record' : 'Add Vaccination Record'}
           {residentName && (
-            <div className="text-muted small mt-1">
+            <div className="text-brand-muted small mt-1">
               Resident: {residentName}
             </div>
           )}
@@ -291,7 +291,7 @@ export default function AddVaccinationModal({
       </Modal.Header>
 
       <Form onSubmit={handleSubmit(onSubmit, onError)}>
-        <Modal.Body>
+        <Modal.Body className="modal-body-custom">
           {error && (
             <Alert variant="danger" className="mb-3">
               {error}
@@ -474,11 +474,13 @@ export default function AddVaccinationModal({
           </Row>
         </Modal.Body>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose} disabled={loading}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={handleClose} disabled={loading} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={loading}>
+          <Button variant="primary" type="submit" disabled={loading} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
             {loading ? 'Saving...' : (vaccination ? 'Update' : 'Add')} Vaccination
           </Button>
         </Modal.Footer>

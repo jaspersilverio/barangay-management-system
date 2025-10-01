@@ -61,7 +61,7 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
           {MapService.getMarkerIcon(marker.type)}
         </div>
         <div>
-          <h6 className="mb-0 fw-bold text-dark">{marker.name}</h6>
+          <h6 className="mb-0 fw-bold text-brand-primary">{marker.name}</h6>
           <small className="text-muted">{getMarkerTypeLabel(marker.type)}</small>
         </div>
       </div>

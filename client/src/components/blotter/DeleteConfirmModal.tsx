@@ -17,14 +17,14 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
 }) => {
   return (
     <Modal show={show} onHide={onHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Delete Blotter Case</Modal.Title>
+      <Modal.Header closeButton className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary">Delete Blotter Case</Modal.Title>
       </Modal.Header>
-      <Modal.Body>
+      <Modal.Body className="modal-body-custom">
         {blotter ? (
           <div>
             <p>Are you sure you want to delete this blotter case?</p>
-            <div className="bg-light p-3 rounded">
+            <div className="bg-brand-surface p-3 rounded">
               <strong>Case Number:</strong> {blotter.case_number}<br />
               <strong>Complainant:</strong> {blotter.complainant_full_name}<br />
               <strong>Respondent:</strong> {blotter.respondent_full_name}<br />
@@ -38,11 +38,13 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({
           <p>Are you sure you want to delete this blotter case?</p>
         )}
       </Modal.Body>
-      <Modal.Footer>
-        <Button variant="secondary" onClick={onHide}>
+      <Modal.Footer className="modal-footer-custom">
+        <Button variant="secondary" onClick={onHide} className="btn-brand-secondary">
+          <i className="fas fa-times me-1"></i>
           Cancel
         </Button>
-        <Button variant="danger" onClick={onConfirm}>
+        <Button variant="danger" onClick={onConfirm} className="btn-danger">
+          <i className="fas fa-trash me-1"></i>
           Delete
         </Button>
       </Modal.Footer>

@@ -1,9 +1,8 @@
-import React from 'react'
 import { Modal, Form, Button } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import type { Event, CreateEventPayload } from '../../services/events.service'
+import type { Event } from '../../services/events.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -75,57 +74,61 @@ export default function EventFormModal({ show, initial, onSubmit, onHide }: Prop
 
   return (
     <Modal show={show} onHide={handleHide} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>{initial ? 'Edit Event' : 'Add New Event'}</Modal.Title>
+      <Modal.Header closeButton className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary">{initial ? 'Edit Event' : 'Add New Event'}</Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit(handleFormSubmit)}>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Event Title</Form.Label>
+        <Modal.Body className="modal-body-custom">
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Event Title</Form.Label>
             <Form.Control
               {...register('title')}
               type="text"
               placeholder="Enter event title"
               isInvalid={!!errors.title}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.title?.message}</Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Date</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Date</Form.Label>
             <Form.Control
               {...register('date')}
               type="date"
               isInvalid={!!errors.date}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.date?.message}</Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Location</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Location</Form.Label>
             <Form.Control
               {...register('location')}
               type="text"
               placeholder="Enter event location"
               isInvalid={!!errors.location}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.location?.message}</Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Description (Optional)</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Description (Optional)</Form.Label>
             <Form.Control
               {...register('description')}
               as="textarea"
               rows={3}
               placeholder="Enter event description"
+              className="modal-form-control"
             />
           </Form.Group>
 
           {!isPurokLeader && (
-            <Form.Group className="mb-3">
-              <Form.Label>Purok (Optional - Leave blank for barangay-wide event)</Form.Label>
-              <Form.Select {...register('purok_id')}>
+            <Form.Group className="modal-form-group">
+              <Form.Label className="modal-form-label">Purok (Optional - Leave blank for barangay-wide event)</Form.Label>
+              <Form.Select {...register('purok_id')} className="modal-form-control">
                 <option value="">Barangay-wide Event</option>
                 {puroks.map((purok) => (
                   <option key={purok.id} value={purok.id}>
@@ -137,24 +140,27 @@ export default function EventFormModal({ show, initial, onSubmit, onHide }: Prop
           )}
 
           {isPurokLeader && (
-            <Form.Group className="mb-3">
-              <Form.Label>Purok</Form.Label>
+            <Form.Group className="modal-form-group">
+              <Form.Label className="modal-form-label">Purok</Form.Label>
               <Form.Control
                 type="text"
                 value={puroks.find(p => p.id === assignedPurokId)?.name || 'Your Assigned Purok'}
                 disabled
+                className="modal-form-control"
               />
-              <Form.Text className="text-muted">
+              <Form.Text className="text-brand-muted">
                 Events will be automatically assigned to your purok.
               </Form.Text>
             </Form.Group>
           )}
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleHide}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={handleHide} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting}>
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
             {isSubmitting ? 'Saving...' : initial ? 'Update Event' : 'Create Event'}
           </Button>
         </Modal.Footer>

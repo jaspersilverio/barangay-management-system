@@ -44,8 +44,8 @@ export default function PurokListPage() {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">Puroks</h2>
-          <p className="text-muted mb-0">Manage purok information and records</p>
+          <h2 className="mb-0 text-brand-primary">Puroks</h2>
+          <p className="text-brand-muted mb-0">Manage purok information and records</p>
         </div>
         <div className="page-actions">
           {isAdmin && (
@@ -54,7 +54,7 @@ export default function PurokListPage() {
               size="lg"
               onClick={() => { setEditingId(null); setShowForm(true) }} 
               disabled={loading}
-              className="btn-primary-custom btn-action-add"
+              className="btn-brand-primary"
             >
               <i className="fas fa-plus me-2"></i>
               Add Purok
@@ -124,9 +124,9 @@ export default function PurokListPage() {
                   <tr>
                     <td colSpan={4} className="text-center py-5">
                       <div className="empty-state">
-                        <i className="fas fa-map-marker-alt text-muted mb-3" style={{ fontSize: '3rem' }}></i>
-                        <p className="text-muted mb-0">No puroks found</p>
-                        <small className="text-muted">Try adjusting your search criteria</small>
+                        <i className="fas fa-map-marker-alt text-brand-muted mb-3" style={{ fontSize: '3rem' }}></i>
+                        <p className="text-brand-muted mb-0">No puroks found</p>
+                        <small className="text-brand-muted">Try adjusting your search criteria</small>
                       </div>
                     </td>
                   </tr>

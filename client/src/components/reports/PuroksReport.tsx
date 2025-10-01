@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Row, Col, Card, Button, Table, Badge, Alert, Spinner } from 'react-bootstrap'
+import { Row, Col, Card, Button, Table, Badge, Alert } from 'react-bootstrap'
 import { Download, BarChart3, Users, Home, MapPin, Phone } from 'lucide-react'
 import { getPuroksReport, exportReport, type PurokReport } from '../../services/reports.service'
 
@@ -109,7 +109,7 @@ export default function PuroksReport() {
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-brand-primary"
             >
               <Download className="h-4 w-4" />
               Export PDF
@@ -118,7 +118,7 @@ export default function PuroksReport() {
               variant="outline-success"
               onClick={() => handleExport('excel')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-success"
             >
               <Download className="h-4 w-4" />
               Export Excel
@@ -143,7 +143,7 @@ export default function PuroksReport() {
                 <Home className="h-6 w-6 text-primary" />
               </div>
               <h3 className="mb-1">{totalStats.households}</h3>
-              <p className="text-muted mb-0">Total Households</p>
+              <p className="text-brand-muted mb-0">Total Households</p>
             </Card.Body>
           </Card>
         </Col>
@@ -154,7 +154,7 @@ export default function PuroksReport() {
                 <Users className="h-6 w-6 text-success" />
               </div>
               <h3 className="mb-1">{totalStats.residents}</h3>
-              <p className="text-muted mb-0">Total Residents</p>
+              <p className="text-brand-muted mb-0">Total Residents</p>
             </Card.Body>
           </Card>
         </Col>
@@ -165,7 +165,7 @@ export default function PuroksReport() {
                 <BarChart3 className="h-6 w-6 text-info" />
               </div>
               <h3 className="mb-1">{totalStats.males}</h3>
-              <p className="text-muted mb-0">Male Residents</p>
+              <p className="text-brand-muted mb-0">Male Residents</p>
             </Card.Body>
           </Card>
         </Col>
@@ -176,7 +176,7 @@ export default function PuroksReport() {
                 <Users className="h-6 w-6 text-pink" />
               </div>
               <h3 className="mb-1">{totalStats.females}</h3>
-              <p className="text-muted mb-0">Female Residents</p>
+              <p className="text-brand-muted mb-0">Female Residents</p>
             </Card.Body>
           </Card>
         </Col>
@@ -191,7 +191,7 @@ export default function PuroksReport() {
                 <Users className="h-6 w-6 text-warning" />
               </div>
               <h4 className="mb-1">{totalStats.children}</h4>
-              <p className="text-muted mb-0">Children (&lt;18)</p>
+              <p className="text-brand-muted mb-0">Children (&lt;18)</p>
             </Card.Body>
           </Card>
         </Col>
@@ -202,7 +202,7 @@ export default function PuroksReport() {
                 <Users className="h-6 w-6 text-danger" />
               </div>
               <h4 className="mb-1">{totalStats.seniors}</h4>
-              <p className="text-muted mb-0">Seniors (60+)</p>
+              <p className="text-brand-muted mb-0">Seniors (60+)</p>
             </Card.Body>
           </Card>
         </Col>
@@ -213,7 +213,7 @@ export default function PuroksReport() {
                 <Users className="h-6 w-6 text-secondary" />
               </div>
               <h4 className="mb-1">{totalStats.pwds}</h4>
-              <p className="text-muted mb-0">PWDs</p>
+              <p className="text-brand-muted mb-0">PWDs</p>
             </Card.Body>
           </Card>
         </Col>
@@ -222,7 +222,7 @@ export default function PuroksReport() {
       {/* Puroks Summary Table */}
       <Row className="mb-3">
         <Col>
-          <h5 className="mb-0">Puroks Summary</h5>
+          <h5 className="mb-0 text-brand-primary">Puroks Summary</h5>
         </Col>
       </Row>
 
@@ -243,7 +243,7 @@ export default function PuroksReport() {
             <tbody>
               {puroks.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">
+                  <td colSpan={7} className="text-center py-4 text-brand-muted">
                     <BarChart3 className="h-8 w-8 mx-auto mb-2 d-block" />
                     No puroks data available
                   </td>
@@ -255,40 +255,40 @@ export default function PuroksReport() {
                       <div>
                         <strong>{purok.name}</strong>
                         <br />
-                        <small className="text-muted">ID: {purok.id}</small>
+                        <small className="text-brand-muted">ID: {purok.id}</small>
                       </div>
                     </td>
                     <td>
                       <div>
                         <strong>{purok.captain || 'N/A'}</strong>
                         <br />
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           <Phone className="h-3 w-3" /> {purok.contact || 'N/A'}
                         </small>
                       </div>
                     </td>
                     <td>
                       <div className="d-flex flex-column gap-1">
-                        <Badge bg="primary">{purok.household_count} households</Badge>
-                        <Badge bg="success">{purok.resident_count} residents</Badge>
+                        <Badge bg="primary" className="rounded-pill">{purok.household_count} households</Badge>
+                        <Badge bg="success" className="rounded-pill">{purok.resident_count} residents</Badge>
                       </div>
                     </td>
                     <td>
                       <div className="d-flex flex-column gap-1">
-                        <Badge bg="info">{purok.male_count} Male</Badge>
-                        <Badge bg="pink">{purok.female_count} Female</Badge>
+                        <Badge bg="info" className="rounded-pill">{purok.male_count} Male</Badge>
+                        <Badge bg="pink" className="rounded-pill">{purok.female_count} Female</Badge>
                       </div>
                     </td>
                     <td>
                       <div className="d-flex flex-column gap-1">
-                        <Badge bg="warning">{purok.child_count} Children</Badge>
-                        <Badge bg="danger">{purok.senior_count} Seniors</Badge>
-                        <Badge bg="secondary">{purok.pwd_count} PWDs</Badge>
+                        <Badge bg="warning" className="rounded-pill">{purok.child_count} Children</Badge>
+                        <Badge bg="danger" className="rounded-pill">{purok.senior_count} Seniors</Badge>
+                        <Badge bg="secondary" className="rounded-pill">{purok.pwd_count} PWDs</Badge>
                       </div>
                     </td>
                     <td>
                       <div className="d-flex flex-column gap-1">
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           <MapPin className="h-3 w-3" /> {purok.name}
                         </small>
                       </div>
@@ -301,23 +301,6 @@ export default function PuroksReport() {
         </Card.Body>
       </Card>
 
-      {/* Population Distribution Chart Placeholder */}
-      <Row className="mt-4">
-        <Col>
-          <Card className="border-0 shadow-sm">
-            <Card.Header>
-              <h6 className="mb-0">Population Distribution by Purok</h6>
-            </Card.Header>
-            <Card.Body>
-              <div className="text-center py-4 text-muted">
-                <BarChart3 className="h-12 w-12 mx-auto mb-3 d-block" />
-                <p>Chart visualization will be implemented with Chart.js or similar library</p>
-                <small>This will show bar charts comparing population, households, and vulnerable groups across puroks</small>
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
     </div>
   )
 }

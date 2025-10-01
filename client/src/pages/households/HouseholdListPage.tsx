@@ -42,7 +42,12 @@ const HouseholdListPage = React.memo(() => {
   const loadHouseholds = useCallback(async () => {
     setIsLoading(true)
     try {
-      const data = await listHouseholds({ search, page, purok_id: effectivePurokId || undefined })
+      const data = await listHouseholds({ 
+        search, 
+        page, 
+        purok_id: effectivePurokId || undefined,
+        per_page: 15 
+      })
       setHouseholdsData(data)
     } catch (err) {
       console.error('Failed to load households:', err)
@@ -63,6 +68,14 @@ const HouseholdListPage = React.memo(() => {
 
   const totalPages = useMemo(() => {
     return (householdsData as any)?.data?.last_page ?? 1
+  }, [householdsData])
+
+  const totalRecords = useMemo(() => {
+    return (householdsData as any)?.data?.total ?? 0
+  }, [householdsData])
+
+  const currentPageData = useMemo(() => {
+    return (householdsData as any)?.data?.data ?? []
   }, [householdsData])
 
   const handleDelete = useCallback(async () => {
@@ -125,8 +138,8 @@ const HouseholdListPage = React.memo(() => {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">Households</h2>
-          <p className="text-muted mb-0">Manage household information and records</p>
+          <h2 className="mb-0 text-brand-primary">Households</h2>
+          <p className="text-brand-muted mb-0">Manage household information and records</p>
         </div>
         <div className="page-actions">
           {canManage && (
@@ -135,7 +148,7 @@ const HouseholdListPage = React.memo(() => {
               size="lg"
               onClick={handleShowForm} 
               disabled={isLoading}
-              className="btn-primary-custom btn-action-add"
+              className="btn-brand-primary"
             >
               <i className="fas fa-plus me-2"></i>
               Add Household
@@ -183,6 +196,18 @@ const HouseholdListPage = React.memo(() => {
           </Row>
         </Card.Body>
       </Card>
+
+      {/* Results Summary */}
+      <Row className="mb-3">
+        <Col>
+          <div className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0 text-brand-primary">Households</h5>
+            <span className="text-brand-muted">
+              Showing {currentPageData.length} of {totalRecords} households
+            </span>
+          </div>
+        </Col>
+      </Row>
 
       {/* Data Table */}
       <Card className="data-table-card">
@@ -258,7 +283,7 @@ const HouseholdListPage = React.memo(() => {
                 </td>
                 <td>{hh.contact || '-'}</td>
                 <td>
-                  <Badge bg={hh.residents_count > 0 ? 'primary' : 'secondary'}>
+                  <Badge bg={hh.residents_count > 0 ? 'primary' : 'secondary'} className="rounded-pill">
                     {hh.residents_count} {hh.residents_count === 1 ? 'Resident' : 'Residents'}
                   </Badge>
                 </td>
@@ -317,8 +342,8 @@ const HouseholdListPage = React.memo(() => {
           <Card.Body className="p-3">
             <div className="d-flex justify-content-between align-items-center">
               <div className="pagination-info">
-                <span className="text-muted">
-                  Showing page {page} of {totalPages}
+                <span className="text-brand-muted">
+                  Page {page} of {totalPages} • {totalRecords} total households
                 </span>
               </div>
               <Pagination className="mb-0">
@@ -327,7 +352,68 @@ const HouseholdListPage = React.memo(() => {
                   onClick={() => handlePageChange(Math.max(1, page - 1))}
                   className="pagination-btn"
                 />
-                <Pagination.Item active className="pagination-item">{page}</Pagination.Item>
+                {/* Show page numbers */}
+                {(() => {
+                  const pages = []
+                  const maxVisiblePages = 5
+                  let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2))
+                  let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
+                  
+                  // Adjust start page if we're near the end
+                  if (endPage - startPage + 1 < maxVisiblePages) {
+                    startPage = Math.max(1, endPage - maxVisiblePages + 1)
+                  }
+                  
+                  // Show first page and ellipsis if needed
+                  if (startPage > 1) {
+                    pages.push(
+                      <Pagination.Item 
+                        key={1} 
+                        active={page === 1}
+                        onClick={() => handlePageChange(1)}
+                        className="pagination-item"
+                      >
+                        1
+                      </Pagination.Item>
+                    )
+                    if (startPage > 2) {
+                      pages.push(<Pagination.Ellipsis key="ellipsis-start" />)
+                    }
+                  }
+                  
+                  // Show visible page range
+                  for (let i = startPage; i <= endPage; i++) {
+                    pages.push(
+                      <Pagination.Item 
+                        key={i} 
+                        active={page === i}
+                        onClick={() => handlePageChange(i)}
+                        className="pagination-item"
+                      >
+                        {i}
+                      </Pagination.Item>
+                    )
+                  }
+                  
+                  // Show ellipsis and last page if needed
+                  if (endPage < totalPages) {
+                    if (endPage < totalPages - 1) {
+                      pages.push(<Pagination.Ellipsis key="ellipsis-end" />)
+                    }
+                    pages.push(
+                      <Pagination.Item 
+                        key={totalPages} 
+                        active={page === totalPages}
+                        onClick={() => handlePageChange(totalPages)}
+                        className="pagination-item"
+                      >
+                        {totalPages}
+                      </Pagination.Item>
+                    )
+                  }
+                  
+                  return pages
+                })()}
                 <Pagination.Next 
                   disabled={page >= totalPages || isLoading}
                   onClick={() => handlePageChange(page + 1)}

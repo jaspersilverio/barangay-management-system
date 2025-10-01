@@ -158,7 +158,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
         setSelectedHousehold(null)
       })}>
         <Modal.Header closeButton className="modal-header-custom">
-          <Modal.Title className="modal-title-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
             {initial ? 'Edit Resident' : 'Add Resident'}
           </Modal.Title>
         </Modal.Header>
@@ -203,56 +203,74 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
           </Row>
           <Row className="g-3">
             <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Purok</Form.Label>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Purok</Form.Label>
                 <Form.Control
                   type="text"
                   value={selectedHousehold?.purok_name || 'Select a household to see purok'}
                   disabled
+                  className="modal-form-control"
                 />
-                <Form.Text className="text-muted">
+                <Form.Text className="text-brand-muted">
                   Purok is determined by the selected household
                 </Form.Text>
               </Form.Group>
             </Col>
             <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Birthdate</Form.Label>
-                <Form.Control type="date" {...register('birthdate')} isInvalid={!!errors.birthdate} />
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Birthdate</Form.Label>
+                <Form.Control 
+                  type="date" 
+                  {...register('birthdate')} 
+                  isInvalid={!!errors.birthdate}
+                  className="modal-form-control"
+                />
                 <Form.Control.Feedback type="invalid">{errors.birthdate?.message}</Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
           <Row className="g-3">
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>First Name</Form.Label>
-                <Form.Control {...register('first_name')} isInvalid={!!errors.first_name} />
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">First Name</Form.Label>
+                <Form.Control 
+                  {...register('first_name')} 
+                  isInvalid={!!errors.first_name}
+                  className="modal-form-control"
+                />
                 <Form.Control.Feedback type="invalid">{errors.first_name?.message}</Form.Control.Feedback>
               </Form.Group>
             </Col>
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Middle Name</Form.Label>
-                <Form.Control {...register('middle_name')} />
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Middle Name</Form.Label>
+                <Form.Control 
+                  {...register('middle_name')}
+                  className="modal-form-control"
+                />
               </Form.Group>
             </Col>
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Last Name</Form.Label>
-                <Form.Control {...register('last_name')} isInvalid={!!errors.last_name} />
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Last Name</Form.Label>
+                <Form.Control 
+                  {...register('last_name')} 
+                  isInvalid={!!errors.last_name}
+                  className="modal-form-control"
+                />
                 <Form.Control.Feedback type="invalid">{errors.last_name?.message}</Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
           <Row className="g-3">
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Sex</Form.Label>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Sex</Form.Label>
                 <Form.Select 
                   value={selectedSex} 
                   onChange={handleSexChange} 
                   isInvalid={!!errors.sex}
+                  className="modal-form-control"
                 >
                   <option value="male">Male</option>
                   <option value="female">Female</option>
@@ -262,9 +280,13 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
               </Form.Group>
             </Col>
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Civil Status</Form.Label>
-                <Form.Select {...register('civil_status')} isInvalid={!!errors.civil_status}>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Civil Status</Form.Label>
+                <Form.Select 
+                  {...register('civil_status')} 
+                  isInvalid={!!errors.civil_status}
+                  className="modal-form-control"
+                >
                   <option value="single">Single</option>
                   <option value="married">Married</option>
                   <option value="widowed">Widowed</option>
@@ -275,9 +297,13 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
               </Form.Group>
             </Col>
             <Col md={4}>
-              <Form.Group className="mb-3">
-                <Form.Label>Occupation Status</Form.Label>
-                <Form.Select {...register('occupation_status')} isInvalid={!!errors.occupation_status}>
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Occupation Status</Form.Label>
+                <Form.Select 
+                  {...register('occupation_status')} 
+                  isInvalid={!!errors.occupation_status}
+                  className="modal-form-control"
+                >
                   <option value="employed">Employed</option>
                   <option value="unemployed">Unemployed</option>
                   <option value="student">Student</option>
@@ -292,38 +318,45 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
           
           <Row className="g-3">
             <Col md={12}>
-              <Form.Group className="mb-3">
-                <Form.Label>Relationship to Head</Form.Label>
-                <Form.Control {...register('relationship_to_head')} isInvalid={!!errors.relationship_to_head} />
+              <Form.Group className="modal-form-group">
+                <Form.Label className="modal-form-label">Relationship to Head</Form.Label>
+                <Form.Control 
+                  {...register('relationship_to_head')} 
+                  isInvalid={!!errors.relationship_to_head}
+                  className="modal-form-control"
+                />
                 <Form.Control.Feedback type="invalid">{errors.relationship_to_head?.message}</Form.Control.Feedback>
               </Form.Group>
             </Col>
           </Row>
-          <Form.Group className="mb-3">
+          <Form.Group className="modal-form-group">
             <Form.Check
               type="checkbox"
               label="Person with Disability (PWD)"
               {...register('is_pwd')}
+              className="form-check-input"
+              style={{ whiteSpace: 'nowrap' }}
             />
           </Form.Group>
           
           {/* Pregnant checkbox - only show when female is selected */}
           {selectedSex === 'female' && (
-            <Form.Group className="mb-3">
+            <Form.Group className="modal-form-group">
               <Form.Check
                 type="checkbox"
                 label="Pregnant"
                 {...register('is_pregnant')}
+                className="form-check-input"
               />
             </Form.Group>
           )}
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
-          <Button variant="secondary" onClick={onHide} className="btn-cancel">
+          <Button variant="secondary" onClick={onHide} className="btn-brand-secondary">
             <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-submit">
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-brand-primary">
             <i className="fas fa-save me-1"></i>
             {isSubmitting ? 'Saving...' : (initial ? 'Update' : 'Create')}
           </Button>

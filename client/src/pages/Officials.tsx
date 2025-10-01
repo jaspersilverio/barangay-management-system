@@ -192,8 +192,8 @@ export default function Officials() {
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h2 className="mb-1">Barangay Officials</h2>
-          <p className="text-muted mb-0">Manage barangay officials and their information</p>
+          <h2 className="mb-1 text-brand-primary">Barangay Officials</h2>
+          <p className="text-brand-muted mb-0">Manage barangay officials and their information</p>
         </div>
         {isAdmin && (
           <Button 
@@ -202,6 +202,7 @@ export default function Officials() {
               setSelectedOfficial(null)
               setShowForm(true)
             }}
+            className="btn-brand-primary"
           >
             ➕ Add Official
           </Button>
@@ -240,14 +241,14 @@ export default function Officials() {
           <div className="sticky-top" style={{ top: '2rem' }}>
             {selectedOfficial ? (
               <div>
-                <h5 className="mb-3">Official Details</h5>
+                <h5 className="mb-3 text-brand-primary">Official Details</h5>
                 <OfficialCard official={selectedOfficial} />
               </div>
             ) : (
-              <div className="bg-light rounded p-4 text-center">
-                <div className="text-muted mb-2">👤</div>
-                <h6>Select an Official</h6>
-                <p className="text-muted small mb-0">
+              <div className="bg-brand-surface rounded p-4 text-center">
+                <div className="text-brand-muted mb-2">👤</div>
+                <h6 className="text-brand-primary">Select an Official</h6>
+                <p className="text-brand-muted small mb-0">
                   Click on an official from the list to view their details
                 </p>
               </div>

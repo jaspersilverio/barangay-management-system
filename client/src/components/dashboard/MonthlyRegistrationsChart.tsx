@@ -67,8 +67,8 @@ export default function MonthlyRegistrationsChart() {
   }
 
   return (
-    <div className="card-modern">
-      <h5 className="h5 font-bold text-neutral-800 mb-4">Monthly Registrations</h5>
+    <div className="card-modern p-4">
+      <h5 className="h5 font-bold text-brand-primary mb-4">Monthly Registrations</h5>
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data}>
@@ -86,8 +86,8 @@ export default function MonthlyRegistrationsChart() {
               type="monotone"
               dataKey="households"
               stackId="1"
-              stroke="#059669"
-              fill="#059669"
+              stroke="var(--color-accent)"
+              fill="var(--color-accent)"
               name="Households"
               fillOpacity={0.6}
             />
@@ -95,8 +95,8 @@ export default function MonthlyRegistrationsChart() {
               type="monotone"
               dataKey="residents"
               stackId="1"
-              stroke="#F59E0B"
-              fill="#F59E0B"
+              stroke="var(--color-warning)"
+              fill="var(--color-warning)"
               name="Residents"
               fillOpacity={0.6}
             />

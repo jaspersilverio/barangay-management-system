@@ -10,9 +10,27 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class VaccinationController extends Controller
 {
+    /**
+     * Invalidate dashboard cache for all users
+     */
+    private function invalidateDashboardCache()
+    {
+        // Clear dashboard summary cache for all users
+        Cache::flush(); // This clears all cache, but for production you might want to be more specific
+
+        // Alternative: Clear specific cache keys (more efficient for production)
+        // $users = \App\Models\User::all();
+        // foreach ($users as $user) {
+        //     $cacheKey = 'dashboard_summary_' . $user->id . '_' . ($user->assigned_purok_id ?? 'admin');
+        //     Cache::forget($cacheKey);
+        //     $vaccinationCacheKey = 'dashboard_vaccination_summary_' . $user->id . '_' . ($user->assigned_purok_id ?? 'admin');
+        //     Cache::forget($vaccinationCacheKey);
+        // }
+    }
     /**
      * Display a listing of vaccinations for a specific resident.
      */
@@ -116,6 +134,9 @@ class VaccinationController extends Controller
             $vaccination = Vaccination::create($data);
             $vaccination->load(['resident.household.purok']);
 
+            // Invalidate dashboard cache to reflect new vaccination data
+            $this->invalidateDashboardCache();
+
             return response()->json([
                 'success' => true,
                 'data' => $vaccination,
@@ -180,6 +201,9 @@ class VaccinationController extends Controller
             $vaccination->update($data);
             $vaccination->load(['resident.household.purok']);
 
+            // Invalidate dashboard cache to reflect updated vaccination data
+            $this->invalidateDashboardCache();
+
             return response()->json([
                 'success' => true,
                 'data' => $vaccination,
@@ -201,6 +225,9 @@ class VaccinationController extends Controller
     {
         try {
             $vaccination->delete();
+
+            // Invalidate dashboard cache to reflect deleted vaccination data
+            $this->invalidateDashboardCache();
 
             return response()->json([
                 'success' => true,

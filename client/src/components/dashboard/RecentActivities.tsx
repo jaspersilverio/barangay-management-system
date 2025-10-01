@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getRecentActivities } from '../../services/dashboard.service'
 import type { RecentActivity } from '../../services/dashboard.service'
 import { Clock, Plus, Edit, Trash2 } from 'lucide-react'
@@ -54,8 +54,8 @@ export default function RecentActivities() {
   if (loading) {
     return (
       <div className="col-span-12 lg:col-span-5">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Recent Activities</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Recent Activities</h5>
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 animate-pulse">
@@ -75,8 +75,8 @@ export default function RecentActivities() {
   if (error) {
     return (
       <div className="col-span-12 lg:col-span-5">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Recent Activities</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Recent Activities</h5>
           <div className="text-red-600 text-center py-8">Error: {error}</div>
         </div>
       </div>
@@ -86,8 +86,8 @@ export default function RecentActivities() {
   if (!activities || activities.length === 0) {
     return (
       <div className="col-span-12 lg:col-span-5">
-        <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-          <h5 className="mb-4 font-semibold text-gray-900">Recent Activities</h5>
+        <div className="card-modern p-4 flex flex-col">
+          <h5 className="mb-4 font-semibold text-brand-primary">Recent Activities</h5>
           <div className="text-gray-500 text-center py-8">No recent activities</div>
         </div>
       </div>
@@ -96,8 +96,8 @@ export default function RecentActivities() {
 
   return (
     <div className="col-span-12 lg:col-span-5">
-      <div className="bg-white shadow rounded-lg p-4 flex flex-col">
-        <h5 className="mb-4 font-semibold text-gray-900">Recent Activities</h5>
+      <div className="card-modern p-4 flex flex-col">
+        <h5 className="mb-4 font-semibold text-brand-primary">Recent Activities</h5>
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {activities.map((activity, index) => (
             <div key={index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">

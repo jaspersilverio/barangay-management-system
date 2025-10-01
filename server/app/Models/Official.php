@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Storage;
 
 class Official extends Model
 {
@@ -49,8 +50,8 @@ class Official extends Model
     public function getPhotoUrlAttribute(): string
     {
         if ($this->photo_path) {
-            // Use hardcoded URL for now to fix image display
-            return 'http://localhost:8000/storage/' . $this->photo_path;
+            // Use Laravel's Storage facade to generate proper URL
+            return asset('storage/' . $this->photo_path);
         }
         // Return a data URI for a simple default avatar
         return 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="60" fill="#e5e7eb"/><circle cx="60" cy="45" r="20" fill="#9ca3af"/><path d="M20 100c0-22 18-40 40-40s40 18 40 40" fill="#9ca3af"/></svg>');

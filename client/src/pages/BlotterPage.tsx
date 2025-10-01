@@ -198,15 +198,15 @@ const BlotterPage: React.FC = () => {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">Blotter Cases</h2>
-          <p className="text-muted mb-0">Manage incident reports and case tracking</p>
+          <h2 className="mb-0 text-brand-primary">Blotter Cases</h2>
+          <p className="text-brand-muted mb-0">Manage incident reports and case tracking</p>
         </div>
         <div className="page-actions">
           <Button 
             variant="primary" 
             size="lg"
             onClick={handleAddBlotter}
-            className="btn-primary-custom btn-action-add"
+            className="btn-brand-primary"
           >
             <i className="fas fa-plus me-2"></i>
             Add New Case
@@ -282,7 +282,7 @@ const BlotterPage: React.FC = () => {
           </div>
         </div>
         <div className="col-md-2">
-          <div className="card bg-dark text-white">
+          <div className="card bg-brand-primary text-white">
             <div className="card-body">
               <div className="d-flex justify-content-between">
                 <div>
@@ -419,7 +419,7 @@ const BlotterPage: React.FC = () => {
                   </>
                 ) : blotters.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-4 text-muted">
+                    <td colSpan={7} className="text-center py-4 text-brand-muted">
                       No blotter cases found.
                     </td>
                   </tr>
@@ -434,7 +434,7 @@ const BlotterPage: React.FC = () => {
                           <div className="fw-medium">
                             {blotter.complainant_name || 'N/A'}
                           </div>
-                          <small className="text-muted">
+                          <small className="text-brand-muted">
                             {blotter.complainant_type}
                           </small>
                         </div>
@@ -444,7 +444,7 @@ const BlotterPage: React.FC = () => {
                           <div className="fw-medium">
                             {blotter.respondent_name || 'N/A'}
                           </div>
-                          <small className="text-muted">
+                          <small className="text-brand-muted">
                             {blotter.respondent_type}
                           </small>
                         </div>
@@ -452,14 +452,14 @@ const BlotterPage: React.FC = () => {
                       <td>
                         <div>
                           <div>{formatDate(blotter.incident_date)}</div>
-                          <small className="text-muted">
+                          <small className="text-brand-muted">
                             {formatTime(blotter.incident_time)}
                           </small>
                         </div>
                       </td>
                       <td>
                         <div className="d-flex align-items-center">
-                          <MapPin size={14} className="me-1 text-muted" />
+                          <MapPin size={14} className="me-1 text-brand-muted" />
                           <span className="text-truncate" style={{ maxWidth: '150px' }}>
                             {blotter.incident_location}
                           </span>
@@ -509,7 +509,7 @@ const BlotterPage: React.FC = () => {
           {/* Pagination */}
           {pagination.last_page > 1 && (
             <div className="d-flex justify-content-between align-items-center mt-3">
-              <div className="text-muted">
+              <div className="text-brand-muted">
                 Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
                 {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{' '}
                 {pagination.total} entries

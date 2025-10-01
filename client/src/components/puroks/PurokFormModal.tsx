@@ -30,44 +30,51 @@ export default function PurokFormModal({ show, initial, onSubmit, onHide }: Prop
   return (
     <Modal show={show} onHide={onHide} centered>
       <Form onSubmit={handleSubmit(onSubmit)}>
-        <Modal.Header closeButton>
-          <Modal.Title>{initial ? 'Edit Purok' : 'Add Purok'}</Modal.Title>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">{initial ? 'Edit Purok' : 'Add Purok'}</Modal.Title>
         </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Purok Name</Form.Label>
+        <Modal.Body className="modal-body-custom">
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Purok Name</Form.Label>
             <Form.Control 
               placeholder="Enter purok name" 
               {...register('name')} 
-              isInvalid={!!errors.name} 
+              isInvalid={!!errors.name}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.name?.message}</Form.Control.Feedback>
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Purok Leader</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Purok Leader</Form.Label>
             <Form.Control 
               placeholder="Enter leader name" 
               {...register('captain')} 
-              isInvalid={!!errors.captain} 
+              isInvalid={!!errors.captain}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.captain?.message}</Form.Control.Feedback>
           </Form.Group>
           
-          <Form.Group className="mb-3">
-            <Form.Label>Leader Contact</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Leader Contact</Form.Label>
             <Form.Control 
               placeholder="Enter contact number" 
               {...register('contact')} 
-              isInvalid={!!errors.contact} 
+              isInvalid={!!errors.contact}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">{errors.contact?.message}</Form.Control.Feedback>
           </Form.Group>
         </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide}>Cancel</Button>
-          <Button variant="primary" type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Creating...' : 'Create Purok'}
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={onHide} className="btn-brand-secondary">
+            <i className="fas fa-times me-1"></i>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" disabled={isSubmitting} className="btn-brand-primary">
+            <i className="fas fa-save me-1"></i>
+            {isSubmitting ? (initial ? 'Updating...' : 'Creating...') : (initial ? 'Update Purok' : 'Create Purok')}
           </Button>
         </Modal.Footer>
       </Form>

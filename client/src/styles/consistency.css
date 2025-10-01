@@ -1,10 +1,38 @@
 /* ========================================
+   BRAND COLOR SYSTEM
+   ======================================== */
+
+:root {
+  /* Brand Color Palette */
+  --color-primary: #2563EB;
+  --color-primary-dark: #1E40AF;
+  --color-accent: #10B981;
+  --color-accent-dark: #059669;
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-text-primary: #0F172A;
+  --color-text-muted: #6B7280;
+  --color-danger: #EF4444;
+  --color-warning: #F59E0B;
+  --color-skeleton-base: #E9F2FF;
+  --color-skeleton-highlight: #D7E8FF;
+  
+  /* Chart Color Palette */
+  --chart-primary: var(--color-primary);
+  --chart-accent: var(--color-accent);
+  --chart-primary-dark: var(--color-primary-dark);
+  --chart-muted: var(--color-text-muted);
+  --chart-warning: var(--color-warning);
+  --chart-danger: var(--color-danger);
+}
+
+/* ========================================
    CONSISTENT LAYOUT STYLES
    ======================================== */
 
 /* Skeleton Loading Styles */
 .skeleton-line, .skeleton-badge, .skeleton-button, .skeleton-card, .skeleton-circle {
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background: linear-gradient(90deg, var(--color-skeleton-base) 25%, var(--color-skeleton-highlight) 50%, var(--color-skeleton-base) 75%);
   background-size: 200% 100%;
   animation: skeleton-loading 1.5s infinite;
   border-radius: 4px;
@@ -40,7 +68,7 @@
 /* Page Container */
 .page-container {
   padding: 1.5rem;
-  background-color: #f8f9fa;
+  background-color: var(--color-background);
   min-height: calc(100vh - 76px);
 }
 
@@ -51,21 +79,21 @@
   align-items: flex-start;
   margin-bottom: 1.5rem;
   padding: 1.5rem;
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--color-surface);
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
 }
 
 .page-title h2 {
   font-size: 1.75rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary);
   margin-bottom: 0.25rem;
 }
 
 .page-title p {
   font-size: 0.95rem;
-  color: #6c757d;
+  color: var(--color-text-muted);
   margin-bottom: 0;
 }
 
@@ -77,20 +105,22 @@
 
 /* Action Buttons */
 .btn-primary-custom {
-  background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  background: var(--color-primary);
   border: none;
-  border-radius: 0.375rem;
+  border-radius: 0.75rem;
   padding: 0.75rem 1.5rem;
   font-weight: 500;
   font-size: 0.95rem;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.2);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+  color: white;
 }
 
 .btn-primary-custom:hover {
-  background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  color: white;
 }
 
 .btn-primary-custom:disabled {
@@ -103,22 +133,25 @@
 .filters-card {
   margin-bottom: 1.5rem;
   border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  background: var(--color-surface);
 }
 
 .data-table-card {
   border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
   overflow: hidden;
+  background: var(--color-surface);
 }
 
 .pagination-card {
   margin-top: 1.5rem;
   border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  background: var(--color-surface);
 }
 
 /* Form Controls */
@@ -450,43 +483,86 @@
   }
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .page-container {
-    background-color: #1a1a1a;
-  }
-  
-  .page-header,
-  .filters-card,
-  .data-table-card,
-  .pagination-card {
-    background: #2d2d2d;
-    color: #ffffff;
-  }
-  
-  .page-title h2 {
-    color: #ffffff;
-  }
-  
-  .page-title p {
-    color: #adb5bd;
-  }
-  
-  .table-header {
-    background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%);
-  }
-  
-  .table-header th {
-    color: #ffffff;
-    border-bottom-color: #495057;
-  }
-  
-  .table-row:hover {
-    background-color: #3d3d3d;
-  }
-  
-  .table-row td {
-    border-bottom-color: #495057;
-    color: #ffffff;
-  }
+/* Dashboard Brand Styles */
+.card-modern {
+  background: var(--color-surface);
+  border: none;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  transition: all 0.2s ease;
 }
+
+.card-modern:hover {
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Brand Button Styles */
+.btn-brand-primary {
+  background: var(--color-primary);
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  color: white;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+}
+
+.btn-brand-primary:hover {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  color: white;
+}
+
+.btn-brand-primary:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  background: var(--color-primary-dark);
+  color: white;
+}
+
+.btn-brand-secondary {
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  transition: all 0.2s ease;
+}
+
+.btn-brand-secondary:hover {
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+  transform: translateY(-1px);
+  color: var(--color-text-primary);
+}
+
+.btn-brand-secondary:focus {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+  color: var(--color-text-primary);
+}
+
+/* Brand Text Styles */
+.text-brand-primary {
+  color: var(--color-text-primary);
+}
+
+.text-brand-muted {
+  color: var(--color-text-muted);
+}
+
+/* Brand Icon Styles */
+.icon-brand-primary {
+  color: var(--color-primary);
+}
+
+.icon-brand-accent {
+  color: var(--color-accent);
+}
+

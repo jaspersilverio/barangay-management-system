@@ -106,9 +106,9 @@ export default function CertificateStatistics() {
           <div className={`card-modern border-${stat.color} border-start border-4`}>
             <div className="d-flex align-items-center justify-content-between">
               <div>
-                <h6 className="text-muted mb-1">{stat.title}</h6>
-                <h3 className="mb-1">{stat.value}</h3>
-                <small className="text-muted">{stat.description}</small>
+                <h6 className="text-brand-muted mb-1">{stat.title}</h6>
+                <h3 className="mb-1 text-brand-primary">{stat.value}</h3>
+                <small className="text-brand-muted">{stat.description}</small>
               </div>
               <div className={`text-${stat.color}`}>
                 <stat.icon size={24} />

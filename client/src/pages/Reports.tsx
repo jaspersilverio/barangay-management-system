@@ -13,12 +13,12 @@ export default function Reports() {
       <Row className="mb-4">
         <Col>
           <div className="d-flex align-items-center gap-3">
-            <div className="bg-primary bg-opacity-10 p-3 rounded">
-              <FileText className="h-6 w-6 text-primary" />
+            <div className="bg-brand-primary bg-opacity-10 p-3 rounded">
+              <FileText className="h-6 w-6 text-brand-primary" />
             </div>
             <div>
-              <h2 className="mb-0">Reports & Analytics</h2>
-              <p className="text-muted mb-0">Generate comprehensive reports for barangay management</p>
+              <h2 className="mb-0 text-brand-primary">Reports & Analytics</h2>
+              <p className="text-brand-muted mb-0">Generate comprehensive reports for barangay management</p>
             </div>
           </div>
         </Col>

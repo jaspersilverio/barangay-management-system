@@ -156,8 +156,8 @@ export default function ResidentsReport() {
       <Card className="mb-4">
         <Card.Header>
           <div className="d-flex align-items-center gap-2">
-            <Filter className="h-4 w-4" />
-            <span>Filters</span>
+            <Filter className="h-4 w-4 text-brand-primary" />
+            <span className="text-brand-primary">Filters</span>
           </div>
         </Card.Header>
         <Card.Body>
@@ -252,7 +252,7 @@ export default function ResidentsReport() {
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-brand-primary"
             >
               <Download className="h-4 w-4" />
               Export PDF
@@ -261,7 +261,7 @@ export default function ResidentsReport() {
               variant="outline-success"
               onClick={() => handleExport('excel')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2"
+              className="d-flex align-items-center gap-2 btn-success"
             >
               <Download className="h-4 w-4" />
               Export Excel
@@ -281,8 +281,8 @@ export default function ResidentsReport() {
       <Row className="mb-3">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
-            <h5 className="mb-0">Residents Report</h5>
-            <span className="text-muted">
+            <h5 className="mb-0 text-brand-primary">Residents Report</h5>
+            <span className="text-brand-muted">
               Showing {residents.length} of {total} residents
             </span>
           </div>
@@ -308,7 +308,7 @@ export default function ResidentsReport() {
             <tbody>
               {residents.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-4 text-muted">
+                  <td colSpan={8} className="text-center py-4 text-brand-muted">
                     <Users className="h-8 w-8 mx-auto mb-2 d-block" />
                     No residents found matching the criteria
                   </td>
@@ -320,18 +320,18 @@ export default function ResidentsReport() {
                       <div>
                         <strong>{resident.first_name} {resident.last_name}</strong>
                         <br />
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           {resident.relationship_to_head}
                         </small>
                       </div>
                     </td>
                     <td>
-                      <Badge bg="info">
+                      <Badge bg="info" className="rounded-pill">
                         {calculateAge(resident.birthdate)} years
                       </Badge>
                     </td>
                     <td>
-                      <Badge bg={resident.sex === 'Male' ? 'primary' : 'pink'}>
+                      <Badge bg={resident.sex === 'Male' ? 'primary' : 'pink'} className="rounded-pill">
                         {resident.sex}
                       </Badge>
                     </td>
@@ -339,13 +339,13 @@ export default function ResidentsReport() {
                       <div>
                         <strong>{resident.household?.head_name}</strong>
                         <br />
-                        <small className="text-muted">
+                        <small className="text-brand-muted">
                           <MapPin className="h-3 w-3" /> {resident.household?.address}
                         </small>
                       </div>
                     </td>
                     <td>
-                      <Badge bg="secondary">
+                      <Badge bg="secondary" className="rounded-pill">
                         {resident.purok_name}
                       </Badge>
                     </td>

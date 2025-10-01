@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Form, Button, Alert, Spinner } from 'react-bootstrap'
+import { Modal, Form, Button, Spinner } from 'react-bootstrap'
 import type { User, CreateUserPayload, UpdateUserPayload, Role, PurokOption } from '../../services/users.service'
 import { getRoles, getPuroks } from '../../services/users.service'
 
@@ -129,10 +129,6 @@ export default function UserFormModal({ show, onHide, user, onSubmit, loading }:
     }
   }
 
-  const getRoleLabel = (roleValue: string) => {
-    const role = roles.find(r => r.value === roleValue)
-    return role ? role.label : roleValue
-  }
 
   if (loadingData) {
     return (
@@ -152,65 +148,69 @@ export default function UserFormModal({ show, onHide, user, onSubmit, loading }:
 
   return (
     <Modal show={show} onHide={onHide} size="lg">
-      <Modal.Header closeButton>
-        <Modal.Title>{isEdit ? 'Edit User' : 'Create New User'}</Modal.Title>
+      <Modal.Header closeButton className="modal-header-custom">
+        <Modal.Title className="modal-title-custom text-brand-primary">{isEdit ? 'Edit User' : 'Create New User'}</Modal.Title>
       </Modal.Header>
       
       <Form onSubmit={handleSubmit}>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>Name *</Form.Label>
+        <Modal.Body className="modal-body-custom">
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Name *</Form.Label>
             <Form.Control
               type="text"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               isInvalid={!!errors.name}
               placeholder="Enter full name"
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">
               {errors.name}
             </Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Email *</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Email *</Form.Label>
             <Form.Control
               type="email"
               value={formData.email}
               onChange={(e) => handleInputChange('email', e.target.value)}
               isInvalid={!!errors.email}
               placeholder="Enter email address"
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">
               {errors.email}
             </Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>{isEdit ? 'Password (leave blank to keep current)' : 'Password *'}</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">{isEdit ? 'Password (leave blank to keep current)' : 'Password *'}</Form.Label>
             <Form.Control
               type="password"
               value={formData.password}
               onChange={(e) => handleInputChange('password', e.target.value)}
               isInvalid={!!errors.password}
               placeholder={isEdit ? "Enter new password or leave blank" : "Enter password"}
+              className="modal-form-control"
             />
             <Form.Control.Feedback type="invalid">
               {errors.password}
             </Form.Control.Feedback>
             {isEdit && (
-              <Form.Text className="text-muted">
+              <Form.Text className="text-brand-muted">
                 Leave password blank to keep the current password
               </Form.Text>
             )}
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Role *</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Role *</Form.Label>
             <Form.Select
               value={formData.role}
               onChange={(e) => handleInputChange('role', e.target.value)}
               isInvalid={!!errors.role}
+              className="modal-form-control"
             >
               {roles.map((role) => (
                 <option key={role.value} value={role.value}>
@@ -223,12 +223,13 @@ export default function UserFormModal({ show, onHide, user, onSubmit, loading }:
             </Form.Control.Feedback>
           </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>Assigned Purok</Form.Label>
+          <Form.Group className="modal-form-group">
+            <Form.Label className="modal-form-label">Assigned Purok</Form.Label>
             <Form.Select
               value={formData.assigned_purok_id || ''}
               onChange={(e) => handleInputChange('assigned_purok_id', e.target.value ? Number(e.target.value) : undefined)}
               isInvalid={!!errors.assigned_purok_id}
+              className="modal-form-control"
             >
               <option value="">Select a purok (optional)</option>
               {puroks.map((purok) => (
@@ -240,23 +241,25 @@ export default function UserFormModal({ show, onHide, user, onSubmit, loading }:
             <Form.Control.Feedback type="invalid">
               {errors.assigned_purok_id}
             </Form.Control.Feedback>
-            <Form.Text className="text-muted">
+            <Form.Text className="text-brand-muted">
               Required for Purok Leader role
             </Form.Text>
           </Form.Group>
         </Modal.Body>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={onHide} disabled={loading}>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={onHide} disabled={loading} className="btn-brand-secondary">
+            <i className="fas fa-times me-2"></i>
             Cancel
           </Button>
           <Button 
             type="submit" 
             variant="primary" 
             disabled={loading}
-            className="d-flex align-items-center gap-2"
+            className="btn-brand-primary d-flex align-items-center gap-2"
           >
             {loading && <Spinner animation="border" size="sm" />}
+            <i className="fas fa-save me-2"></i>
             {isEdit ? 'Update User' : 'Create User'}
           </Button>
         </Modal.Footer>

@@ -135,8 +135,8 @@ const ResidentListPage = React.memo(() => {
       {/* Page Header */}
       <div className="page-header">
         <div className="page-title">
-          <h2 className="mb-0">Residents</h2>
-          <p className="text-muted mb-0">Manage resident information and records</p>
+          <h2 className="mb-0 text-brand-primary">Residents</h2>
+          <p className="text-brand-muted mb-0">Manage resident information and records</p>
         </div>
         <div className="page-actions">
           {canManage && (
@@ -145,7 +145,7 @@ const ResidentListPage = React.memo(() => {
               size="lg"
               onClick={handleShowForm} 
               disabled={isLoading}
-              className="btn-primary-custom btn-action-add"
+              className="btn-brand-primary"
             >
               <i className="fas fa-plus me-2"></i>
               Add Resident
@@ -266,7 +266,7 @@ const ResidentListPage = React.memo(() => {
                   items.map((resident: any) => (
                     <tr key={resident.id} className="table-row">
                       <td className="fw-medium">{`${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.trim()}</td>
-                      <td><span className="badge bg-info">{resident.household?.purok?.name || '-'}</span></td>
+                      <td><span className="badge bg-info rounded-pill">{resident.household?.purok?.name || '-'}</span></td>
                       <td>{resident.household?.head_name || '-'}</td>
                       <td><span className="text-capitalize">{resident.sex}</span></td>
                       <td><span className="text-capitalize">{resident.civil_status || '-'}</span></td>

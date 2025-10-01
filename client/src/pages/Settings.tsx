@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Nav, Tab } from 'react-bootstrap'
-import { Settings as SettingsIcon, Building, Cog, Phone, Sun, Moon, Monitor } from 'lucide-react'
+import { Settings as SettingsIcon, Building, Cog, Phone } from 'lucide-react'
 import { getSettings, updateBarangayInfo, updatePreferences, updateEmergency, type Settings, type BarangayInfo, type SystemPreferences, type EmergencySettings, type EmergencyContact, type EvacuationCenter } from '../services/settings.service'
-import { useTheme } from '../context/ThemeContext'
 
 export default function Settings() {
-  const { setTheme } = useTheme()
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -20,9 +18,9 @@ export default function Settings() {
     logo_path: ''
   })
   const [preferences, setPreferences] = useState<SystemPreferences>({
-    theme: 'light',
     per_page: 10,
-    date_format: 'YYYY-MM-DD'
+    date_format: 'YYYY-MM-DD',
+    theme: 'light'
   })
   const [emergency, setEmergency] = useState<EmergencySettings>({
     contact_numbers: [],
@@ -43,7 +41,7 @@ export default function Settings() {
       if (response.success) {
         setSettings(response.data)
         setBarangayInfo(response.data.barangay_info || { name: '', address: '', contact: '', logo_path: '' })
-        setPreferences(response.data.system_preferences || { theme: 'light', per_page: 10, date_format: 'YYYY-MM-DD' })
+        setPreferences(response.data.system_preferences || { per_page: 10, date_format: 'YYYY-MM-DD', theme: 'light' })
         setEmergency(response.data.emergency || { contact_numbers: [], evacuation_centers: [] })
       } else {
         setError(response.message || 'Failed to load settings')
@@ -87,21 +85,11 @@ export default function Settings() {
       if (response.success) {
         setSuccess('System preferences updated successfully')
         setSettings(prev => prev ? { ...prev, system_preferences: response.data } : null)
-        // Apply theme change immediately
-        setTheme(preferences.theme)
       } else {
         setError(response.message || 'Failed to update system preferences')
-        // Revert theme if save failed
-        if (settings?.system_preferences?.theme) {
-          setTheme(settings.system_preferences.theme)
-        }
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to update system preferences')
-      // Revert theme if save failed
-      if (settings?.system_preferences?.theme) {
-        setTheme(settings.system_preferences.theme)
-      }
     } finally {
       setSaving(null)
     }
@@ -174,19 +162,6 @@ export default function Settings() {
     }))
   }
 
-  const handleThemeChange = (newTheme: 'light' | 'dark') => {
-    setPreferences(prev => ({ ...prev, theme: newTheme }))
-    // Apply theme change immediately for preview
-    setTheme(newTheme)
-  }
-
-  const getThemeIcon = (theme: string) => {
-    switch (theme) {
-      case 'light': return <Sun className="h-4 w-4" />
-      case 'dark': return <Moon className="h-4 w-4" />
-      default: return <Monitor className="h-4 w-4" />
-    }
-  }
 
   if (loading) {
     return (
@@ -320,58 +295,6 @@ export default function Settings() {
                   <Tab.Pane eventKey="preferences">
                     <h4 className="mb-4">System Preferences</h4>
                     
-                    {/* Theme Selection */}
-                    <Card className="mb-4">
-                      <Card.Header>
-                        <h6 className="mb-0">Theme Settings</h6>
-                      </Card.Header>
-                      <Card.Body>
-                        <Row>
-                          <Col md={6}>
-                            <Form.Group className="mb-3">
-                              <Form.Label>Application Theme *</Form.Label>
-                              <div className="d-flex gap-2">
-                                <Button
-                                  variant={preferences.theme === 'light' ? 'primary' : 'outline-primary'}
-                                  onClick={() => handleThemeChange('light')}
-                                  className="d-flex align-items-center gap-2"
-                                >
-                                  <Sun className="h-4 w-4" />
-                                  Light Mode
-                                </Button>
-                                <Button
-                                  variant={preferences.theme === 'dark' ? 'primary' : 'outline-primary'}
-                                  onClick={() => handleThemeChange('dark')}
-                                  className="d-flex align-items-center gap-2"
-                                >
-                                  <Moon className="h-4 w-4" />
-                                  Dark Mode
-                                </Button>
-                              </div>
-                              <Form.Text className="text-muted">
-                                Choose your preferred theme. Changes are applied immediately for preview.
-                              </Form.Text>
-                            </Form.Group>
-                          </Col>
-                          <Col md={6}>
-                            <div className="p-3 border rounded">
-                              <h6 className="mb-2">Theme Preview</h6>
-                              <div className={`p-3 rounded ${preferences.theme === 'dark' ? 'bg-dark text-light' : 'bg-light text-dark'}`}>
-                                <div className="d-flex align-items-center gap-2 mb-2">
-                                  {getThemeIcon(preferences.theme)}
-                                  <span className="fw-bold">Sample Content</span>
-                                </div>
-                                <p className="mb-2 small">This is how your interface will look with the selected theme.</p>
-                                <div className="d-flex gap-2">
-                                  <Button size="sm" variant="primary">Primary Button</Button>
-                                  <Button size="sm" variant="secondary">Secondary Button</Button>
-                                </div>
-                              </div>
-                            </div>
-                          </Col>
-                        </Row>
-                      </Card.Body>
-                    </Card>
 
                     {/* Other Preferences */}
                     <Card className="mb-4">
@@ -435,7 +358,6 @@ export default function Settings() {
                           // Revert to original settings
                           if (settings?.system_preferences) {
                             setPreferences(settings.system_preferences)
-                            setTheme(settings.system_preferences.theme)
                           }
                         }}
                         disabled={saving === 'preferences'}

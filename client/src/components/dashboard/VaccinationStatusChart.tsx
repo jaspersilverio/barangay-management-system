@@ -4,9 +4,9 @@ import { getVaccinationSummary } from '../../services/dashboard.service'
 import { Syringe } from 'lucide-react'
 
 const COLORS = {
-  completed: '#10b981', // green-500
-  pending: '#f59e0b',   // amber-500
-  scheduled: '#3b82f6'  // blue-500
+  completed: 'var(--color-accent)', // green-500
+  pending: 'var(--color-warning)',   // amber-500
+  scheduled: 'var(--color-primary)'  // blue-500
 }
 
 const VaccinationStatusChart = React.memo(() => {
@@ -87,8 +87,8 @@ const VaccinationStatusChart = React.memo(() => {
 
   if (isLoading) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Vaccination Status Breakdown</h5>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Vaccination Status Breakdown</h5>
         <div className="w-full h-80 flex items-center justify-center">
           <div className="skeleton-card" style={{ height: '320px' }}>
             <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
@@ -101,8 +101,8 @@ const VaccinationStatusChart = React.memo(() => {
 
   if (isError) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Vaccination Status Breakdown</h5>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Vaccination Status Breakdown</h5>
         <div className="w-full h-80 flex items-center justify-center">
           <div className="text-center text-red-600">
             <Syringe className="w-12 h-12 mx-auto mb-2 text-red-400" />
@@ -116,8 +116,8 @@ const VaccinationStatusChart = React.memo(() => {
 
   if (!data || chartData.length === 0) {
     return (
-      <div className="card-modern">
-        <h5 className="h5 font-bold text-neutral-800 mb-4">Vaccination Status Breakdown</h5>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Vaccination Status Breakdown</h5>
         <div className="w-full h-80 flex items-center justify-center">
           <div className="text-center text-gray-500">
             <Syringe className="w-12 h-12 mx-auto mb-2 text-gray-400" />
@@ -130,8 +130,8 @@ const VaccinationStatusChart = React.memo(() => {
   }
 
   return (
-    <div className="card-modern">
-      <h5 className="h5 font-bold text-neutral-800 mb-4">Vaccination Status Breakdown</h5>
+    <div className="card-modern p-4">
+      <h5 className="h5 font-bold text-brand-primary mb-4">Vaccination Status Breakdown</h5>
       <div className="w-full h-80">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
