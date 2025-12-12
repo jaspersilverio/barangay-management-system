@@ -15,7 +15,17 @@ return new class extends Migration
             $table->id();
             $table->string('case_number')->unique();
             $table->foreignId('complainant_id')->nullable()->constrained('residents')->onDelete('cascade');
+            $table->boolean('complainant_is_resident')->default(true);
+            $table->string('complainant_full_name')->nullable();
+            $table->integer('complainant_age')->nullable();
+            $table->text('complainant_address')->nullable();
+            $table->string('complainant_contact')->nullable();
             $table->foreignId('respondent_id')->nullable()->constrained('residents')->onDelete('cascade');
+            $table->boolean('respondent_is_resident')->default(true);
+            $table->string('respondent_full_name')->nullable();
+            $table->integer('respondent_age')->nullable();
+            $table->text('respondent_address')->nullable();
+            $table->string('respondent_contact')->nullable();
             $table->foreignId('official_id')->nullable()->constrained('users')->onDelete('set null');
             $table->date('incident_date');
             $table->time('incident_time');

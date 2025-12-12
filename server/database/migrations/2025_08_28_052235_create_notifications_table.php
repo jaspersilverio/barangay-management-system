@@ -16,7 +16,19 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
             $table->string('title');
             $table->text('message');
-            $table->enum('type', ['info', 'event', 'system', 'household', 'resident'])->default('info');
+            $table->enum('type', [
+                'info',
+                'event',
+                'system',
+                'household',
+                'resident',
+                'certificate_request',
+                'certificate_approved',
+                'certificate_rejected',
+                'certificate_released',
+                'certificate_issued',
+                'certificate_invalidated'
+            ])->default('info');
             $table->boolean('is_read')->default(false);
             $table->timestamps();
 

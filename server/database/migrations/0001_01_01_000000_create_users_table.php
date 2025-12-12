@@ -17,8 +17,15 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->enum('role', ['admin', 'purok_leader', 'staff', 'viewer'])->default('viewer');
+            $table->unsignedBigInteger('assigned_purok_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->softDeletes();
+
+            // Indexes (foreign key will be added after puroks table is created)
+            $table->index('role');
+            $table->index('assigned_purok_id');
         });
 
         Schema::create('password_reset_tokens', function (Blueprint $table) {

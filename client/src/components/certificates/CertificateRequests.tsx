@@ -31,7 +31,11 @@ import LoadingSkeleton from '../ui/LoadingSkeleton'
 import BadgeComponent from '../ui/Badge'
 import ButtonComponent from '../ui/Button'
 
-export default function CertificateRequests() {
+interface CertificateRequestsProps {
+  certificateType?: 'barangay_clearance' | 'indigency' | 'residency' | 'business_permit_endorsement' | 'solo_parent'
+}
+
+export default function CertificateRequests({ certificateType }: CertificateRequestsProps = {}) {
   const [requests, setRequests] = useState<CertificateRequestType[]>([])
   const [residents, setResidents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,12 +46,12 @@ export default function CertificateRequests() {
   const [remarks, setRemarks] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState(certificateType || 'all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [formData, setFormData] = useState<CertificateRequestForm>({
     resident_id: 0,
-    certificate_type: 'barangay_clearance',
+    certificate_type: (certificateType as any) || 'barangay_clearance',
     purpose: '',
     additional_requirements: ''
   })

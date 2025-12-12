@@ -11,9 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Add foreign key constraint (column already exists in create_map_markers_table)
         Schema::table('map_markers', function (Blueprint $table) {
-            $table->foreignId('household_id')->nullable()->after('created_by')->constrained('households')->onDelete('set null');
-            $table->index('household_id');
+            $table->foreign('household_id')
+                ->references('id')
+                ->on('households')
+                ->onDelete('set null');
         });
     }
 
@@ -24,8 +27,6 @@ return new class extends Migration
     {
         Schema::table('map_markers', function (Blueprint $table) {
             $table->dropForeign(['household_id']);
-            $table->dropIndex(['household_id']);
-            $table->dropColumn('household_id');
         });
     }
 };

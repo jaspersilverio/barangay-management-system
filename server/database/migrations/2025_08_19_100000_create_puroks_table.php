@@ -17,9 +17,11 @@ return new class extends Migration
             $table->collation = 'utf8mb4_unicode_ci';
 
             $table->bigIncrements('id');
-            $table->string('code')->unique();
+            $table->string('code')->nullable()->unique();
             $table->string('name');
             $table->text('description')->nullable();
+            $table->string('captain')->nullable();
+            $table->string('contact')->nullable();
             $table->decimal('centroid_lat', 10, 7)->nullable();
             $table->decimal('centroid_lng', 10, 7)->nullable();
             $table->longText('boundary_geojson')->nullable();

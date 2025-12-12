@@ -21,11 +21,18 @@ return new class extends Migration
             $table->string('property_type');
             $table->string('head_name');
             $table->string('contact');
+            $table->unsignedBigInteger('purok_id')->nullable();
             $table->timestamps();
             $table->softDeletes();
 
             $table->index('head_name');
             $table->index('address');
+            $table->index('purok_id');
+
+            $table->foreign('purok_id')
+                ->references('id')
+                ->on('puroks')
+                ->onDelete('set null');
         });
     }
 

@@ -11,14 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->enum('role', ['admin', 'purok_leader', 'staff', 'viewer'])->default('viewer')->after('password');
-            $table->unsignedBigInteger('assigned_purok_id')->nullable()->after('role');
-
-            $table->index('role');
-            $table->index('assigned_purok_id');
-        });
-
+        // Add foreign key constraint (columns already exist in create_users_table)
         Schema::table('users', function (Blueprint $table) {
             $table->foreign('assigned_purok_id')
                 ->references('id')
@@ -35,9 +28,6 @@ return new class extends Migration
     {
         Schema::table('users', function (Blueprint $table) {
             $table->dropForeign(['assigned_purok_id']);
-            $table->dropIndex(['role']);
-            $table->dropIndex(['assigned_purok_id']);
-            $table->dropColumn(['role', 'assigned_purok_id']);
         });
     }
 };

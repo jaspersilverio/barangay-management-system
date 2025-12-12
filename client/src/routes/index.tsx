@@ -32,8 +32,16 @@ const SketchMap = lazy(() => import('../pages/SketchMap'))
 const Notifications = lazy(() => import('../pages/Notifications'))
 const Certificates = lazy(() => import('../pages/Certificates'))
 const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
+const ImmunizationPage = lazy(() => import('../pages/ImmunizationPage'))
 const Officials = lazy(() => import('../pages/Officials'))
 const BlotterPage = lazy(() => import('../pages/BlotterPage'))
+const RegisterHouseholdPage = lazy(() => import('../pages/households/RegisterHouseholdPage'))
+const RegisterResidentPage = lazy(() => import('../pages/residents/RegisterResidentPage'))
+const LandmarksPage = lazy(() => import('../pages/LandmarksPage'))
+const BarangayClearancePage = lazy(() => import('../pages/certificates/BarangayClearancePage'))
+const IndigencyPage = lazy(() => import('../pages/certificates/IndigencyPage'))
+const ResidencyPage = lazy(() => import('../pages/certificates/ResidencyPage'))
+const SoloParentPage = lazy(() => import('../pages/certificates/SoloParentPage'))
 
 // Create wrapped components with Suspense
 const HouseholdListPageWithSuspense = () => (
@@ -90,6 +98,12 @@ const VaccinationsPageWithSuspense = () => (
   </Suspense>
 )
 
+const ImmunizationPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <ImmunizationPage />
+  </Suspense>
+)
+
 const NotificationsWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
     <Notifications />
@@ -132,6 +146,48 @@ const SketchMapWithSuspense = () => (
   </Suspense>
 )
 
+const RegisterHouseholdPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <RegisterHouseholdPage />
+  </Suspense>
+)
+
+const RegisterResidentPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <RegisterResidentPage />
+  </Suspense>
+)
+
+const LandmarksPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <LandmarksPage />
+  </Suspense>
+)
+
+const BarangayClearancePageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <BarangayClearancePage />
+  </Suspense>
+)
+
+const IndigencyPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <IndigencyPage />
+  </Suspense>
+)
+
+const ResidencyPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <ResidencyPage />
+  </Suspense>
+)
+
+const SoloParentPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <SoloParentPage />
+  </Suspense>
+)
+
 const router = createBrowserRouter([
   {
     path: '/login',
@@ -157,8 +213,16 @@ const router = createBrowserRouter([
             element: <HouseholdListPageWithSuspense />
           },
           {
+            path: 'households/register',
+            element: <RegisterHouseholdPageWithSuspense />
+          },
+          {
             path: 'households/:id',
             element: <HouseholdDetailsPageWithSuspense />
+          },
+          {
+            path: 'residents/register',
+            element: <RegisterResidentPageWithSuspense />
           },
           {
             path: 'residents',
@@ -185,8 +249,28 @@ const router = createBrowserRouter([
             element: <CertificatesWithSuspense />
           },
           {
+            path: 'certificates/barangay-clearance',
+            element: <BarangayClearancePageWithSuspense />
+          },
+          {
+            path: 'certificates/indigency',
+            element: <IndigencyPageWithSuspense />
+          },
+          {
+            path: 'certificates/residency',
+            element: <ResidencyPageWithSuspense />
+          },
+          {
+            path: 'certificates/solo-parent',
+            element: <SoloParentPageWithSuspense />
+          },
+          {
             path: 'vaccinations',
             element: <VaccinationsPageWithSuspense />
+          },
+          {
+            path: 'immunization',
+            element: <ImmunizationPageWithSuspense />
           },
           {
             path: 'notifications',
@@ -215,6 +299,10 @@ const router = createBrowserRouter([
           {
             path: 'map',
             element: <SketchMapWithSuspense />
+          },
+          {
+            path: 'landmarks',
+            element: <LandmarksPageWithSuspense />
           }
         ]
       }

@@ -19,10 +19,12 @@ return new class extends Migration
             $table->float('x_position');
             $table->float('y_position');
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
+            $table->unsignedBigInteger('household_id')->nullable();
             $table->timestamps();
 
             // Index for better performance
             $table->index(['type', 'created_by']);
+            $table->index('household_id');
         });
     }
 

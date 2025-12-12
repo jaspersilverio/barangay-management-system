@@ -24,6 +24,7 @@ i<?php
                 $table->json('changes')->nullable();
                 $table->string('ip_address')->nullable();
                 $table->timestamp('created_at')->useCurrent();
+                $table->timestamp('updated_at')->nullable();
 
                 $table->index('user_id');
                 $table->index(['model_type', 'model_id']);

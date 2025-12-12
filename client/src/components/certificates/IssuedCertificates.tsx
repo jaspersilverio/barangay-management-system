@@ -31,7 +31,11 @@ import LoadingSkeleton from '../ui/LoadingSkeleton'
 import Badge from '../ui/Badge'
 import ButtonComponent from '../ui/Button'
 
-export default function IssuedCertificates() {
+interface IssuedCertificatesProps {
+  certificateType?: 'barangay_clearance' | 'indigency' | 'residency' | 'business_permit_endorsement' | 'solo_parent'
+}
+
+export default function IssuedCertificates({ certificateType }: IssuedCertificatesProps = {}) {
   const [certificates, setCertificates] = useState<IssuedCertificateType[]>([])
   const [residents, setResidents] = useState<any[]>([])
   const [approvedRequests, setApprovedRequests] = useState<any[]>([])
@@ -42,13 +46,13 @@ export default function IssuedCertificates() {
   const [actionType, setActionType] = useState<'invalidate' | 'regenerate'>('invalidate')
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState(certificateType || 'all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [formData, setFormData] = useState<IssuedCertificateForm>({
     certificate_request_id: 0,
     resident_id: 0,
-    certificate_type: 'barangay_clearance',
+    certificate_type: (certificateType as any) || 'barangay_clearance',
     purpose: '',
     valid_from: '',
     valid_until: '',
