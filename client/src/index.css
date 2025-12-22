@@ -42,7 +42,6 @@
   .btn-secondary {
     @apply bg-neutral-200 hover:bg-neutral-300 text-neutral-700 font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-neutral-500 focus:ring-offset-2;
   }
-r
 
   .btn-success {
     @apply bg-success hover:bg-primary-600 text-white font-medium px-4 py-2 rounded-lg transition-colors duration-200 focus:ring-2 focus:ring-success focus:ring-offset-2;
@@ -138,6 +137,33 @@ r
   left: 0;
   height: 100vh;
   width: 240px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Sidebar scrollbar styling */
+.sidebar-menu-scrollable::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-menu-scrollable::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-menu-scrollable::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+.sidebar-menu-scrollable::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Firefox scrollbar styling */
+.sidebar-menu-scrollable {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
 }
 
 .topbar-fixed {

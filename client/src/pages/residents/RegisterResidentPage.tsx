@@ -34,9 +34,10 @@ export default function RegisterResidentPage() {
 
   return (
     <Container fluid>
-      <div className="card-modern">
-        <h2 className="h4 mb-4 text-brand-primary">Register Resident</h2>
-        <p className="text-muted mb-4">Fill out the form below to register a new resident.</p>
+      <div className="page-container page-sub">
+        <div className="card-modern">
+          <h2 className="h4 mb-4 text-brand-primary">Register Resident</h2>
+          <p className="text-muted mb-4">Fill out the form below to register a new resident.</p>
         
         <ResidentFormModal
           show={showForm}
@@ -44,6 +45,7 @@ export default function RegisterResidentPage() {
           onSubmit={handleSubmit}
           onHide={() => navigate('/residents')}
         />
+        </div>
       </div>
     </Container>
   )

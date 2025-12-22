@@ -25,17 +25,40 @@ import { sidebarMenu, type MenuItem } from '../../config/sidebarMenu'
 export default function Sidebar() {
   const { user, logout } = useAuth()
   
-  // Auto-expand menus if any child is active
+  // Auto-expand menus if any child is active (recursive check for nested children)
   const getInitialExpandedMenus = (): Set<string> => {
     const expanded = new Set<string>()
     const currentPath = window.location.pathname
     
+    const checkItem = (item: MenuItem, parentLabels: string[] = []): boolean => {
+      // Check if this item's route matches
+      if (item.to === currentPath) {
+        parentLabels.forEach(label => expanded.add(label))
+        return true
+      }
+      
+      // Check children recursively
+      if (item.children && item.children.length > 0) {
+        const hasActiveChild = item.children.some((child) => 
+          checkItem(child, item.isGroup ? parentLabels : [...parentLabels, item.label])
+        )
+        
+        if (hasActiveChild) {
+          // Add all parent labels to expanded set
+          parentLabels.forEach(label => expanded.add(label))
+          if (!item.isGroup) {
+            expanded.add(item.label)
+          }
+          return true
+        }
+      }
+      
+      return false
+    }
+    
     sidebarMenu.forEach((item) => {
       if (item.children) {
-        const hasActiveChild = item.children.some((child) => child.to === currentPath)
-        if (hasActiveChild) {
-          expanded.add(item.label)
-        }
+        checkItem(item, [item.label])
       }
     })
     return expanded
@@ -94,43 +117,72 @@ export default function Sidebar() {
 
   const visibleMenuItems = filterMenuItems(sidebarMenu)
 
+  // Recursively check if any nested child is active
+  const isAnyChildActive = (item: MenuItem): boolean => {
+    if (item.to && window.location.pathname === item.to) {
+      return true
+    }
+    if (item.children && item.children.length > 0) {
+      return item.children.some(child => isAnyChildActive(child))
+    }
+    return false
+  }
+
   const renderMenuItem = (item: MenuItem, level: number = 0) => {
     const isExpanded = expandedMenus.has(item.label)
     const hasChildren = item.children && item.children.length > 0
     const Icon = item.icon
+    const isGroup = item.isGroup === true
+    const hasActiveChild = hasChildren ? isAnyChildActive(item) : false
 
-    // Check if any child is active
-    const isChildActive = hasChildren
-      ? item.children?.some((child) => {
-          if (child.to) {
-            return window.location.pathname === child.to
-          }
-          return false
-        })
-      : false
+    // Render group label (non-clickable, muted style)
+    if (isGroup && hasChildren) {
+      const groupHasActiveChild = hasActiveChild
+      return (
+        <div key={item.label} className="mb-1">
+          <div
+            className={`px-4 py-2 text-xs uppercase tracking-wider ${
+              groupHasActiveChild 
+                ? 'font-bold text-blue-600' 
+                : 'font-semibold text-neutral-500'
+            }`}
+            style={{
+              paddingLeft: `${0.75 + level * 0.75}rem`,
+              marginTop: level > 0 ? '0.5rem' : '0',
+              marginBottom: '0.25rem',
+            }}
+          >
+            {item.label}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            {item.children?.map((child) => renderMenuItem(child, level + 1))}
+          </div>
+        </div>
+      )
+    }
 
     if (hasChildren) {
       return (
         <div key={item.label} className="mb-1">
           <button
             onClick={() => toggleMenu(item.label)}
-            className={`w-100 d-flex align-items-center justify-content-between px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 border-0 bg-transparent text-decoration-none ${
-              isChildActive
-                ? 'bg-blue-50'
-                : 'text-neutral-700'
+            className={`w-100 d-flex align-items-center justify-content-between px-4 py-3 text-sm rounded-lg transition-colors duration-200 border-0 text-decoration-none ${
+              hasActiveChild
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'bg-transparent text-neutral-700 font-medium'
             }`}
             style={{
               paddingLeft: `${0.75 + level * 0.75}rem`,
-              color: isChildActive ? '#2563EB' : undefined,
+              borderLeft: hasActiveChild ? '3px solid #2563EB' : undefined,
             }}
             onMouseEnter={(e) => {
-              if (!isChildActive) {
+              if (!hasActiveChild) {
                 e.currentTarget.style.backgroundColor = '#F3F4F6'
                 e.currentTarget.style.color = '#2563EB'
               }
             }}
             onMouseLeave={(e) => {
-              if (!isChildActive) {
+              if (!hasActiveChild) {
                 e.currentTarget.style.backgroundColor = 'transparent'
                 e.currentTarget.style.color = '#374151'
               }
@@ -161,16 +213,15 @@ export default function Sidebar() {
         key={item.label}
         to={item.to || '#'}
         className={({ isActive }) =>
-          `d-flex align-items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 text-decoration-none ${
+          `d-flex align-items-center gap-3 px-4 py-3 text-sm rounded-lg transition-colors duration-200 text-decoration-none ${
             isActive
-              ? 'bg-blue-50'
-              : 'text-neutral-700'
+              ? 'bg-blue-100 text-blue-700 font-bold'
+              : 'bg-transparent text-neutral-700 font-medium hover:bg-neutral-100 hover:text-blue-600'
           }`
         }
         style={({ isActive }) => ({
           paddingLeft: `${0.75 + level * 0.75}rem`,
-          borderRight: isActive ? '2px solid #2563EB' : undefined,
-          color: isActive ? '#2563EB' : undefined,
+          borderLeft: isActive ? '4px solid #2563EB' : undefined,
         })}
         end
       >
@@ -181,9 +232,9 @@ export default function Sidebar() {
   }
 
   return (
-    <nav className="sidebar-fixed flex flex-col bg-white border-r border-neutral-200 shadow-sm p-4 d-none d-lg-flex">
-      {/* Logo/Brand */}
-      <div className="mb-8">
+    <nav className="sidebar-fixed flex flex-col bg-white border-r border-neutral-200 shadow-sm d-none d-lg-flex" style={{ height: '100vh', overflow: 'hidden' }}>
+      {/* Logo/Brand - Fixed at top */}
+      <div className="p-4 pb-0 flex-shrink-0">
         <Link to="/dashboard" className="text-decoration-none">
           <h1 className="h4 mb-0" style={{ color: '#2563EB', fontWeight: 'bold' }}>
             🏘️ HMMS
@@ -192,13 +243,24 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      {/* Menu Items */}
-      <div className="flex-1" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+      {/* Menu Items - Scrollable */}
+      <div 
+        className="flex-1 px-4 py-4 sidebar-menu-scrollable" 
+        style={{ 
+          overflowY: 'auto', 
+          overflowX: 'hidden',
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '0.25rem',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         {visibleMenuItems.map((item) => renderMenuItem(item))}
       </div>
 
-      {/* Bottom Actions */}
-      <div className="mt-auto pt-4 border-t border-neutral-200">
+      {/* Bottom Actions - Fixed at bottom */}
+      <div className="p-4 pt-0 flex-shrink-0 border-t border-neutral-200">
         {user?.role === 'admin' && (
           <NavLink
             to="/settings"

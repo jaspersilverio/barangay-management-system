@@ -90,19 +90,6 @@ export async function createOfficial(data: CreateOfficialData) {
     formData.append('photo', data.photo)
   }
 
-  console.log('Sending official data:', {
-    name: data.name,
-    position: data.position,
-    active: activeValue,
-    activeType: typeof activeValue,
-    activeString: activeValue.toString(),
-    hasPhoto: !!data.photo
-  })
-
-  // Log FormData contents
-  for (let [key, value] of formData.entries()) {
-    console.log(`FormData ${key}:`, value, typeof value)
-  }
 
   const res = await api.post('/officials', formData, {
     headers: {

@@ -13,7 +13,15 @@ export type ResidentPayload = {
   purok_id?: string | number
 }
 
-export async function listResidents(params: { search?: string; page?: number; purok_id?: string | number; per_page?: number }) {
+export async function listResidents(params: { 
+  search?: string
+  page?: number
+  purok_id?: string | number
+  per_page?: number
+  seniors?: boolean
+  pwds?: boolean
+  children?: boolean
+}) {
   const res = await api.get('/residents', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
 }

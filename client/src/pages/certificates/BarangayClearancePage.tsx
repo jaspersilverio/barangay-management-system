@@ -9,10 +9,10 @@ export default function BarangayClearancePage() {
   const [activeTab, setActiveTab] = useState('requests')
 
   return (
-    <div className="page-container">
+    <div className="page-container page-sub">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-1 text-brand-primary">Barangay Clearance</h1>
+          <h2 className="h4 mb-1 text-brand-primary">Barangay Clearance</h2>
           <p className="text-brand-muted mb-0">Manage barangay clearance requests and issued documents</p>
         </div>
       </div>

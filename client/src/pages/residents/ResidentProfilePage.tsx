@@ -127,7 +127,7 @@ export default function ResidentProfilePage() {
   }
 
   return (
-    <div className="page-container">
+    <div className="page-container page-sub">
       {/* Header */}
       <div className="d-flex align-items-center mb-4">
         <Button 

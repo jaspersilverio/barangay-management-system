@@ -45,13 +45,10 @@ export default function Officials() {
       if (filters.position) params.position = filters.position
       if (filters.active !== null) params.active = filters.active
 
-      console.log('Loading officials with params:', params)
       const response = await getOfficials(params)
-      console.log('Officials response:', response)
       
       if (response.success) {
         const officialsData = response.data.data || []
-        console.log('Setting officials state:', officialsData)
         setOfficials(officialsData)
       } else {
         setError(response.message || 'Failed to load officials')
@@ -74,8 +71,6 @@ export default function Officials() {
       setFormLoading(true)
       setError(null)
 
-      console.log('Submitting official data:', data)
-
       let response
       if (selectedOfficial) {
         response = await updateOfficial(selectedOfficial.id, data)
@@ -83,15 +78,11 @@ export default function Officials() {
         response = await createOfficial(data)
       }
 
-      console.log('Form submission response:', response)
-
       if (response.success) {
         setSuccess(selectedOfficial ? 'Official updated successfully' : 'Official created successfully')
         setShowForm(false)
         setSelectedOfficial(null)
-        console.log('Reloading officials after successful submission')
         await loadOfficials()
-        console.log('Officials reloaded, current state:', officials)
       } else {
         setError(response.message || 'Failed to save official')
       }

@@ -222,7 +222,6 @@ export default function AddVaccinationModal({
   }, [vaccination, residentId, setValue, reset])
 
   const onSubmit = async (data: VaccinationFormData) => {
-    console.log('Form submitted with data:', data)
     setLoading(true)
     setError(null)
 
@@ -233,15 +232,12 @@ export default function AddVaccinationModal({
         administered_by: data.administered_by || null
       }
 
-      console.log('Sending payload:', payload)
-
       if (vaccination) {
         await updateVaccination(vaccination.id, payload)
       } else {
         await createVaccination(payload)
       }
 
-      console.log('Vaccination saved successfully')
       onSuccess()
       onHide()
     } catch (err: any) {
@@ -260,8 +256,7 @@ export default function AddVaccinationModal({
   }
 
   // Add form validation error handler
-  const onError = (errors: any) => {
-    console.log('Form validation errors:', errors)
+  const onError = () => {
     setError('Please fix the form errors before submitting.')
   }
 

@@ -83,15 +83,12 @@ class MapService {
    * Create a new map marker
    */
   async createMarker(data: CreateMapMarkerData): Promise<MapMarker | null> {
-    console.log('MapService.createMarker called with:', data)
     try {
-      console.log('Making API call to POST /map/markers')
       const response = await api.post('/map/markers', {
         ...data,
         x_position: data.x_position,
         y_position: data.y_position,
       })
-      console.log('API response:', response.data)
       return response.data.data
     } catch (error: any) {
       console.error('Failed to create marker:', error)

@@ -34,7 +34,13 @@ const Certificates = lazy(() => import('../pages/Certificates'))
 const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
 const ImmunizationPage = lazy(() => import('../pages/ImmunizationPage'))
 const Officials = lazy(() => import('../pages/Officials'))
+const SKOfficialsPage = lazy(() => import('../pages/officials/SKOfficialsPage'))
+const SeniorCitizensPage = lazy(() => import('../pages/beneficiaries/SeniorCitizensPage'))
+const PWDBeneficiariesPage = lazy(() => import('../pages/beneficiaries/PWDBeneficiariesPage'))
+const FourPsBeneficiariesPage = lazy(() => import('../pages/beneficiaries/FourPsBeneficiariesPage'))
+const SoloParentsPage = lazy(() => import('../pages/beneficiaries/SoloParentsPage'))
 const BlotterPage = lazy(() => import('../pages/BlotterPage'))
+const IncidentsReportPage = lazy(() => import('../pages/incidents/IncidentsReportPage'))
 const RegisterHouseholdPage = lazy(() => import('../pages/households/RegisterHouseholdPage'))
 const RegisterResidentPage = lazy(() => import('../pages/residents/RegisterResidentPage'))
 const LandmarksPage = lazy(() => import('../pages/LandmarksPage'))
@@ -128,9 +134,45 @@ const OfficialsWithSuspense = () => (
   </Suspense>
 )
 
+const SKOfficialsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <SKOfficialsPage />
+  </Suspense>
+)
+
+const SeniorCitizensPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <SeniorCitizensPage />
+  </Suspense>
+)
+
+const PWDBeneficiariesPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <PWDBeneficiariesPage />
+  </Suspense>
+)
+
+const FourPsBeneficiariesPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <FourPsBeneficiariesPage />
+  </Suspense>
+)
+
+const SoloParentsPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <SoloParentsPage />
+  </Suspense>
+)
+
 const BlotterPageWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
     <BlotterPage />
+  </Suspense>
+)
+
+const IncidentsReportPageWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <IncidentsReportPage />
   </Suspense>
 )
 
@@ -289,8 +331,32 @@ const router = createBrowserRouter([
             element: <OfficialsWithSuspense />
           },
           {
+            path: 'officials/sk',
+            element: <SKOfficialsPageWithSuspense />
+          },
+          {
+            path: 'beneficiaries/senior-citizens',
+            element: <SeniorCitizensPageWithSuspense />
+          },
+          {
+            path: 'beneficiaries/pwd',
+            element: <PWDBeneficiariesPageWithSuspense />
+          },
+          {
+            path: 'beneficiaries/4ps',
+            element: <FourPsBeneficiariesPageWithSuspense />
+          },
+          {
+            path: 'beneficiaries/solo-parents',
+            element: <SoloParentsPageWithSuspense />
+          },
+          {
             path: 'blotter',
             element: <BlotterPageWithSuspense />
+          },
+          {
+            path: 'incidents/report',
+            element: <IncidentsReportPageWithSuspense />
           },
           {
             path: 'settings',

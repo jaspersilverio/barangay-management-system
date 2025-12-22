@@ -119,7 +119,6 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
               className="btn btn-sm btn-outline-primary"
               onClick={() => {
                 // TODO: Implement edit functionality
-                console.log('Edit marker:', marker.id)
               }}
             >
               ✏️ Edit
@@ -129,7 +128,6 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
               onClick={() => {
                 if (window.confirm(`Are you sure you want to delete "${marker.name}"?`)) {
                   // TODO: Implement delete functionality
-                  console.log('Delete marker:', marker.id)
                 }
               }}
             >
