@@ -127,4 +127,28 @@ export async function getBlotterSummary() {
   return res.data as { success: boolean; data: BlotterSummary; message: string | null; errors: any }
 }
 
+export type AgeDistribution = Array<{
+  age_group: string
+  label: string
+  count: number
+}>
+
+export async function getAgeDistribution() {
+  const res = await api.get('/dashboard/age-distribution')
+  return res.data as { success: boolean; data: AgeDistribution; message: string | null; errors: any }
+}
+
+export type BeneficiariesSummary = {
+  total: number
+  categories: Array<{
+    name: string
+    count: number
+  }>
+}
+
+export async function getBeneficiariesSummary() {
+  const res = await api.get('/dashboard/beneficiaries')
+  return res.data as { success: boolean; data: BeneficiariesSummary; message: string | null; errors: any }
+}
+
 

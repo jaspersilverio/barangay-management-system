@@ -22,6 +22,7 @@ use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\MapMarkerController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\VaccinationController;
+use App\Http\Controllers\FourPsBeneficiaryController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
@@ -60,6 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/upcoming-events', [DashboardController::class, 'upcomingEvents']);
     Route::get('/dashboard/vaccinations/summary', [DashboardController::class, 'vaccinationSummary']);
     Route::get('/dashboard/blotters/summary', [DashboardController::class, 'blotterSummary']);
+    Route::get('/dashboard/age-distribution', [DashboardController::class, 'ageDistribution']);
+    Route::get('/dashboard/beneficiaries', [DashboardController::class, 'beneficiaries']);
 
     // Read-only routes (all authenticated users)
     Route::middleware('role:admin,purok_leader')->group(function () {
@@ -84,6 +87,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/blotters', [BlotterController::class, 'index']);
         Route::get('/blotters/statistics', [BlotterController::class, 'statistics']);
         Route::get('/blotters/{blotter}', [BlotterController::class, 'show']);
+        Route::get('/beneficiaries/4ps', [FourPsBeneficiaryController::class, 'index']);
+        Route::get('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'show']);
     });
 
     // Certificate statistics (all authenticated users)
@@ -155,6 +160,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/residents/{resident}', [ResidentController::class, 'update']);
         Route::delete('/residents/{resident}', [ResidentController::class, 'destroy']);
         Route::post('/residents/link-to-household', [ResidentController::class, 'linkToHousehold']);
+    });
+
+    // 4Ps Beneficiaries management (staff and admin access)
+    Route::middleware('role:staff,admin')->group(function () {
+        Route::post('/beneficiaries/4ps', [FourPsBeneficiaryController::class, 'store']);
+        Route::put('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'update']);
+        Route::delete('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'destroy']);
     });
 
     // Events management (purok leaders and admin access)

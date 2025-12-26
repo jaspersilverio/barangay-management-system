@@ -2,10 +2,13 @@
 import DashboardSummary from '../components/dashboard/DashboardSummary'
 import VaccinationSummaryCard from '../components/dashboard/VaccinationSummaryCard'
 import BlotterSummaryCard from '../components/dashboard/BlotterSummaryCard'
+import BeneficiariesSummaryCard from '../components/dashboard/BeneficiariesSummaryCard'
 import DashboardCharts from '../components/dashboard/DashboardCharts'
 import ResidentsByPurokChart from '../components/dashboard/ResidentsByPurokChart'
 import VaccinationStatusChart from '../components/dashboard/VaccinationStatusChart'
 import BlotterTrendChart from '../components/dashboard/BlotterTrendChart'
+import AgeDistributionChart from '../components/dashboard/AgeDistributionChart'
+import BeneficiariesChart from '../components/dashboard/BeneficiariesChart'
 import MonthlyRegistrationsChart from '../components/dashboard/MonthlyRegistrationsChart'
 import VulnerabilityTrendsChart from '../components/dashboard/VulnerabilityTrendsChart'
 import QuickActions from '../components/dashboard/QuickActions'
@@ -27,6 +30,7 @@ export default function Dashboard() {
             <DashboardSummary />
             <VaccinationSummaryCard />
             <BlotterSummaryCard />
+            <BeneficiariesSummaryCard />
           </div>
         </div>
 
@@ -76,6 +80,19 @@ export default function Dashboard() {
           {/* Blotter Trend Chart */}
           <div className="col-12 col-lg-6">
             <BlotterTrendChart />
+          </div>
+        </div>
+
+        {/* Charts Section - Row 4 */}
+        <div className="row g-6 mb-6">
+          {/* Age Distribution Chart */}
+          <div className="col-12 col-lg-6">
+            <AgeDistributionChart />
+          </div>
+          
+          {/* Beneficiaries Chart */}
+          <div className="col-12 col-lg-6">
+            <BeneficiariesChart />
           </div>
         </div>
 

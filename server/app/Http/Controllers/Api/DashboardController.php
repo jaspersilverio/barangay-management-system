@@ -8,6 +8,7 @@ use App\Models\Purok;
 use App\Models\Resident;
 use App\Models\Vaccination;
 use App\Models\Blotter;
+use App\Models\FourPsBeneficiary;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -589,6 +590,199 @@ class DashboardController extends Controller
                 'active' => $activeBlotters,
                 'resolvedThisMonth' => $resolvedThisMonth,
                 'monthlyTrend' => $monthlyTrend,
+            ];
+
+            return $this->respondSuccess($data);
+        });
+    }
+
+    public function ageDistribution()
+    {
+        $user = request()->user();
+        $now = Carbon::now();
+
+        // Create cache key based on user role and purok
+        $cacheKey = 'dashboard_age_distribution_' . $user->id . '_' . ($user->assigned_purok_id ?? 'admin');
+
+        // Check total residents count to determine if caching is needed
+        $residentCountQuery = Resident::query();
+        if ($user->isPurokLeader() && $user->assigned_purok_id) {
+            $residentCountQuery->whereHas('household', function ($q) use ($user) {
+                $q->where('purok_id', $user->assigned_purok_id);
+            });
+        }
+        $totalResidents = $residentCountQuery->count();
+
+        // Cache for 10 minutes if residents > 5000, otherwise 5 minutes
+        $cacheTime = $totalResidents > 5000 ? 600 : 300;
+
+        return Cache::remember($cacheKey, $cacheTime, function () use ($user, $now) {
+            // Apply role-based filtering
+            $residentQuery = Resident::query()
+                ->whereNotNull('birthdate'); // Exclude residents with missing DOB
+
+            if ($user->isPurokLeader() && $user->assigned_purok_id) {
+                $residentQuery->whereHas('household', function ($q) use ($user) {
+                    $q->where('purok_id', $user->assigned_purok_id);
+                });
+            }
+
+            // Get all residents with birthdate
+            $residents = $residentQuery->get(['id', 'birthdate']);
+
+            // Initialize age groups
+            $ageGroups = [
+                '0-1' => 0,
+                '1-3' => 0,
+                '4-5' => 0,
+                '6-11' => 0,
+                '12-17' => 0,
+                '18-25' => 0,
+                '26-39' => 0,
+                '40-59' => 0,
+                '60+' => 0,
+            ];
+
+            // Calculate age and assign to groups
+            foreach ($residents as $resident) {
+                if (!$resident->birthdate) {
+                    continue; // Skip if birthdate is null (shouldn't happen due to query, but safety check)
+                }
+
+                $birthdate = Carbon::parse($resident->birthdate);
+                $age = $now->diffInYears($birthdate);
+
+                // Handle boundary cases: assign to defined bracket
+                if ($age == 0) {
+                    $ageGroups['0-1']++;
+                } elseif ($age >= 1 && $age <= 3) {
+                    $ageGroups['1-3']++;
+                } elseif ($age >= 4 && $age <= 5) {
+                    $ageGroups['4-5']++;
+                } elseif ($age >= 6 && $age <= 11) {
+                    $ageGroups['6-11']++;
+                } elseif ($age >= 12 && $age <= 17) {
+                    $ageGroups['12-17']++;
+                } elseif ($age >= 18 && $age <= 25) {
+                    $ageGroups['18-25']++;
+                } elseif ($age >= 26 && $age <= 39) {
+                    $ageGroups['26-39']++;
+                } elseif ($age >= 40 && $age <= 59) {
+                    $ageGroups['40-59']++;
+                } else {
+                    $ageGroups['60+']++;
+                }
+            }
+
+            // Age group labels mapping
+            $ageGroupLabels = [
+                '0-1' => 'Infant',
+                '1-3' => 'Toddler',
+                '4-5' => 'Preschooler',
+                '6-11' => 'Grade Schooler',
+                '12-17' => 'Teenager',
+                '18-25' => 'Young Adult',
+                '26-39' => 'Adult',
+                '40-59' => 'Middle-Aged Adult',
+                '60+' => 'Senior',
+            ];
+
+            // Transform to array format with labels
+            $data = collect($ageGroups)->map(function ($count, $ageGroup) use ($ageGroupLabels) {
+                return [
+                    'age_group' => $ageGroup,
+                    'label' => $ageGroupLabels[$ageGroup] ?? $ageGroup,
+                    'count' => $count,
+                ];
+            })->values();
+
+            return $this->respondSuccess($data);
+        });
+    }
+
+    public function beneficiaries()
+    {
+        $user = request()->user();
+        $now = Carbon::now();
+
+        // Create cache key based on user role and purok
+        $cacheKey = 'dashboard_beneficiaries_' . $user->id . '_' . ($user->assigned_purok_id ?? 'admin');
+
+        return Cache::remember($cacheKey, 300, function () use ($user, $now) { // 5 minutes cache
+            // Apply role-based filtering
+            $residentQuery = Resident::query();
+            $householdQuery = Household::query();
+
+            if ($user->isPurokLeader() && $user->assigned_purok_id) {
+                $residentQuery->whereHas('household', function ($q) use ($user) {
+                    $q->where('purok_id', $user->assigned_purok_id);
+                });
+                $householdQuery->where('purok_id', $user->assigned_purok_id);
+            }
+
+            // 4Ps Beneficiaries: Count distinct households with active 4Ps status
+            $fourPsQuery = FourPsBeneficiary::query()
+                ->where('status', 'active');
+            
+            if ($user->isPurokLeader() && $user->assigned_purok_id) {
+                $fourPsQuery->whereHas('household', function ($q) use ($user) {
+                    $q->where('purok_id', $user->assigned_purok_id);
+                });
+            }
+            $fourPsCount = $fourPsQuery->count();
+
+            // Senior Citizens: Age >= 60
+            $seniorsCount = $residentQuery->clone()
+                ->whereDate('birthdate', '<=', $now->copy()->subYears(60)->toDateString())
+                ->count();
+
+            // PWD: is_pwd = true
+            $pwdCount = $residentQuery->clone()
+                ->where('is_pwd', true)
+                ->count();
+
+            // Solo Parent: Heads of household who are single/widowed/divorced/separated
+            // and have at least one other resident in the household (indicating they have dependents)
+            $soloParentCount = $residentQuery->clone()
+                ->whereIn('civil_status', ['single', 'widowed', 'divorced', 'separated'])
+                ->where(function ($q) {
+                    $q->where('relationship_to_head', 'Head')
+                        ->orWhere('relationship_to_head', 'like', '%Head%')
+                        ->orWhereRaw('LOWER(relationship_to_head) LIKE ?', ['%head%']);
+                })
+                ->whereHas('household', function ($householdQuery) {
+                    // Has at least one other resident (more than just the head)
+                    $householdQuery->has('residents', '>', 1);
+                })
+                ->count();
+
+            // Calculate total (sum of all categories)
+            // Note: A resident can belong to multiple categories, so total may be less than sum
+            // We'll return the sum as the total for display purposes
+            $total = $fourPsCount + $soloParentCount + $seniorsCount + $pwdCount;
+
+            $categories = [
+                [
+                    'name' => '4Ps',
+                    'count' => $fourPsCount,
+                ],
+                [
+                    'name' => 'Solo Parent',
+                    'count' => $soloParentCount,
+                ],
+                [
+                    'name' => 'Senior Citizens',
+                    'count' => $seniorsCount,
+                ],
+                [
+                    'name' => 'PWD',
+                    'count' => $pwdCount,
+                ],
+            ];
+
+            $data = [
+                'total' => $total,
+                'categories' => $categories,
             ];
 
             return $this->respondSuccess($data);
