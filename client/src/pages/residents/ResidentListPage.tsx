@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
 import { listResidents, deleteResident, createResident, updateResident } from '../../services/residents.service'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
@@ -12,7 +12,9 @@ const ResidentListPage = React.memo(() => {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [inputValue, setInputValue] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
@@ -22,9 +24,15 @@ const ResidentListPage = React.memo(() => {
   
   // Manual state management
   const [residentsData, setResidentsData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
   const [isError, setIsError] = useState(false)
   const [error, setError] = useState<any>(null)
+
+  // Track newly added resident for highlighting
+  const [newlyAddedResidentId, setNewlyAddedResidentId] = useState<number | null>(null)
+
+  // Ref to maintain input focus
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const canManage = role === 'admin' || role === 'purok_leader' || role === 'staff'
 
@@ -34,33 +42,80 @@ const ResidentListPage = React.memo(() => {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // Manual data fetching
-  const loadResidents = useCallback(async () => {
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(inputValue)
+      // Reset to first page when search changes
+      setPage(1)
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [inputValue])
+
+  // Manual data fetching - depends on debouncedSearch, not inputValue
+  const loadResidents = useCallback(async (overrideSearch?: string, overridePage?: number) => {
     setIsLoading(true)
     setIsError(false)
+    setError(null)
     try {
       const data = await listResidents({ 
-        search, 
-        page, 
+        search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
+        page: overridePage !== undefined ? overridePage : page, 
         purok_id: effectivePurokId || undefined 
       })
+      // Set data immediately - no delays
       setResidentsData(data)
     } catch (err) {
       setIsError(true)
       setError(err)
     } finally {
+      // Clear loading state immediately when data is ready
       setIsLoading(false)
     }
-  }, [search, page, effectivePurokId])
+  }, [debouncedSearch, page, effectivePurokId])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
     loadResidents()
   }, [loadResidents])
 
+  // Auto-remove highlight after 5 seconds and scroll to highlighted row
+  useEffect(() => {
+    if (newlyAddedResidentId !== null) {
+      // Scroll to the highlighted row after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        const rowElement = document.querySelector(`tr[data-resident-id="${newlyAddedResidentId}"]`)
+        if (rowElement) {
+          rowElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }, 150)
+
+      // Remove highlight after 5 seconds
+      const timeoutId = setTimeout(() => {
+        setNewlyAddedResidentId(null)
+      }, 5000) // 5 seconds
+
+      return () => clearTimeout(timeoutId)
+    }
+  }, [newlyAddedResidentId])
+
   const items = useMemo(() => {
     if (!residentsData?.data?.data) return []
-    return residentsData.data.data
+    // Sort alphabetically by first name, then last name
+    return [...residentsData.data.data].sort((a: any, b: any) => {
+      const aFirstName = (a.first_name || '').toLowerCase()
+      const bFirstName = (b.first_name || '').toLowerCase()
+      const aLastName = (a.last_name || '').toLowerCase()
+      const bLastName = (b.last_name || '').toLowerCase()
+      
+      // First compare by first name
+      if (aFirstName !== bFirstName) {
+        return aFirstName.localeCompare(bFirstName)
+      }
+      // If first names are equal, compare by last name
+      return aLastName.localeCompare(bLastName)
+    })
   }, [residentsData])
 
   const totalPages = useMemo(() => {
@@ -81,9 +136,11 @@ const ResidentListPage = React.memo(() => {
     }
   }, [showDelete, loadResidents])
 
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value)
-    setPage(1) // Reset to first page when searching
+    setInputValue(e.target.value)
+    // Page reset is handled in debounce effect
   }, [])
 
   const handlePurokChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -162,11 +219,13 @@ const ResidentListPage = React.memo(() => {
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control
+                  ref={searchInputRef}
                   placeholder="Name, relationship, or occupation"
-                  value={search}
+                  value={inputValue}
                   onChange={handleSearchChange}
                   disabled={isLoading}
                   className="form-control-custom"
+                  autoComplete="off"
                 />
               </Form.Group>
             </Col>
@@ -264,7 +323,11 @@ const ResidentListPage = React.memo(() => {
                   </tr>
                 ) : (
                   items.map((resident: any) => (
-                    <tr key={resident.id} className="table-row">
+                    <tr 
+                      key={resident.id}
+                      data-resident-id={resident.id}
+                      className={`table-row ${newlyAddedResidentId === resident.id ? 'newly-added-highlight' : ''}`}
+                    >
                       <td className="fw-medium">{`${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.trim()}</td>
                       <td><span className="badge bg-info rounded-pill">{resident.household?.purok?.name || '-'}</span></td>
                       <td>{resident.household?.head_name || '-'}</td>
@@ -391,14 +454,35 @@ const ResidentListPage = React.memo(() => {
             if (editingId) {
               await updateResident(editingId, payload)
               setToast({ show: true, message: 'Resident updated', variant: 'success' })
+              setShowForm(false)
+              setEditingId(null)
+              // Reload data after successful update
+              loadResidents()
             } else {
-              await createResident(payload)
-              setToast({ show: true, message: 'Resident created', variant: 'success' })
+              // Create new resident
+              const response = await createResident(payload)
+              if (response.success && response.data?.id) {
+                const newResidentId = response.data.id
+                setToast({ show: true, message: 'Resident created', variant: 'success' })
+                setShowForm(false)
+                setEditingId(null)
+                
+                // Clear search and reset to page 1 to ensure new resident is visible
+                setInputValue('')
+                setDebouncedSearch('')
+                setPage(1)
+                
+                // Reload data with empty search and page 1 to show the new resident
+                await loadResidents('', 1)
+                
+                // Set highlight after DOM is updated
+                setTimeout(() => {
+                  setNewlyAddedResidentId(newResidentId)
+                }, 200)
+              } else {
+                throw new Error('Failed to create resident')
+              }
             }
-            setShowForm(false)
-            setEditingId(null)
-            // Reload data after successful save
-            loadResidents()
           } catch (e: any) {
             setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
           }

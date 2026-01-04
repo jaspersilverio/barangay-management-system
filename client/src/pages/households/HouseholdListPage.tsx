@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer, Badge } from 'react-bootstrap'
 import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type Household } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -17,7 +17,9 @@ const HouseholdListPage = React.memo(() => {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [inputValue, setInputValue] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [showDelete, setShowDelete] = useState<null | number>(null)
@@ -28,7 +30,10 @@ const HouseholdListPage = React.memo(() => {
 
   // Manual state management
   const [householdsData, setHouseholdsData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
+
+  // Ref to maintain input focus
+  const searchInputRef = useRef<HTMLInputElement>(null)
 
   const canManage = role === 'admin' || role === 'purok_leader'
 
@@ -38,23 +43,36 @@ const HouseholdListPage = React.memo(() => {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // Manual data fetching
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(inputValue)
+      // Reset to first page when search changes
+      setPage(1)
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [inputValue])
+
+  // Manual data fetching - depends on debouncedSearch, not inputValue
   const loadHouseholds = useCallback(async () => {
     setIsLoading(true)
     try {
       const data = await listHouseholds({ 
-        search, 
+        search: debouncedSearch, 
         page, 
         purok_id: effectivePurokId || undefined,
         per_page: 15 
       })
+      // Set data immediately - no delays
       setHouseholdsData(data)
     } catch (err) {
       console.error('Failed to load households:', err)
     } finally {
+      // Clear loading state immediately when data is ready
       setIsLoading(false)
     }
-  }, [search, page, effectivePurokId])
+  }, [debouncedSearch, page, effectivePurokId])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
@@ -63,7 +81,12 @@ const HouseholdListPage = React.memo(() => {
 
   const items = useMemo(() => {
     if (!householdsData?.data?.data) return []
-    return (householdsData as any).data.data
+    // Sort alphabetically by head of household name (A-Z)
+    return [...(householdsData as any).data.data].sort((a: any, b: any) => {
+      const aHeadName = (a.head_name || '').toLowerCase()
+      const bHeadName = (b.head_name || '').toLowerCase()
+      return aHeadName.localeCompare(bHeadName)
+    })
   }, [householdsData])
 
   const totalPages = useMemo(() => {
@@ -97,9 +120,11 @@ const HouseholdListPage = React.memo(() => {
     setShowViewResidents(household)
   }, [])
 
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(e.target.value)
-    setPage(1)
+    setInputValue(e.target.value)
+    // Page reset is handled in debounce effect
   }, [])
 
   const handlePurokChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -165,11 +190,13 @@ const HouseholdListPage = React.memo(() => {
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control 
+                  ref={searchInputRef}
                   placeholder="Address, head name, or contact" 
-                  value={search} 
+                  value={inputValue} 
                   onChange={handleSearchChange}
                   disabled={isLoading}
                   className="form-control-custom"
+                  autoComplete="off"
                 />
               </Form.Group>
             </Col>

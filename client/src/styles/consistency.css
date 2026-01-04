@@ -3,7 +3,7 @@
    ======================================== */
 
 :root {
-  /* Brand Color Palette */
+  /* Brand Color Palette - Light Mode (Default) */
   --color-primary: #2563EB;
   --color-primary-dark: #1E40AF;
   --color-accent: #10B981;
@@ -16,6 +16,8 @@
   --color-warning: #F59E0B;
   --color-skeleton-base: #E9F2FF;
   --color-skeleton-highlight: #D7E8FF;
+  --color-border: #E2E8F0;
+  --color-border-light: #F1F5F9;
   
   /* Chart Color Palette */
   --chart-primary: var(--color-primary);
@@ -24,6 +26,26 @@
   --chart-muted: var(--color-text-muted);
   --chart-warning: var(--color-warning);
   --chart-danger: var(--color-danger);
+}
+
+/* Dark Mode Variables */
+.dark,
+[data-theme="dark"] {
+  /* Brand Color Palette - Dark Mode */
+  --color-primary: #3B82F6;
+  --color-primary-dark: #2563EB;
+  --color-accent: #10B981;
+  --color-accent-dark: #059669;
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-text-primary: #F1F5F9;
+  --color-text-muted: #94A3B8;
+  --color-danger: #EF4444;
+  --color-warning: #F59E0B;
+  --color-skeleton-base: #1E293B;
+  --color-skeleton-highlight: #334155;
+  --color-border: #334155;
+  --color-border-light: #1E293B;
 }
 
 /* ========================================
@@ -70,6 +92,8 @@
   padding: 1.5rem;
   background-color: var(--color-background);
   min-height: calc(100vh - 76px);
+  transition: background-color 0.3s ease;
+  color: var(--color-text-primary);
 }
 
 /* Page Header */
@@ -82,6 +106,13 @@
   background: var(--color-surface);
   border-radius: 1rem;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  color: var(--color-text-primary);
+}
+
+.dark .page-header,
+[data-theme="dark"] .page-header {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Main Page Typography (Default - Larger) */
@@ -156,6 +187,13 @@
   border-radius: 1rem;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
   background: var(--color-surface);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  color: var(--color-text-primary);
+}
+
+.dark .filters-card,
+[data-theme="dark"] .filters-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .data-table-card {
@@ -164,6 +202,13 @@
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
   overflow: hidden;
   background: var(--color-surface);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  color: var(--color-text-primary);
+}
+
+.dark .data-table-card,
+[data-theme="dark"] .data-table-card {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 /* Sub-Page Cards (Smaller padding) */
@@ -185,17 +230,19 @@
 /* Form Controls */
 .form-label-custom {
   font-weight: 500;
-  color: #495057;
+  color: var(--color-text-primary);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
 
 .form-control-custom {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   padding: 0.75rem;
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 /* Sub-Page Form Controls (Smaller) */
@@ -288,21 +335,27 @@
 }
 
 .form-control-custom:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .form-select-custom {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   padding: 0.75rem;
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .form-select-custom:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 /* Tables */
@@ -312,18 +365,23 @@
 }
 
 .table-header {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  background: var(--color-border-light);
+}
+
+.dark .table-header,
+[data-theme="dark"] .table-header {
+  background: var(--color-surface);
 }
 
 .table-header th {
   border: none;
   padding: 1rem 0.75rem;
   font-weight: 600;
-  color: #495057;
+  color: var(--color-text-primary);
   font-size: 0.9rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border-bottom: 2px solid #dee2e6;
+  border-bottom: 2px solid var(--color-border);
 }
 
 .table-row {
@@ -331,16 +389,44 @@
 }
 
 .table-row:hover {
-  background-color: #f8f9fa;
+  background-color: var(--color-border-light);
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .table-row:hover,
+[data-theme="dark"] .table-row:hover {
+  background-color: var(--color-surface);
+}
+
+/* Highlight for newly added residents */
+.table-row.newly-added-highlight {
+  background-color: #e8f5e9;
+  border-left: 4px solid #4caf50;
+  animation: highlightFade 5s ease-out;
+}
+
+@keyframes highlightFade {
+  0% {
+    background-color: #c8e6c9;
+    border-left-color: #2e7d32;
+  }
+  50% {
+    background-color: #e8f5e9;
+    border-left-color: #4caf50;
+  }
+  100% {
+    background-color: transparent;
+    border-left-color: transparent;
+  }
 }
 
 .table-row td {
   padding: 1rem 0.75rem;
   border: none;
-  border-bottom: 1px solid #f1f3f4;
+  border-bottom: 1px solid var(--color-border);
   vertical-align: middle;
+  color: var(--color-text-primary);
 }
 
 .actions-column {
@@ -469,7 +555,7 @@
 /* Pagination */
 .pagination-info {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: var(--color-text-muted);
 }
 
 .pagination-btn {
@@ -489,15 +575,20 @@
 
 /* Modal Consistency */
 .modal-header-custom {
-  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border-bottom: 2px solid #dee2e6;
+  background: var(--color-border-light);
+  border-bottom: 2px solid var(--color-border);
   padding: 1.25rem 1.5rem;
+}
+
+.dark .modal-header-custom,
+[data-theme="dark"] .modal-header-custom {
+  background: var(--color-surface);
 }
 
 .modal-title-custom {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: var(--color-text-primary);
   margin: 0;
 }
 
@@ -506,12 +597,17 @@
 }
 
 .modal-footer-custom {
-  background: #f8f9fa;
-  border-top: 1px solid #dee2e6;
+  background: var(--color-border-light);
+  border-top: 1px solid var(--color-border);
   padding: 1rem 1.5rem;
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+.dark .modal-footer-custom,
+[data-theme="dark"] .modal-footer-custom {
+  background: var(--color-surface);
 }
 
 /* Form Groups in Modals */
@@ -521,22 +617,26 @@
 
 .modal-form-label {
   font-weight: 500;
-  color: #495057;
+  color: var(--color-text-primary);
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
 }
 
 .modal-form-control {
-  border: 1px solid #dee2e6;
+  border: 1px solid var(--color-border);
   border-radius: 0.375rem;
   padding: 0.75rem;
   font-size: 0.95rem;
   transition: all 0.2s ease;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 .modal-form-control:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.25);
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
 }
 
 /* Button Consistency */
@@ -606,12 +706,23 @@
   border: none;
   border-radius: 1rem;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
-  transition: all 0.2s ease;
+  transition: all 0.2s ease, background-color 0.3s ease, box-shadow 0.3s ease;
+  color: var(--color-text-primary);
+}
+
+.dark .card-modern,
+[data-theme="dark"] .card-modern {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .card-modern:hover {
   box-shadow: 0 4px 16px rgba(37, 99, 235, 0.15);
   transform: translateY(-2px);
+}
+
+.dark .card-modern:hover,
+[data-theme="dark"] .card-modern:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 /* Brand Button Styles */
@@ -672,6 +783,26 @@
 
 .text-brand-muted {
   color: var(--color-text-muted);
+}
+
+/* ========================================
+   LOGIN PAGE ENHANCEMENTS
+   ======================================== */
+
+/* Login page input focus styles using brand colors */
+.login-page input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.login-page input:focus:not(.error) {
+  border-color: var(--color-primary);
+}
+
+.login-page input.error:focus {
+  border-color: var(--color-danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 /* Brand Icon Styles */

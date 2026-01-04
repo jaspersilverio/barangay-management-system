@@ -50,15 +50,14 @@ export default function IncidentsReportPage() {
       
       // TODO: Implement API call to fetch incidents report
       // For now, using placeholder data
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Placeholder data structure
+      // Set data immediately - no artificial delays
       setIncidents([])
       setTotalPages(1)
       setTotal(0)
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load incidents report')
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

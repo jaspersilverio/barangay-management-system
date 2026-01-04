@@ -15,6 +15,25 @@ class UpdateBlotterRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert string booleans from FormData to actual booleans
+        if ($this->has('complainant_is_resident')) {
+            $this->merge([
+                'complainant_is_resident' => $this->input('complainant_is_resident') === '1' || $this->input('complainant_is_resident') === true,
+            ]);
+        }
+
+        if ($this->has('respondent_is_resident')) {
+            $this->merge([
+                'respondent_is_resident' => $this->input('respondent_is_resident') === '1' || $this->input('respondent_is_resident') === true,
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -40,7 +59,7 @@ class UpdateBlotterRequest extends FormRequest
 
             // Other fields
             'official_id' => ['sometimes', 'nullable', 'exists:users,id'],
-            'incident_date' => ['sometimes', 'date', 'before_or_equal:today'],
+            'incident_date' => ['sometimes', 'date_format:Y-m-d', 'before_or_equal:today'],
             'incident_time' => ['sometimes', 'date_format:H:i'],
             'incident_location' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'string'],

@@ -32,7 +32,6 @@ const SketchMap = lazy(() => import('../pages/SketchMap'))
 const Notifications = lazy(() => import('../pages/Notifications'))
 const Certificates = lazy(() => import('../pages/Certificates'))
 const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
-const ImmunizationPage = lazy(() => import('../pages/ImmunizationPage'))
 const Officials = lazy(() => import('../pages/Officials'))
 const SKOfficialsPage = lazy(() => import('../pages/officials/SKOfficialsPage'))
 const SeniorCitizensPage = lazy(() => import('../pages/beneficiaries/SeniorCitizensPage'))
@@ -40,14 +39,9 @@ const PWDBeneficiariesPage = lazy(() => import('../pages/beneficiaries/PWDBenefi
 const FourPsBeneficiariesPage = lazy(() => import('../pages/beneficiaries/FourPsBeneficiariesPage'))
 const SoloParentsPage = lazy(() => import('../pages/beneficiaries/SoloParentsPage'))
 const BlotterPage = lazy(() => import('../pages/BlotterPage'))
-const IncidentsReportPage = lazy(() => import('../pages/incidents/IncidentsReportPage'))
+const IncidentReportsPage = lazy(() => import('../pages/incidents/IncidentReportsPage'))
 const RegisterHouseholdPage = lazy(() => import('../pages/households/RegisterHouseholdPage'))
 const RegisterResidentPage = lazy(() => import('../pages/residents/RegisterResidentPage'))
-const LandmarksPage = lazy(() => import('../pages/LandmarksPage'))
-const BarangayClearancePage = lazy(() => import('../pages/certificates/BarangayClearancePage'))
-const IndigencyPage = lazy(() => import('../pages/certificates/IndigencyPage'))
-const ResidencyPage = lazy(() => import('../pages/certificates/ResidencyPage'))
-const SoloParentPage = lazy(() => import('../pages/certificates/SoloParentPage'))
 
 // Create wrapped components with Suspense
 const HouseholdListPageWithSuspense = () => (
@@ -101,12 +95,6 @@ const CertificatesWithSuspense = () => (
 const VaccinationsPageWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
     <VaccinationsPage />
-  </Suspense>
-)
-
-const ImmunizationPageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <ImmunizationPage />
   </Suspense>
 )
 
@@ -170,9 +158,9 @@ const BlotterPageWithSuspense = () => (
   </Suspense>
 )
 
-const IncidentsReportPageWithSuspense = () => (
+const IncidentReportsPageWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
-    <IncidentsReportPage />
+    <IncidentReportsPage />
   </Suspense>
 )
 
@@ -197,36 +185,6 @@ const RegisterHouseholdPageWithSuspense = () => (
 const RegisterResidentPageWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
     <RegisterResidentPage />
-  </Suspense>
-)
-
-const LandmarksPageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <LandmarksPage />
-  </Suspense>
-)
-
-const BarangayClearancePageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <BarangayClearancePage />
-  </Suspense>
-)
-
-const IndigencyPageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <IndigencyPage />
-  </Suspense>
-)
-
-const ResidencyPageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <ResidencyPage />
-  </Suspense>
-)
-
-const SoloParentPageWithSuspense = () => (
-  <Suspense fallback={<PageLoader />}>
-    <SoloParentPage />
   </Suspense>
 )
 
@@ -292,27 +250,23 @@ const router = createBrowserRouter([
           },
           {
             path: 'certificates/barangay-clearance',
-            element: <BarangayClearancePageWithSuspense />
+            element: <Navigate to="/certificates" replace />
           },
           {
             path: 'certificates/indigency',
-            element: <IndigencyPageWithSuspense />
+            element: <Navigate to="/certificates" replace />
           },
           {
             path: 'certificates/residency',
-            element: <ResidencyPageWithSuspense />
+            element: <Navigate to="/certificates" replace />
           },
           {
             path: 'certificates/solo-parent',
-            element: <SoloParentPageWithSuspense />
+            element: <Navigate to="/certificates" replace />
           },
           {
             path: 'vaccinations',
             element: <VaccinationsPageWithSuspense />
-          },
-          {
-            path: 'immunization',
-            element: <ImmunizationPageWithSuspense />
           },
           {
             path: 'notifications',
@@ -355,12 +309,20 @@ const router = createBrowserRouter([
             element: <BlotterPageWithSuspense />
           },
           {
+            path: 'incident-reports',
+            element: <IncidentReportsPageWithSuspense />
+          },
+          {
             path: 'incidents/report',
-            element: <IncidentsReportPageWithSuspense />
+            element: <Navigate to="/incident-reports" replace />
           },
           {
             path: 'settings',
             element: <SettingsWithSuspense />
+          },
+          {
+            path: 'settings/users',
+            element: <Navigate to="/users" replace />
           },
           {
             path: 'map',
@@ -368,7 +330,7 @@ const router = createBrowserRouter([
           },
           {
             path: 'landmarks',
-            element: <LandmarksPageWithSuspense />
+            element: <Navigate to="/dashboard" replace />
           }
         ]
       }

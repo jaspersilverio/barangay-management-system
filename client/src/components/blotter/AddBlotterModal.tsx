@@ -57,13 +57,20 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
   const [officials, setOfficials] = useState<Official[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [searchTerms, setSearchTerms] = useState({
-    complainant: '',
-    respondent: '',
-    official: ''
-  });
+  
+  // Separate input values for each search field
+  const [complainantInput, setComplainantInput] = useState('');
+  const [respondentInput, setRespondentInput] = useState('');
+  const [officialInput, setOfficialInput] = useState('');
+  
+  // Debounced search terms
+  const [debouncedComplainant, setDebouncedComplainant] = useState('');
+  const [debouncedRespondent, setDebouncedRespondent] = useState('');
+  const [debouncedOfficial, setDebouncedOfficial] = useState('');
 
-  const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
+  // Separate filtered results for each field
+  const [filteredComplainants, setFilteredComplainants] = useState<Resident[]>([]);
+  const [filteredRespondents, setFilteredRespondents] = useState<Resident[]>([]);
   const [filteredOfficials, setFilteredOfficials] = useState<Official[]>([]);
 
   useEffect(() => {
@@ -71,20 +78,67 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       loadResidents();
       loadOfficials();
       resetForm();
+      
+      // Check for pre-filled data from incident report conversion
+      const blotterFromIncident = sessionStorage.getItem('blotterFromIncident');
+      if (blotterFromIncident) {
+        try {
+          const data = JSON.parse(blotterFromIncident);
+          setFormData(prev => ({
+            ...prev,
+            incident_date: data.incident_date || '',
+            incident_time: data.incident_time || '',
+            incident_location: data.incident_location || '',
+            description: data.description || ''
+          }));
+          // Clear the sessionStorage after using it
+          sessionStorage.removeItem('blotterFromIncident');
+        } catch (error) {
+          console.error('Error parsing blotter data from incident:', error);
+          sessionStorage.removeItem('blotterFromIncident');
+        }
+      }
     }
   }, [show]);
 
+  // Debounce complainant search
   useEffect(() => {
-    filterResidents();
-  }, [searchTerms.complainant, residents]);
+    const timer = setTimeout(() => {
+      setDebouncedComplainant(complainantInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [complainantInput]);
 
+  // Debounce respondent search
   useEffect(() => {
-    filterResidents();
-  }, [searchTerms.respondent, residents]);
+    const timer = setTimeout(() => {
+      setDebouncedRespondent(respondentInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [respondentInput]);
 
+  // Debounce official search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedOfficial(officialInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [officialInput]);
+
+  // Filter complainants based on debounced term
+  useEffect(() => {
+    filterComplainants();
+  }, [debouncedComplainant, residents]);
+
+  // Filter respondents based on debounced term
+  useEffect(() => {
+    filterRespondents();
+  }, [debouncedRespondent, residents]);
+
+  // Filter officials based on debounced term
   useEffect(() => {
     filterOfficials();
-  }, [searchTerms.official, officials]);
+  }, [debouncedOfficial, officials]);
 
   const loadResidents = async () => {
     try {
@@ -106,28 +160,45 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     }
   };
 
-  const filterResidents = () => {
-    const term = searchTerms.complainant || searchTerms.respondent;
-    if (!term) {
-      setFilteredResidents(Array.isArray(residents) ? residents : []);
+  const filterComplainants = () => {
+    if (!debouncedComplainant || debouncedComplainant.length < 1) {
+      setFilteredComplainants([]);
       return;
     }
 
     if (!Array.isArray(residents)) {
-      setFilteredResidents([]);
+      setFilteredComplainants([]);
       return;
     }
 
     const filtered = residents.filter(resident => {
       const fullName = `${resident.first_name} ${resident.last_name}`.toLowerCase();
-      return fullName.includes(term.toLowerCase());
+      return fullName.includes(debouncedComplainant.toLowerCase());
     });
-    setFilteredResidents(filtered);
+    setFilteredComplainants(filtered);
+  };
+
+  const filterRespondents = () => {
+    if (!debouncedRespondent || debouncedRespondent.length < 1) {
+      setFilteredRespondents([]);
+      return;
+    }
+
+    if (!Array.isArray(residents)) {
+      setFilteredRespondents([]);
+      return;
+    }
+
+    const filtered = residents.filter(resident => {
+      const fullName = `${resident.first_name} ${resident.last_name}`.toLowerCase();
+      return fullName.includes(debouncedRespondent.toLowerCase());
+    });
+    setFilteredRespondents(filtered);
   };
 
   const filterOfficials = () => {
-    if (!searchTerms.official) {
-      setFilteredOfficials(Array.isArray(officials) ? officials : []);
+    if (!debouncedOfficial || debouncedOfficial.length < 1) {
+      setFilteredOfficials([]);
       return;
     }
 
@@ -137,7 +208,7 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     }
 
     const filtered = officials.filter(official =>
-      official.name.toLowerCase().includes(searchTerms.official.toLowerCase())
+      official.name.toLowerCase().includes(debouncedOfficial.toLowerCase())
     );
     setFilteredOfficials(filtered);
   };
@@ -165,7 +236,12 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       resolution: '',
       attachments: []
     });
-    setSearchTerms({ complainant: '', respondent: '', official: '' });
+    setComplainantInput('');
+    setRespondentInput('');
+    setOfficialInput('');
+    setDebouncedComplainant('');
+    setDebouncedRespondent('');
+    setDebouncedOfficial('');
     setErrors({});
   };
 
@@ -192,11 +268,16 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     }
   };
 
-  const handleSearchChange = (type: 'complainant' | 'respondent' | 'official', value: string) => {
-    setSearchTerms(prev => ({
-      ...prev,
-      [type]: value
-    }));
+  const handleComplainantSearchChange = (value: string) => {
+    setComplainantInput(value);
+  };
+
+  const handleRespondentSearchChange = (value: string) => {
+    setRespondentInput(value);
+  };
+
+  const handleOfficialSearchChange = (value: string) => {
+    setOfficialInput(value);
   };
 
   const selectResident = (type: 'complainant' | 'respondent', resident: Resident) => {
@@ -204,10 +285,15 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       ...prev,
       [`${type}_id`]: resident.id
     }));
-    setSearchTerms(prev => ({
-      ...prev,
-      [type]: `${resident.first_name} ${resident.last_name}`
-    }));
+    
+    const fullName = `${resident.first_name} ${resident.last_name}`;
+    if (type === 'complainant') {
+      setComplainantInput(fullName);
+      setDebouncedComplainant(fullName);
+    } else {
+      setRespondentInput(fullName);
+      setDebouncedRespondent(fullName);
+    }
   };
 
   const selectOfficial = (official: Official) => {
@@ -215,10 +301,8 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       ...prev,
       official_id: official.id
     }));
-    setSearchTerms(prev => ({
-      ...prev,
-      official: official.name
-    }));
+    setOfficialInput(official.name);
+    setDebouncedOfficial(official.name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -226,28 +310,137 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     setLoading(true);
     setErrors({});
 
+    // Basic validation
+    if (!formData.incident_date) {
+      setErrors({ incident_date: 'Incident date is required.' });
+      setLoading(false);
+      return;
+    }
+
+    if (!formData.incident_time) {
+      setErrors({ incident_time: 'Incident time is required.' });
+      setLoading(false);
+      return;
+    }
+
+    // HTML5 date input already provides YYYY-MM-DD format
+    // HTML5 time input already provides HH:MM format (24-hour)
+    const incidentDate = String(formData.incident_date).trim();
+    const incidentTime = String(formData.incident_time).trim();
+
+    // Validate date format (should be YYYY-MM-DD from HTML5 input)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(incidentDate)) {
+      setErrors({ incident_date: 'Please enter a valid date.' });
+      setLoading(false);
+      return;
+    }
+
+    // Validate time format (should be HH:MM from HTML5 input)
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(incidentTime)) {
+      setErrors({ incident_time: 'Please enter a valid time.' });
+      setLoading(false);
+      return;
+    }
+
+    // Validate date is not in the future
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selectedDate = new Date(incidentDate);
+    if (selectedDate > today) {
+      setErrors({ incident_date: 'Incident date cannot be in the future.' });
+      setLoading(false);
+      return;
+    }
+
     try {
       const formDataToSend = new FormData();
       
-      // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'attachments' && Array.isArray(value)) {
-          value.forEach((file, index) => {
-            formDataToSend.append(`attachments[${index}]`, file);
-          });
-        } else if (value !== undefined && value !== null && value !== '') {
-          formDataToSend.append(key, value.toString());
+      // Required boolean fields - always send
+      formDataToSend.append('complainant_is_resident', formData.complainant_is_resident ? '1' : '0');
+      formDataToSend.append('respondent_is_resident', formData.respondent_is_resident ? '1' : '0');
+      
+      // Complainant fields
+      if (formData.complainant_is_resident) {
+        if (formData.complainant_id) {
+          formDataToSend.append('complainant_id', formData.complainant_id.toString());
         }
-      });
+      } else {
+        if (formData.complainant_full_name) {
+          formDataToSend.append('complainant_full_name', formData.complainant_full_name);
+        }
+        if (formData.complainant_age) {
+          formDataToSend.append('complainant_age', formData.complainant_age.toString());
+        }
+        if (formData.complainant_address) {
+          formDataToSend.append('complainant_address', formData.complainant_address);
+        }
+        if (formData.complainant_contact) {
+          formDataToSend.append('complainant_contact', formData.complainant_contact);
+        }
+      }
+
+      // Respondent fields
+      if (formData.respondent_is_resident) {
+        if (formData.respondent_id) {
+          formDataToSend.append('respondent_id', formData.respondent_id.toString());
+        }
+      } else {
+        if (formData.respondent_full_name) {
+          formDataToSend.append('respondent_full_name', formData.respondent_full_name);
+        }
+        if (formData.respondent_age) {
+          formDataToSend.append('respondent_age', formData.respondent_age.toString());
+        }
+        if (formData.respondent_address) {
+          formDataToSend.append('respondent_address', formData.respondent_address);
+        }
+        if (formData.respondent_contact) {
+          formDataToSend.append('respondent_contact', formData.respondent_contact);
+        }
+      }
+
+      // Other fields
+      if (formData.official_id) {
+        formDataToSend.append('official_id', formData.official_id.toString());
+      }
+      
+      // Date and time - always send (required)
+      formDataToSend.append('incident_date', incidentDate);
+      formDataToSend.append('incident_time', incidentTime);
+      
+      if (formData.incident_location) {
+        formDataToSend.append('incident_location', formData.incident_location);
+      }
+      if (formData.description) {
+        formDataToSend.append('description', formData.description);
+      }
+      if (formData.status) {
+        formDataToSend.append('status', formData.status);
+      }
+      if (formData.resolution) {
+        formDataToSend.append('resolution', formData.resolution);
+      }
+
+      // Attachments
+      if (formData.attachments && Array.isArray(formData.attachments)) {
+        formData.attachments.forEach((file, index) => {
+          formDataToSend.append(`attachments[${index}]`, file);
+        });
+      }
 
       await blotterService.createBlotter(formDataToSend as any);
       onSuccess();
       onHide();
     } catch (error: any) {
       if (error.response?.data?.errors) {
-        setErrors(error.response.data.errors);
+        // Flatten Laravel validation errors
+        const flattenedErrors: Record<string, string> = {};
+        Object.entries(error.response.data.errors).forEach(([key, messages]) => {
+          flattenedErrors[key] = Array.isArray(messages) ? messages[0] : String(messages);
+        });
+        setErrors(flattenedErrors);
       } else {
-        setErrors({ general: 'Failed to create blotter case' });
+        setErrors({ general: 'Failed to create blotter case. Please try again.' });
       }
     } finally {
       setLoading(false);
@@ -316,12 +509,12 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                     <Form.Control
                       type="text"
                       placeholder="Search residents..."
-                      value={searchTerms.complainant}
-                      onChange={(e) => handleSearchChange('complainant', e.target.value)}
+                      value={complainantInput}
+                      onChange={(e) => handleComplainantSearchChange(e.target.value)}
                     />
-                    {searchTerms.complainant && filteredResidents.length > 0 && (
+                    {debouncedComplainant && filteredComplainants.length > 0 && (
                       <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {filteredResidents.map(resident => (
+                        {filteredComplainants.map(resident => (
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
@@ -450,12 +643,12 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                     <Form.Control
                       type="text"
                       placeholder="Search residents..."
-                      value={searchTerms.respondent}
-                      onChange={(e) => handleSearchChange('respondent', e.target.value)}
+                      value={respondentInput}
+                      onChange={(e) => handleRespondentSearchChange(e.target.value)}
                     />
-                    {searchTerms.respondent && filteredResidents.length > 0 && (
+                    {debouncedRespondent && filteredRespondents.length > 0 && (
                       <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {filteredResidents.map(resident => (
+                        {filteredRespondents.map(resident => (
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
@@ -557,10 +750,10 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                   <Form.Control
                     type="text"
                     placeholder="Search officials..."
-                    value={searchTerms.official}
-                    onChange={(e) => handleSearchChange('official', e.target.value)}
+                    value={officialInput}
+                    onChange={(e) => handleOfficialSearchChange(e.target.value)}
                   />
-                  {searchTerms.official && filteredOfficials.length > 0 && (
+                  {debouncedOfficial && filteredOfficials.length > 0 && (
                     <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                       {filteredOfficials.map(official => (
                         <div

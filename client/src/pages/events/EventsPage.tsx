@@ -29,6 +29,7 @@ export default function EventsPage() {
       setLoading(true)
       const response = await getEvents(false) // Get all events, not just upcoming
       if (response.success) {
+        // Set data immediately - no delays
         setEvents(response.data)
       } else {
         setError(response.message || 'Failed to fetch events')
@@ -36,6 +37,7 @@ export default function EventsPage() {
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Events unavailable')
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

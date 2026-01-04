@@ -17,7 +17,7 @@ export default function PurokListPage() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start with true for immediate skeleton display
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<null | number>(null)
@@ -27,10 +27,12 @@ export default function PurokListPage() {
     setLoading(true)
     try {
       const res = await getPuroks({ search, page, per_page: 15 })
+      // Set data immediately - no delays
       const list = res.data.data
       setItems(list)
       setTotalPages(res.data.last_page)
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

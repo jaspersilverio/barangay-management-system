@@ -1,9 +1,14 @@
 import { useState, useEffect } from 'react'
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Nav, Tab } from 'react-bootstrap'
-import { Settings as SettingsIcon, Building, Cog, Phone } from 'lucide-react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Settings as SettingsIcon, Building, Cog, Phone, Users } from 'lucide-react'
 import { getSettings, updateBarangayInfo, updatePreferences, updateEmergency, type Settings, type BarangayInfo, type SystemPreferences, type EmergencySettings, type EmergencyContact, type EvacuationCenter } from '../services/settings.service'
 
 export default function Settings() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const activeSection = searchParams.get('section') || 'overview'
+  
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -165,12 +170,35 @@ export default function Settings() {
 
   if (loading) {
     return (
-      <div className="text-center py-5">
-        <Spinner animation="border" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </Spinner>
-        <p className="mt-2">Loading settings...</p>
-      </div>
+      <Container fluid className="p-4">
+        <Row className="mb-4">
+          <Col>
+            <div className="d-flex align-items-center gap-3">
+              <div className="bg-primary bg-opacity-10 p-3 rounded">
+                <SettingsIcon className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <div className="skeleton-line" style={{ width: '200px', height: '28px', marginBottom: '8px' }}></div>
+                <div className="skeleton-line" style={{ width: '300px', height: '16px' }}></div>
+              </div>
+            </div>
+          </Col>
+        </Row>
+        <Row className="g-4">
+          {[...Array(4)].map((_, index) => (
+            <Col md={6} lg={3} key={index}>
+              <Card className="h-100">
+                <Card.Body className="text-center p-4">
+                  <div className="skeleton-badge" style={{ width: '64px', height: '64px', margin: '0 auto 12px', borderRadius: '50%' }}></div>
+                  <div className="skeleton-line" style={{ width: '150px', height: '20px', margin: '0 auto 8px' }}></div>
+                  <div className="skeleton-line" style={{ width: '100%', height: '14px', marginBottom: '4px' }}></div>
+                  <div className="skeleton-line" style={{ width: '80%', height: '14px', margin: '0 auto' }}></div>
+                </Card.Body>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      </Container>
     )
   }
 
@@ -184,8 +212,20 @@ export default function Settings() {
               <SettingsIcon className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h2 className="mb-0">System Settings</h2>
-              <p className="text-muted mb-0">Manage barangay information and system preferences</p>
+              <h2 className="mb-0">Settings</h2>
+              <p className="text-muted mb-0">
+                {activeSection === 'overview' 
+                  ? 'Manage barangay information, system preferences, and user accounts'
+                  : activeSection === 'barangay'
+                  ? 'Manage barangay information'
+                  : activeSection === 'preferences'
+                  ? 'Configure system preferences'
+                  : activeSection === 'emergency'
+                  ? 'Manage emergency settings'
+                  : activeSection === 'users'
+                  ? 'Manage system users'
+                  : 'Manage system settings'}
+              </p>
             </div>
           </div>
         </Col>
@@ -203,35 +243,171 @@ export default function Settings() {
         </Alert>
       )}
 
-      {/* Settings Tabs */}
-      <Card>
-        <Card.Body className="p-0">
-          <Tab.Container id="settings-tabs" defaultActiveKey="barangay">
-            <Row>
-              <Col md={3}>
-                <Nav variant="pills" className="flex-column border-end">
-                  <Nav.Item>
-                    <Nav.Link eventKey="barangay" className="d-flex align-items-center gap-2">
-                      <Building className="h-4 w-4" />
-                      Barangay Info
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link eventKey="preferences" className="d-flex align-items-center gap-2">
-                      <Cog className="h-4 w-4" />
-                      System Preferences
-                    </Nav.Link>
-                  </Nav.Item>
-                  <Nav.Item>
-                    <Nav.Link eventKey="emergency" className="d-flex align-items-center gap-2">
-                      <Phone className="h-4 w-4" />
-                      Emergency Settings
-                    </Nav.Link>
-                  </Nav.Item>
-                </Nav>
-              </Col>
-              <Col md={9}>
-                <Tab.Content className="p-4">
+      {/* Settings Navigation Cards */}
+      {activeSection === 'overview' ? (
+        <Row className="g-4">
+          <Col md={6} lg={3}>
+            <Card 
+              className="h-100 cursor-pointer card-modern" 
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+              onClick={() => navigate('/settings?section=barangay')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = ''
+              }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3">
+                  <Building size={32} className="text-primary" />
+                </div>
+                <Card.Title className="h5 mb-2">Barangay Information</Card.Title>
+                <Card.Text className="text-muted small">
+                  Manage barangay name, address, contact, and logo
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={6} lg={3}>
+            <Card 
+              className="h-100 cursor-pointer card-modern" 
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+              onClick={() => navigate('/settings?section=preferences')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = ''
+              }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3">
+                  <Cog size={32} className="text-primary" />
+                </div>
+                <Card.Title className="h5 mb-2">System Preferences</Card.Title>
+                <Card.Text className="text-muted small">
+                  Configure display settings, pagination, and date formats
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={6} lg={3}>
+            <Card 
+              className="h-100 cursor-pointer card-modern" 
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+              onClick={() => navigate('/settings?section=emergency')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = ''
+              }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3">
+                  <Phone size={32} className="text-primary" />
+                </div>
+                <Card.Title className="h5 mb-2">Emergency Settings</Card.Title>
+                <Card.Text className="text-muted small">
+                  Manage emergency contacts and evacuation centers
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={6} lg={3}>
+            <Card 
+              className="h-100 cursor-pointer card-modern" 
+              style={{ cursor: 'pointer', transition: 'all 0.3s ease' }}
+              onClick={() => navigate('/settings?section=users')}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)'
+                e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.1)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = ''
+              }}
+            >
+              <Card.Body className="text-center p-4">
+                <div className="bg-primary bg-opacity-10 p-3 rounded-circle d-inline-flex mb-3">
+                  <Users size={32} className="text-primary" />
+                </div>
+                <Card.Title className="h5 mb-2">User Management</Card.Title>
+                <Card.Text className="text-muted small">
+                  Manage system users, roles, and permissions
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+        </Row>
+      ) : (
+        <Card>
+          <Card.Body className="p-0">
+            <Tab.Container id="settings-tabs" activeKey={activeSection}>
+              <Row>
+                <Col md={3}>
+                  <Nav variant="pills" className="flex-column border-end">
+                    <Nav.Item>
+                      <Nav.Link 
+                        eventKey="overview" 
+                        className="d-flex align-items-center gap-2"
+                        onClick={() => navigate('/settings?section=overview')}
+                      >
+                        <SettingsIcon className="h-4 w-4" />
+                        Overview
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link 
+                        eventKey="barangay" 
+                        className="d-flex align-items-center gap-2"
+                        onClick={() => navigate('/settings?section=barangay')}
+                      >
+                        <Building className="h-4 w-4" />
+                        Barangay Info
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link 
+                        eventKey="preferences" 
+                        className="d-flex align-items-center gap-2"
+                        onClick={() => navigate('/settings?section=preferences')}
+                      >
+                        <Cog className="h-4 w-4" />
+                        System Preferences
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link 
+                        eventKey="emergency" 
+                        className="d-flex align-items-center gap-2"
+                        onClick={() => navigate('/settings?section=emergency')}
+                      >
+                        <Phone className="h-4 w-4" />
+                        Emergency Settings
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link 
+                        eventKey="users" 
+                        className="d-flex align-items-center gap-2"
+                        onClick={() => navigate('/settings?section=users')}
+                      >
+                        <Users className="h-4 w-4" />
+                        User Management
+                      </Nav.Link>
+                    </Nav.Item>
+                  </Nav>
+                </Col>
+                <Col md={9}>
+                  <Tab.Content className="p-4">
                   {/* Barangay Info Tab */}
                   <Tab.Pane eventKey="barangay">
                     <h4 className="mb-4">Barangay Information</h4>
@@ -481,12 +657,40 @@ export default function Settings() {
                       Save Emergency Settings
                     </Button>
                   </Tab.Pane>
+
+                  {/* User Management Tab */}
+                  <Tab.Pane eventKey="users">
+                    <div className="d-flex justify-content-between align-items-center mb-4">
+                      <h4 className="mb-0">User Management</h4>
+                      <Button variant="primary" onClick={() => navigate('/users')}>
+                        Manage Users
+                      </Button>
+                    </div>
+                    <p className="text-muted">
+                      Manage system users, roles, and permissions. Click the button above to access the full User Management page.
+                    </p>
+                    <Card className="mt-3">
+                      <Card.Body>
+                        <p className="mb-0">
+                          <strong>User Management Features:</strong>
+                        </p>
+                        <ul className="mt-2">
+                          <li>Create, edit, and delete user accounts</li>
+                          <li>Assign roles and permissions</li>
+                          <li>Link users to puroks</li>
+                          <li>Manage user status (active/inactive)</li>
+                          <li>Restore deleted users</li>
+                        </ul>
+                      </Card.Body>
+                    </Card>
+                  </Tab.Pane>
                 </Tab.Content>
               </Col>
             </Row>
           </Tab.Container>
         </Card.Body>
       </Card>
+      )}
     </Container>
   )
 }

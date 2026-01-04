@@ -13,7 +13,7 @@ export default function VaccinationsPage() {
   const { refreshData: refreshDashboard } = useDashboard()
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [statistics, setStatistics] = useState<VaccinationStatistics | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start with true for immediate skeleton display
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
@@ -50,6 +50,7 @@ export default function VaccinationsPage() {
       
       const response = await getVaccinations(filters)
       if (response.success) {
+        // Set data immediately - no delays
         setVaccinations(response.data.data)
         setPagination({
           current_page: response.data.current_page,
@@ -64,6 +65,7 @@ export default function VaccinationsPage() {
       console.error('Error loading vaccinations:', err)
       setError('Failed to load vaccinations')
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

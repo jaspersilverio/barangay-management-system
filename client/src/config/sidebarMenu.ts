@@ -6,9 +6,7 @@ import {
   Users,
   UserCheck,
   Syringe,
-  Shield,
   Award,
-  FileText,
   AlertTriangle,
   ClipboardList,
   FileBarChart,
@@ -48,7 +46,7 @@ export const sidebarMenu: MenuItem[] = [
     icon: LayoutDashboard,
   },
   {
-    label: 'Household & Mapping',
+    label: 'Household & Site Mapping',
     icon: Home,
     children: [
       {
@@ -71,11 +69,6 @@ export const sidebarMenu: MenuItem[] = [
         to: '/puroks',
         icon: MapPin,
       },
-      {
-        label: 'Landmark',
-        to: '/landmarks',
-        icon: MapPin,
-      },
     ],
   },
   {
@@ -92,39 +85,9 @@ export const sidebarMenu: MenuItem[] = [
         to: '/vaccinations',
         icon: Syringe,
       },
-      {
-        label: 'Immunization',
-        to: '/immunization',
-        icon: Shield,
-      },
-      {
-        label: 'Certificates',
-        icon: Award,
-        children: [
-          {
-            label: 'Barangay Clearance',
-            to: '/certificates/barangay-clearance',
-            icon: FileText,
-          },
-          {
-            label: 'Certificate of Indigency',
-            to: '/certificates/indigency',
-            icon: FileText,
-          },
-          {
-            label: 'Residency',
-            to: '/certificates/residency',
-            icon: FileText,
-          },
-          {
-            label: 'Solo Parent',
-            to: '/certificates/solo-parent',
-            icon: FileText,
-          },
-        ],
-      },
     ],
   },
+  
   {
     label: 'Incidents & Complaints',
     icon: AlertTriangle,
@@ -135,8 +98,8 @@ export const sidebarMenu: MenuItem[] = [
         icon: ClipboardList,
       },
       {
-        label: 'Incidents Report',
-        to: '/incidents/report',
+        label: 'Incident Reports',
+        to: '/incident-reports',
         icon: FileBarChart,
       },
     ],
@@ -208,37 +171,20 @@ export const sidebarMenu: MenuItem[] = [
     ],
   },
   {
-    label: 'Reports',
-    icon: BarChart3,
-    children: [
-      {
-        label: 'Household Reports',
-        to: '/reports',
-        icon: FileText,
-      },
-      {
-        label: 'Resident Reports',
-        to: '/reports',
-        icon: Users,
-      },
-    ],
+    label: 'Certificates',
+    to: '/certificates',
+    icon: Award,
   },
   {
-    label: 'System Management',
+    label: 'Reports',
+    to: '/reports',
+    icon: BarChart3,
+  },
+  {
+    label: 'Settings',
+    to: '/settings',
     icon: Settings,
     roles: ['admin'],
-    children: [
-      {
-        label: 'User Management',
-        to: '/users',
-        icon: Users,
-      },
-      {
-        label: 'System Settings',
-        to: '/settings',
-        icon: Settings,
-      },
-    ],
   },
 ]
 

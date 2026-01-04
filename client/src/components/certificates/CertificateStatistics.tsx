@@ -33,11 +33,13 @@ export default function CertificateStatistics() {
         getIssuedCertificateStatistics()
       ])
       
+      // Set data immediately - no delays
       setRequestStats(requestResponse.data)
       setIssuedStats(issuedResponse.data)
     } catch (error) {
       console.error('Failed to fetch certificate statistics:', error)
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

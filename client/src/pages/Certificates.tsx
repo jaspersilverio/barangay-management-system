@@ -12,7 +12,7 @@ export default function Certificates() {
     <div className="page-container">
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h1 className="h3 mb-1 text-brand-primary">Barangay Clearance & Certificates</h1>
+          <h1 className="h3 mb-1 text-brand-primary">Certificates</h1>
           <p className="text-brand-muted mb-0">Manage certificate requests and issued documents</p>
         </div>
       </div>

@@ -38,7 +38,7 @@ class Blotter extends Model
 
     protected $casts = [
         'incident_date' => 'date',
-        'incident_time' => 'datetime:H:i:s',
+        'incident_time' => 'string', // TIME column stores as HH:MM:SS string
         'attachments' => 'array',
         'complainant_is_resident' => 'boolean',
         'respondent_is_resident' => 'boolean',

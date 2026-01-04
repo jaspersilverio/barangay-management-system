@@ -173,33 +173,77 @@ export const blotterService = {
   },
 
   // Create new blotter
-  async createBlotter(data: CreateBlotterData): Promise<Blotter> {
-    const formData = new FormData();
+  // Accepts either CreateBlotterData object or FormData directly
+  async createBlotter(data: CreateBlotterData | FormData): Promise<Blotter> {
+    let formData: FormData;
     
-    if (data.complainant_id !== undefined) {
-      formData.append('complainant_id', data.complainant_id.toString());
-    }
-    if (data.respondent_id !== undefined) {
-      formData.append('respondent_id', data.respondent_id.toString());
-    }
-    formData.append('incident_date', data.incident_date);
-    formData.append('incident_time', data.incident_time);
-    formData.append('incident_location', data.incident_location);
-    formData.append('description', data.description);
-    
-    if (data.official_id) {
-      formData.append('official_id', data.official_id.toString());
-    }
-    if (data.status) {
-      formData.append('status', data.status);
-    }
-    if (data.resolution) {
-      formData.append('resolution', data.resolution);
-    }
-    if (data.attachments) {
-      data.attachments.forEach((file) => {
-        formData.append('attachments[]', file);
-      });
+    // If FormData is passed directly, use it
+    if (data instanceof FormData) {
+      formData = data;
+    } else {
+      // Otherwise, build FormData from CreateBlotterData object
+      formData = new FormData();
+      
+      // Required boolean fields
+      formData.append('complainant_is_resident', data.complainant_is_resident ? '1' : '0');
+      formData.append('respondent_is_resident', data.respondent_is_resident ? '1' : '0');
+      
+      // Complainant fields
+      if (data.complainant_is_resident && data.complainant_id) {
+        formData.append('complainant_id', data.complainant_id.toString());
+      } else {
+        if (data.complainant_full_name) {
+          formData.append('complainant_full_name', data.complainant_full_name);
+        }
+        if (data.complainant_age) {
+          formData.append('complainant_age', data.complainant_age.toString());
+        }
+        if (data.complainant_address) {
+          formData.append('complainant_address', data.complainant_address);
+        }
+        if (data.complainant_contact) {
+          formData.append('complainant_contact', data.complainant_contact);
+        }
+      }
+      
+      // Respondent fields
+      if (data.respondent_is_resident && data.respondent_id) {
+        formData.append('respondent_id', data.respondent_id.toString());
+      } else {
+        if (data.respondent_full_name) {
+          formData.append('respondent_full_name', data.respondent_full_name);
+        }
+        if (data.respondent_age) {
+          formData.append('respondent_age', data.respondent_age.toString());
+        }
+        if (data.respondent_address) {
+          formData.append('respondent_address', data.respondent_address);
+        }
+        if (data.respondent_contact) {
+          formData.append('respondent_contact', data.respondent_contact);
+        }
+      }
+      
+      // Other fields
+      if (data.official_id) {
+        formData.append('official_id', data.official_id.toString());
+      }
+      formData.append('incident_date', data.incident_date);
+      formData.append('incident_time', data.incident_time);
+      formData.append('incident_location', data.incident_location);
+      formData.append('description', data.description);
+      
+      if (data.status) {
+        formData.append('status', data.status);
+      }
+      if (data.resolution) {
+        formData.append('resolution', data.resolution);
+      }
+      if (data.attachments) {
+        data.attachments.forEach((file, index) => {
+          formData.append(`attachments[${index}]`, file);
+        });
+      }
     }
 
     const response = await api.post('/blotters', formData, {

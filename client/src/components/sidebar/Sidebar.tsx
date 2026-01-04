@@ -1,10 +1,9 @@
 import { NavLink, Link } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   ChevronDown,
   ChevronRight,
   LogOut,
-  Settings,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { Button } from 'react-bootstrap'
@@ -32,7 +31,11 @@ export default function Sidebar() {
     
     const checkItem = (item: MenuItem, parentLabels: string[] = []): boolean => {
       // Check if this item's route matches
-      if (item.to === currentPath) {
+      // For Settings, match if path starts with /settings (handles query params)
+      const matches = item.to === '/settings'
+        ? currentPath.startsWith('/settings')
+        : item.to === currentPath
+      if (matches) {
         parentLabels.forEach(label => expanded.add(label))
         return true
       }
@@ -66,13 +69,57 @@ export default function Sidebar() {
   
   const [expandedMenus, setExpandedMenus] = useState<Set<string>>(getInitialExpandedMenus())
 
-  const toggleMenu = (menuLabel: string) => {
+  // Get all top-level menu labels that have children (memoized for performance)
+  const topLevelMenuLabels = useMemo(() => {
+    const topLevelLabels = new Set<string>()
+    sidebarMenu.forEach((item) => {
+      if (item.children && item.children.length > 0) {
+        topLevelLabels.add(item.label)
+      }
+    })
+    return topLevelLabels
+  }, [])
+
+  // Close all open top-level submenus
+  const closeAllSubmenus = () => {
     setExpandedMenus((prev) => {
       const newSet = new Set(prev)
-      if (newSet.has(menuLabel)) {
-        newSet.delete(menuLabel)
+      // Remove all top-level menu labels from expanded set
+      topLevelMenuLabels.forEach((label) => {
+        newSet.delete(label)
+      })
+      return newSet
+    })
+  }
+
+  const toggleMenu = (menuLabel: string, level: number) => {
+    setExpandedMenus((prev) => {
+      const newSet = new Set(prev)
+      const isTopLevel = level === 0 && topLevelMenuLabels.has(menuLabel)
+      const isCurrentlyExpanded = newSet.has(menuLabel)
+      
+      if (isTopLevel) {
+        // For top-level menus: close all other top-level menus first
+        if (isCurrentlyExpanded) {
+          // If already open, just close it
+          newSet.delete(menuLabel)
+        } else {
+          // Close all other top-level menus
+          topLevelMenuLabels.forEach((label) => {
+            if (label !== menuLabel) {
+              newSet.delete(label)
+            }
+          })
+          // Open the clicked menu
+          newSet.add(menuLabel)
+        }
       } else {
-        newSet.add(menuLabel)
+        // For nested menus: simple toggle (they can coexist with their parent)
+        if (isCurrentlyExpanded) {
+          newSet.delete(menuLabel)
+        } else {
+          newSet.add(menuLabel)
+        }
       }
       return newSet
     })
@@ -116,12 +163,19 @@ export default function Sidebar() {
   }
 
   const visibleMenuItems = filterMenuItems(sidebarMenu)
+  // Get current path without query parameters for route matching
   const currentPath = window.location.pathname
 
   // Recursively check if any nested child is active
   const isAnyChildActive = (item: MenuItem): boolean => {
-    if (item.to && currentPath === item.to) {
-      return true
+    if (item.to) {
+      // For Settings, match if path starts with /settings (handles query params)
+      if (item.to === '/settings') {
+        return currentPath.startsWith('/settings')
+      }
+      if (currentPath === item.to) {
+        return true
+      }
     }
     if (item.children && item.children.length > 0) {
       return item.children.some(child => isAnyChildActive(child))
@@ -159,7 +213,11 @@ export default function Sidebar() {
     const Icon = item.icon
     const isGroup = item.isGroup === true
     const hasActiveChild = hasChildren ? isAnyChildActive(item) : false
-    const isDirectlyActive = item.to === currentPath
+    // Check if item is directly active
+    // For Settings, match if path starts with /settings (handles query params)
+    const isDirectlyActive = item.to === '/settings' 
+      ? currentPath.startsWith('/settings')
+      : item.to === currentPath
     const isTopLevelParent = level === 0 && hasChildren
     const isActiveTopLevelParent = isTopLevelParent && activeParentLabel === item.label
     
@@ -259,7 +317,7 @@ export default function Sidebar() {
       return (
         <div key={item.label} className="mb-1">
           <button
-            onClick={() => toggleMenu(item.label)}
+            onClick={() => toggleMenu(item.label, level)}
             className={`w-100 d-flex align-items-center justify-content-between px-4 py-3 ${fontSize} rounded-lg transition-colors duration-200 border-0 text-decoration-none ${parentStyles}`}
             style={parentInlineStyles}
             onMouseEnter={(e) => {
@@ -324,6 +382,7 @@ export default function Sidebar() {
       <NavLink
         key={item.label}
         to={item.to || '#'}
+        onClick={closeAllSubmenus}
         className={({ isActive }) =>
           `d-flex align-items-center gap-3 px-4 py-3 ${fontSize} rounded-lg transition-colors duration-200 text-decoration-none ${
             isActive
@@ -375,21 +434,6 @@ export default function Sidebar() {
 
       {/* Bottom Actions - Fixed at bottom */}
       <div className="p-4 pt-0 flex-shrink-0 border-t border-neutral-200">
-        {user?.role === 'admin' && (
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `d-flex align-items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 mb-2 text-decoration-none ${
-                isActive
-                  ? 'bg-blue-50 text-blue-600'
-                  : 'text-neutral-700 hover:bg-neutral-100 hover:text-blue-600'
-              }`
-            }
-          >
-            <Settings size={18} className="flex-shrink-0" />
-            <span>Settings</span>
-          </NavLink>
-        )}
         <Button
           variant="outline-secondary"
           size="sm"

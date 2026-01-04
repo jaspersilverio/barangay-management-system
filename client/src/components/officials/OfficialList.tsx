@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Table, Button, Badge, Image, Form, InputGroup, Dropdown } from 'react-bootstrap'
+import { Table, Button, Badge, Form, InputGroup, Dropdown } from 'react-bootstrap'
 import { type Official } from '../../services/officials.service'
 
 interface OfficialListProps {
@@ -188,13 +188,33 @@ export default function OfficialList({
               officials.map((official) => (
                 <tr key={official.id}>
                   <td>
-                    <Image
-                      src={official.photo_url || '/images/default-avatar.png'}
-                      alt={official.name}
-                      width={40}
-                      height={40}
-                      className="rounded-circle object-fit-cover"
-                    />
+                    {official.photo_url ? (
+                      <img
+                        key={`${official.id}-${official.updated_at || ''}`}
+                        src={official.photo_url}
+                        alt={official.name}
+                        width={40}
+                        height={40}
+                        className="rounded-circle"
+                        style={{ objectFit: 'cover', display: 'block' }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          console.error('Failed to load official photo in list:', {
+                            url: official.photo_url,
+                            photo_path: official.photo_path,
+                            official_id: official.id
+                          });
+                          target.style.display = 'none';
+                        }}
+                        onLoad={() => {
+                          console.log('Official photo loaded in list:', official.photo_url);
+                        }}
+                      />
+                    ) : (
+                      <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', backgroundColor: 'var(--color-border-light)' }}>
+                        <span style={{ fontSize: '20px' }}>👤</span>
+                      </div>
+                    )}
                   </td>
                   <td>
                     <div>

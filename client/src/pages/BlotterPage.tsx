@@ -59,6 +59,7 @@ const BlotterPage: React.FC = () => {
       setLoading(true);
       const response = await blotterService.getBlotters(filters);
       
+      // Set data immediately - no delays
       setBlotters(response.data);
       setPagination({
         current_page: response.current_page,
@@ -69,6 +70,7 @@ const BlotterPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading blotters:', error);
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false);
     }
   };

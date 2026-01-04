@@ -58,6 +58,10 @@ class ResidentController extends Controller
             $query->search($search);
         }
 
+        // Sort alphabetically by first name, then last name
+        $query->orderBy('first_name', 'asc')
+              ->orderBy('last_name', 'asc');
+
         $residents = $query->paginate($request->integer('per_page', 15));
 
         // Transform the response to include properly formatted data

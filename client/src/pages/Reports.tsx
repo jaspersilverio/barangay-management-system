@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { Container, Row, Col, Nav, Tab } from 'react-bootstrap'
-import { FileText, Users, Home, BarChart3 } from 'lucide-react'
+import { FileText, Users, Home, BarChart3, UserCheck } from 'lucide-react'
 import HouseholdsReport from '../components/reports/HouseholdsReport'
 import ResidentsReport from '../components/reports/ResidentsReport'
 import PuroksReport from '../components/reports/PuroksReport'
+import SoloParentsReport from '../components/reports/SoloParentsReport'
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState('households')
@@ -55,6 +56,15 @@ export default function Reports() {
                   Puroks Summary
                 </Nav.Link>
               </Nav.Item>
+              <Nav.Item>
+                <Nav.Link 
+                  eventKey="solo-parents" 
+                  className="d-flex align-items-center gap-2"
+                >
+                  <UserCheck className="h-4 w-4" />
+                  Solo Parents
+                </Nav.Link>
+              </Nav.Item>
             </Nav>
 
             <Tab.Content>
@@ -66,6 +76,9 @@ export default function Reports() {
               </Tab.Pane>
               <Tab.Pane eventKey="puroks">
                 <PuroksReport />
+              </Tab.Pane>
+              <Tab.Pane eventKey="solo-parents">
+                <SoloParentsReport />
               </Tab.Pane>
             </Tab.Content>
           </Tab.Container>

@@ -6,8 +6,8 @@ use App\Http\Controllers\BlotterController;
 use App\Http\Controllers\CertificateRequestController;
 use App\Http\Controllers\IssuedCertificateController;
 use App\Http\Controllers\CertificatePdfController;
+use App\Http\Controllers\PdfExportController;
 use App\Http\Controllers\HouseholdController;
-use App\Http\Controllers\LandmarkController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OfficialController;
 use App\Http\Controllers\PurokController;
@@ -23,12 +23,32 @@ use App\Http\Controllers\MapMarkerController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\FourPsBeneficiaryController;
+use App\Http\Controllers\SoloParentController;
+use App\Http\Controllers\IncidentReportController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
 Route::middleware('throttle:5,1')->group(function () {
     Route::post('/auth/login', [AuthController::class, 'login']);
 });
+
+// Public image serving route with CORS headers
+Route::get('/storage/{path}', function ($path) {
+    $fullPath = storage_path('app/public/' . $path);
+
+    if (!file_exists($fullPath)) {
+        abort(404);
+    }
+
+    $mimeType = mime_content_type($fullPath);
+
+    return response()->file($fullPath, [
+        'Content-Type' => $mimeType,
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET',
+        'Access-Control-Allow-Headers' => 'Content-Type',
+    ]);
+})->where('path', '.*');
 
 // CSRF cookie route for cookie-based authentication
 Route::get('/sanctum/csrf-cookie', function () {
@@ -76,8 +96,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/residents', [ResidentController::class, 'index']);
         Route::get('/residents/search', [ResidentController::class, 'search']);
         Route::get('/residents/{resident}', [ResidentController::class, 'show']);
-        Route::get('/landmarks', [LandmarkController::class, 'index']);
-        Route::get('/landmarks/{landmark}', [LandmarkController::class, 'show']);
         Route::get('/events', [EventController::class, 'index']);
         Route::get('/events/{event}', [EventController::class, 'show']);
         Route::get('/search/households-residents', [SearchController::class, 'searchHouseholdsAndResidents']);
@@ -87,8 +105,12 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/blotters', [BlotterController::class, 'index']);
         Route::get('/blotters/statistics', [BlotterController::class, 'statistics']);
         Route::get('/blotters/{blotter}', [BlotterController::class, 'show']);
+        Route::get('/incident-reports', [IncidentReportController::class, 'index']);
+        Route::get('/incident-reports/{incidentReport}', [IncidentReportController::class, 'show']);
         Route::get('/beneficiaries/4ps', [FourPsBeneficiaryController::class, 'index']);
         Route::get('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'show']);
+        Route::get('/beneficiaries/solo-parents', [SoloParentController::class, 'index']);
+        Route::get('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'show']);
     });
 
     // Certificate statistics (all authenticated users)
@@ -126,6 +148,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/certificates/{id}/download', [CertificatePdfController::class, 'downloadCertificate']);
     Route::get('/certificates/{id}/preview', [CertificatePdfController::class, 'previewCertificate']);
 
+    // PDF Export routes (authorized users)
+    Route::middleware('role:admin,staff,purok_leader')->group(function () {
+        Route::get('/pdf/export/residents', [PdfExportController::class, 'exportResidents']);
+        Route::get('/pdf/export/households', [PdfExportController::class, 'exportHouseholds']);
+        Route::get('/pdf/export/blotters', [PdfExportController::class, 'exportBlotters']);
+        Route::get('/pdf/export/solo-parents', [PdfExportController::class, 'exportSoloParents']);
+        Route::get('/pdf/export/puroks', [PdfExportController::class, 'exportPuroks']);
+    });
+
 
     // Reports (admin only - purok leaders get filtered data)
     Route::middleware('role:admin')->group(function () {
@@ -142,13 +173,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/puroks', [PurokController::class, 'store']);
         Route::put('/puroks/{purok}', [PurokController::class, 'update']);
         Route::delete('/puroks/{purok}', [PurokController::class, 'destroy']);
-    });
-
-    // Landmarks management (admin only)
-    Route::middleware('role:admin')->group(function () {
-        Route::post('/landmarks', [LandmarkController::class, 'store']);
-        Route::put('/landmarks/{landmark}', [LandmarkController::class, 'update']);
-        Route::delete('/landmarks/{landmark}', [LandmarkController::class, 'destroy']);
     });
 
     // Household and Resident management (purok leaders and admin access)
@@ -169,6 +193,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'destroy']);
     });
 
+    // Solo Parents management (staff and admin access)
+    Route::middleware('role:staff,admin')->group(function () {
+        Route::post('/beneficiaries/solo-parents', [SoloParentController::class, 'store']);
+        Route::put('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'update']);
+        Route::delete('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'destroy']);
+        Route::post('/beneficiaries/solo-parents/{soloParent}/generate-certificate', [SoloParentController::class, 'generateCertificate']);
+    });
+
     // Events management (purok leaders and admin access)
     Route::middleware('role:purok_leader,admin')->group(function () {
         Route::post('/events', [EventController::class, 'store']);
@@ -181,6 +213,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/blotters', [BlotterController::class, 'store']);
         Route::put('/blotters/{blotter}', [BlotterController::class, 'update']);
         Route::delete('/blotters/{blotter}', [BlotterController::class, 'destroy']);
+    });
+
+    // Incident Reports management (purok leaders and admin access)
+    Route::middleware('role:purok_leader,admin')->group(function () {
+        Route::post('/incident-reports', [IncidentReportController::class, 'store']);
+        Route::put('/incident-reports/{incidentReport}', [IncidentReportController::class, 'update']);
+        Route::delete('/incident-reports/{incidentReport}', [IncidentReportController::class, 'destroy']);
     });
 
     // Audit logs (admin only)

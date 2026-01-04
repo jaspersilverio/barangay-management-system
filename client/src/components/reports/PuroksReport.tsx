@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Row, Col, Card, Button, Table, Badge, Alert } from 'react-bootstrap'
 import { Download, BarChart3, Users, Home, MapPin, Phone } from 'lucide-react'
 import { getPuroksReport, exportReport, type PurokReport } from '../../services/reports.service'
+import api from '../../services/api'
 
 export default function PuroksReport() {
   const [puroks, setPuroks] = useState<PurokReport[]>([])
@@ -35,19 +36,43 @@ export default function PuroksReport() {
   const handleExport = async (type: 'pdf' | 'excel') => {
     try {
       setExporting(true)
-      const response = await exportReport({
-        type,
-        reportType: 'puroks'
-      })
       
-      if (response.success) {
-        // TODO: Handle actual file download when backend is implemented
-        alert(`${type.toUpperCase()} export started: ${response.data.message}`)
+      if (type === 'pdf') {
+        // Call PDF export API
+        const response = await api.get('/pdf/export/puroks', {
+          responseType: 'blob',
+        })
+
+        // Create blob URL and trigger download
+        const blob = new Blob([response.data], { type: 'application/pdf' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `puroks-summary-${new Date().toISOString().split('T')[0]}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        setError(null)
       } else {
-        setError(response.message || `Failed to export ${type}`)
+        // Excel export - use existing exportReport function
+        const response = await exportReport({
+          type,
+          reportType: 'puroks'
+        })
+        
+        if (response.success) {
+          // TODO: Handle actual file download when backend is implemented
+          alert(`${type.toUpperCase()} export started: ${response.data.message}`)
+        } else {
+          setError(response.message || `Failed to export ${type}`)
+        }
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || `Failed to export ${type}`)
+      const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
+      setError(errorMessage)
+      console.error('Export error:', err)
     } finally {
       setExporting(false)
     }

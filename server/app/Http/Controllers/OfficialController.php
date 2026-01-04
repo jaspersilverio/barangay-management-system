@@ -35,6 +35,21 @@ class OfficialController extends Controller
 
         $officials = $query->orderBy('position')->orderBy('name')->paginate(15);
 
+        // Ensure photo_url is included in response
+        $officials->getCollection()->transform(function ($official) {
+            $official->photo_url = $official->photo_url;
+            // Log for debugging
+            if ($official->photo_path) {
+                Log::debug('Official photo URL', [
+                    'id' => $official->id,
+                    'photo_path' => $official->photo_path,
+                    'photo_url' => $official->photo_url,
+                    'exists' => Storage::disk('public')->exists($official->photo_path),
+                ]);
+            }
+            return $official;
+        });
+
         return $this->respondSuccess($officials);
     }
 
@@ -48,15 +63,37 @@ class OfficialController extends Controller
         // Debug: Log the received data
         Log::info('Creating official with data:', $data);
 
-        // Handle photo upload
+        // Handle photo upload with auto-generated filename
         if ($request->hasFile('photo')) {
-            $photoPath = $request->file('photo')->store('officials', 'public');
+            $file = $request->file('photo');
+            // Generate unique filename: timestamp_random.extension
+            $extension = $file->getClientOriginalExtension();
+            $filename = time() . '_' . uniqid() . '.' . $extension;
+            $photoPath = $file->storeAs('officials', $filename, 'public');
             $data['photo_path'] = $photoPath;
+
+            // Log for debugging
+            Log::info('Photo uploaded', [
+                'path' => $photoPath,
+                'full_path' => Storage::disk('public')->path($photoPath),
+                'exists' => Storage::disk('public')->exists($photoPath),
+            ]);
         }
 
         $official = Official::create($data);
+        $official->load('user');
+        // Ensure photo_url is included
+        $official->photo_url = $official->photo_url;
 
-        return $this->respondSuccess($official->load('user'), 'Official created successfully', 201);
+        // Log photo URL for debugging
+        if ($official->photo_path) {
+            Log::info('Official created with photo', [
+                'photo_path' => $official->photo_path,
+                'photo_url' => $official->photo_url,
+            ]);
+        }
+
+        return $this->respondSuccess($official, 'Official created successfully', 201);
     }
 
     /**
@@ -64,7 +101,10 @@ class OfficialController extends Controller
      */
     public function show(Official $official)
     {
-        return $this->respondSuccess($official->load('user'));
+        $official->load('user');
+        // Ensure photo_url is included
+        $official->photo_url = $official->photo_url;
+        return $this->respondSuccess($official);
     }
 
     /**
@@ -74,20 +114,40 @@ class OfficialController extends Controller
     {
         $data = $request->validated();
 
-        // Handle photo upload
+        // Handle photo upload with auto-generated filename
         if ($request->hasFile('photo')) {
             // Delete old photo if exists
             if ($official->photo_path) {
-                Storage::disk('public')->delete($official->photo_path);
+                try {
+                    Storage::disk('public')->delete($official->photo_path);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete old photo: ' . $e->getMessage());
+                }
             }
 
-            $photoPath = $request->file('photo')->store('officials', 'public');
+            $file = $request->file('photo');
+            // Generate unique filename: timestamp_random.extension
+            $extension = $file->getClientOriginalExtension();
+            $filename = time() . '_' . uniqid() . '.' . $extension;
+            $photoPath = $file->storeAs('officials', $filename, 'public');
             $data['photo_path'] = $photoPath;
         }
 
         $official->update($data);
+        $official->load('user');
+        // Ensure photo_url is included
+        $official->photo_url = $official->photo_url;
 
-        return $this->respondSuccess($official->load('user'), 'Official updated successfully');
+        // Log for debugging
+        if ($request->hasFile('photo')) {
+            Log::info('Official photo updated', [
+                'official_id' => $official->id,
+                'photo_path' => $official->photo_path,
+                'photo_url' => $official->photo_url,
+            ]);
+        }
+
+        return $this->respondSuccess($official, 'Official updated successfully');
     }
 
     /**
@@ -97,7 +157,11 @@ class OfficialController extends Controller
     {
         // Delete photo if exists
         if ($official->photo_path) {
-            Storage::disk('public')->delete($official->photo_path);
+            try {
+                Storage::disk('public')->delete($official->photo_path);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete photo during official deletion: ' . $e->getMessage());
+            }
         }
 
         $official->delete();
@@ -116,6 +180,12 @@ class OfficialController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Ensure photo_url is included for all officials
+        $officials->transform(function ($official) {
+            $official->photo_url = $official->photo_url;
+            return $official;
+        });
+
         return $this->respondSuccess($officials);
     }
 
@@ -125,7 +195,10 @@ class OfficialController extends Controller
     public function toggleActive(Official $official)
     {
         $official->update(['active' => !$official->active]);
+        $official->load('user');
+        // Ensure photo_url is included
+        $official->photo_url = $official->photo_url;
 
-        return $this->respondSuccess($official->load('user'), 'Official status updated successfully');
+        return $this->respondSuccess($official, 'Official status updated successfully');
     }
 }

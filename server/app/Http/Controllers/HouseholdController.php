@@ -31,6 +31,9 @@ class HouseholdController extends Controller
             $query->search($search);
         }
 
+        // Sort alphabetically by head of household name (A-Z)
+        $query->orderBy('head_name', 'asc');
+
         $households = $query->paginate($request->integer('per_page', 15));
 
         // Transform the response to include properly formatted data

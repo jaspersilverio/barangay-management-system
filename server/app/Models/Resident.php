@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Resident extends Model
@@ -73,6 +74,15 @@ class Resident extends Model
     public function vaccinations(): HasMany
     {
         return $this->hasMany(Vaccination::class);
+    }
+
+    /**
+     * Get solo parent record for this resident
+     * @return HasOne<SoloParent>
+     */
+    public function soloParent(): HasOne
+    {
+        return $this->hasOne(SoloParent::class);
     }
 
     /**

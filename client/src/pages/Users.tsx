@@ -42,6 +42,7 @@ export default function Users() {
       })
       
       if (response.success) {
+        // Set data immediately - no delays
         setUsers(response.data.data)
         setTotalPages(response.data.last_page)
         setTotal(response.data.total)
@@ -51,6 +52,7 @@ export default function Users() {
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load users')
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }

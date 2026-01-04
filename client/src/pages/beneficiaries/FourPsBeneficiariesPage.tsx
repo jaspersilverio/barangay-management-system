@@ -25,7 +25,7 @@ export default function FourPsBeneficiariesPage() {
   const [purokId, setPurokId] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
   const [beneficiariesData, setBeneficiariesData] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
@@ -54,11 +54,13 @@ export default function FourPsBeneficiariesPage() {
         status: statusFilter || undefined,
         per_page: 15 
       })
+      // Set data immediately - no delays
       setBeneficiariesData(data)
     } catch (err) {
       console.error('Error loading 4Ps beneficiaries:', err)
       setToast({ show: true, message: 'Failed to load 4Ps beneficiaries', variant: 'danger' })
     } finally {
+      // Clear loading state immediately when data is ready
       setIsLoading(false)
     }
   }, [search, page, effectivePurokId, statusFilter])

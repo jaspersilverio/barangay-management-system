@@ -9,6 +9,7 @@ use App\Models\Resident;
 use App\Models\Vaccination;
 use App\Models\Blotter;
 use App\Models\FourPsBeneficiary;
+use App\Models\SoloParent;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -741,20 +742,24 @@ class DashboardController extends Controller
                 ->where('is_pwd', true)
                 ->count();
 
-            // Solo Parent: Heads of household who are single/widowed/divorced/separated
-            // and have at least one other resident in the household (indicating they have dependents)
-            $soloParentCount = $residentQuery->clone()
-                ->whereIn('civil_status', ['single', 'widowed', 'divorced', 'separated'])
-                ->where(function ($q) {
-                    $q->where('relationship_to_head', 'Head')
-                        ->orWhere('relationship_to_head', 'like', '%Head%')
-                        ->orWhereRaw('LOWER(relationship_to_head) LIKE ?', ['%head%']);
-                })
-                ->whereHas('household', function ($householdQuery) {
-                    // Has at least one other resident (more than just the head)
-                    $householdQuery->has('residents', '>', 1);
-                })
-                ->count();
+            // Solo Parents: Count Active solo parents from SoloParent model
+            $soloParentQuery = SoloParent::query()
+                ->with(['resident.household'])
+                ->whereDate('valid_until', '>=', $now->toDateString())
+                ->whereHas('resident', function ($q) {
+                    $q->where('civil_status', '!=', 'married');
+                });
+            
+            if ($user->isPurokLeader() && $user->assigned_purok_id) {
+                $soloParentQuery->whereHas('resident.household', function ($q) use ($user) {
+                    $q->where('purok_id', $user->assigned_purok_id);
+                });
+            }
+            
+            // Filter to only those with eligible dependent children (Active status)
+            $soloParentCount = $soloParentQuery->get()->filter(function ($soloParent) {
+                return $soloParent->hasEligibleDependentChildren() && $soloParent->computed_status === 'active';
+            })->count();
 
             // Calculate total (sum of all categories)
             // Note: A resident can belong to multiple categories, so total may be less than sum

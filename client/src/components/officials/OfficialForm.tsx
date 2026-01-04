@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Modal, Form, Button, Row, Col, Image } from 'react-bootstrap'
+import { Modal, Form, Button, Row, Col } from 'react-bootstrap'
 import { type Official, type CreateOfficialData, POSITION_OPTIONS } from '../../services/officials.service'
 
 interface OfficialFormProps {
@@ -32,15 +32,31 @@ export default function OfficialForm({
 
   useEffect(() => {
     if (official) {
+      // Convert ISO date strings to yyyy-MM-dd format for HTML date inputs
+      const formatDateForInput = (dateString: string | undefined): string => {
+        if (!dateString) return ''
+        try {
+          const date = new Date(dateString)
+          // Check if date is valid
+          if (isNaN(date.getTime())) return ''
+          // Return in yyyy-MM-dd format
+          return date.toISOString().split('T')[0]
+        } catch {
+          return ''
+        }
+      }
+
       setFormData({
         user_id: official.user_id,
         name: official.name,
         position: official.position,
-        term_start: official.term_start || '',
-        term_end: official.term_end || '',
+        term_start: formatDateForInput(official.term_start),
+        term_end: formatDateForInput(official.term_end),
         contact: official.contact || '',
         active: official.active
+        // Note: photo is not included here - it will be added when user selects a new file
       })
+      // Set preview to existing photo URL if available
       setPhotoPreview(official.photo_url || null)
     } else {
       setFormData({
@@ -67,25 +83,55 @@ export default function OfficialForm({
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      // Validate file type and size
-      if (!file.type.startsWith('image/')) {
-        setErrors(prev => ({ ...prev, photo: 'Please select an image file' }))
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+      if (!allowedTypes.includes(file.type)) {
+        setErrors(prev => ({ ...prev, photo: 'Please select a JPEG, PNG, or WEBP image file' }))
+        e.target.value = '' // Clear the input
+        setPhotoPreview(null) // Clear preview on error
         return
       }
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        setErrors(prev => ({ ...prev, photo: 'Image size must be less than 2MB' }))
+      
+      // Validate file size (5MB limit)
+      const maxSize = 5 * 1024 * 1024 // 5MB
+      if (file.size > maxSize) {
+        setErrors(prev => ({ ...prev, photo: 'Image size must be less than 5MB' }))
+        e.target.value = '' // Clear the input
+        setPhotoPreview(null) // Clear preview on error
         return
       }
 
-      setFormData(prev => ({ ...prev, photo: file }))
+      // Clear any previous errors
       setErrors(prev => ({ ...prev, photo: '' }))
 
-      // Create preview
+      // Update form data first
+      setFormData(prev => ({ ...prev, photo: file }))
+
+      // Create preview immediately using FileReader
       const reader = new FileReader()
-      reader.onload = (e) => {
-        setPhotoPreview(e.target?.result as string)
+      reader.onload = (event) => {
+        const result = event.target?.result
+        if (result && typeof result === 'string') {
+          // Set the preview to the data URL
+          setPhotoPreview(result)
+        } else {
+          setErrors(prev => ({ ...prev, photo: 'Failed to load image preview' }))
+          setPhotoPreview(null)
+        }
+      }
+      reader.onerror = () => {
+        setErrors(prev => ({ ...prev, photo: 'Failed to load image preview' }))
+        setPhotoPreview(null)
       }
       reader.readAsDataURL(file)
+    } else {
+      // If no file selected and not editing, clear preview
+      if (!official) {
+        setPhotoPreview(null)
+      } else {
+        // If editing and file cleared, show original photo again
+        setPhotoPreview(null)
+      }
     }
   }
 
@@ -117,10 +163,20 @@ export default function OfficialForm({
     }
 
     try {
+      // Debug: Log what we're sending
+      console.log('Submitting form data:', {
+        hasPhoto: !!formData.photo,
+        photoType: formData.photo?.constructor?.name,
+        isEditing: !!official,
+        formDataKeys: Object.keys(formData)
+      })
       await onSubmit(formData)
+      // Clear photo preview after successful submission
+      setPhotoPreview(null)
       onHide()
     } catch (error) {
       console.error('Form submission error:', error)
+      // Don't clear preview on error so user can see what they selected
     }
   }
 
@@ -235,22 +291,62 @@ export default function OfficialForm({
               <Form.Group className="modal-form-group">
                 <Form.Label className="modal-form-label">Photo</Form.Label>
                 <div className="text-center">
-                  {photoPreview ? (
-                    <Image
-                      src={photoPreview}
-                      alt="Preview"
-                      className="img-fluid rounded mb-2"
-                      style={{ maxHeight: '200px', maxWidth: '100%' }}
-                    />
-                  ) : (
-                    <div className="border rounded p-4 text-brand-muted mb-2">
-                      <div>📷</div>
-                      <small>No photo selected</small>
+                  {/* Image preview area */}
+                  <div className="mb-3" style={{ minHeight: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--color-surface)', borderRadius: '8px', padding: '10px' }}>
+                    {(photoPreview || official?.photo_url) ? (
+                      <img
+                        src={photoPreview || official?.photo_url || ''}
+                        alt="Photo"
+                        className="rounded"
+                        style={{ 
+                          maxHeight: '200px', 
+                          maxWidth: '100%', 
+                          width: 'auto',
+                          height: 'auto',
+                          objectFit: 'contain',
+                          border: photoPreview ? '3px solid var(--color-primary)' : '2px solid var(--color-border)',
+                          boxShadow: photoPreview ? '0 4px 12px rgba(37, 99, 235, 0.3)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
+                          display: 'block'
+                        }}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          const imageUrl = photoPreview || official?.photo_url || '';
+                          console.error('Failed to load image:', {
+                            url: imageUrl,
+                            isDataUrl: imageUrl.startsWith('data:'),
+                            photoPath: official?.photo_path
+                          });
+                          // Only hide if it's not a data URL (preview)
+                          if (!imageUrl.startsWith('data:')) {
+                            target.style.display = 'none';
+                            setErrors(prev => ({ ...prev, photo: `Failed to load image from: ${imageUrl}` }))
+                          }
+                        }}
+                        onLoad={() => {
+                          // Clear any errors when image loads successfully
+                          if (errors.photo) {
+                            setErrors(prev => ({ ...prev, photo: '' }))
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="text-center text-brand-muted" style={{ padding: '40px' }}>
+                        <div style={{ fontSize: '48px', marginBottom: '10px' }}>📷</div>
+                        <small>No photo selected</small>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {photoPreview && (
+                    <div className="alert alert-info mb-2 py-1 px-2" style={{ fontSize: '0.85rem' }}>
+                      <i className="fas fa-info-circle me-1"></i>
+                      New photo selected
                     </div>
                   )}
+                  
                   <Form.Control
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
                     onChange={handlePhotoChange}
                     isInvalid={!!errors.photo}
                     className="modal-form-control"
@@ -258,8 +354,8 @@ export default function OfficialForm({
                   <Form.Control.Feedback type="invalid">
                     {errors.photo}
                   </Form.Control.Feedback>
-                  <Form.Text className="text-brand-muted">
-                    JPG, PNG, GIF up to 2MB
+                  <Form.Text className="text-brand-muted d-block mt-1">
+                    JPG, PNG, WEBP up to 5MB
                   </Form.Text>
                 </div>
               </Form.Group>

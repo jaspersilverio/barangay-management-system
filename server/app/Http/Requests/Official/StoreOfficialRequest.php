@@ -20,7 +20,7 @@ class StoreOfficialRequest extends BaseFormRequest
             'term_start' => ['nullable', 'date'],
             'term_end' => ['nullable', 'date', 'after_or_equal:term_start'],
             'contact' => ['nullable', 'string', 'max:255'],
-            'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'], // 5MB max, webp support
             'active' => ['nullable'],
         ];
     }
@@ -57,8 +57,8 @@ class StoreOfficialRequest extends BaseFormRequest
             'position.required' => 'The position is required.',
             'term_end.after_or_equal' => 'The term end date must be after or equal to the term start date.',
             'photo.image' => 'The photo must be an image file.',
-            'photo.mimes' => 'The photo must be a JPEG, PNG, JPG, or GIF file.',
-            'photo.max' => 'The photo size must not exceed 2MB.',
+            'photo.mimes' => 'The photo must be a JPEG, PNG, JPG, or WEBP file.',
+            'photo.max' => 'The photo size must not exceed 5MB.',
         ];
     }
 }

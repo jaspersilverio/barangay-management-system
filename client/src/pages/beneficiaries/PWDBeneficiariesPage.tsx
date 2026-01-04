@@ -15,7 +15,7 @@ export default function PWDBeneficiariesPage() {
   const [search, setSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
   const [residentsData, setResidentsData] = useState<any>(null)
 
   const effectivePurokId = useMemo(() => {
@@ -34,10 +34,12 @@ export default function PWDBeneficiariesPage() {
         pwds: true, // Filter for PWD only
         per_page: 15 
       })
+      // Set data immediately - no delays
       setResidentsData(data)
     } catch (err) {
       console.error('Error loading PWD beneficiaries:', err)
     } finally {
+      // Clear loading state immediately when data is ready
       setIsLoading(false)
     }
   }, [search, page, effectivePurokId])

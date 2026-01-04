@@ -3,6 +3,7 @@ import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'r
 import { Download, Filter, Home } from 'lucide-react'
 import { getHouseholdsReport, exportReport, type HouseholdReport, type ReportFilters } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
+import api from '../../services/api'
 
 export default function HouseholdsReport() {
   const { puroks } = usePuroks()
@@ -56,20 +57,50 @@ export default function HouseholdsReport() {
   const handleExport = async (type: 'pdf' | 'excel') => {
     try {
       setExporting(true)
-      const response = await exportReport({
-        type,
-        reportType: 'households',
-        filters
-      })
       
-      if (response.success) {
-        // TODO: Handle actual file download when backend is implemented
-        alert(`${type.toUpperCase()} export started: ${response.data.message}`)
+      if (type === 'pdf') {
+        // Build query parameters
+        const params = new URLSearchParams()
+        if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
+        if (filters.date_from) params.append('start_date', filters.date_from)
+        if (filters.date_to) params.append('end_date', filters.date_to)
+        
+        // Call PDF export API
+        const response = await api.get(`/pdf/export/households?${params.toString()}`, {
+          responseType: 'blob',
+        })
+
+        // Create blob URL and trigger download
+        const blob = new Blob([response.data], { type: 'application/pdf' })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `households-report-${new Date().toISOString().split('T')[0]}.pdf`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+        
+        setError(null)
       } else {
-        setError(response.message || `Failed to export ${type}`)
+        // Excel export - use existing exportReport function
+        const response = await exportReport({
+          type,
+          reportType: 'households',
+          filters
+        })
+        
+        if (response.success) {
+          // TODO: Handle actual file download when backend is implemented
+          alert(`${type.toUpperCase()} export started: ${response.data.message}`)
+        } else {
+          setError(response.message || `Failed to export ${type}`)
+        }
       }
     } catch (err: any) {
-      setError(err?.response?.data?.message || `Failed to export ${type}`)
+      const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
+      setError(errorMessage)
+      console.error('Export error:', err)
     } finally {
       setExporting(false)
     }

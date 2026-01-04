@@ -45,16 +45,46 @@ class Official extends Model
     }
 
     /**
-     * Get the photo URL.
+     * Get the photo URL for web display.
      */
-    public function getPhotoUrlAttribute(): string
+    public function getPhotoUrlAttribute(): ?string
     {
         if ($this->photo_path) {
-            // Use Laravel's Storage facade to generate proper URL
-            return asset('storage/' . $this->photo_path);
+            // Check if file exists before returning URL
+            if (Storage::disk('public')->exists($this->photo_path)) {
+                // Get base URL from config
+                $baseUrl = config('app.url', 'http://localhost:8000');
+                $baseUrl = rtrim($baseUrl, '/');
+
+                // Use API route to serve images with CORS headers
+                // This avoids ORB (Opaque Response Blocking) issues
+                // Add cache-busting query parameter using updated_at timestamp
+                $cacheBuster = $this->updated_at ? '?t=' . $this->updated_at->timestamp : '';
+                $url = $baseUrl . '/api/storage/' . $this->photo_path . $cacheBuster;
+
+                return $url;
+            }
+            // If file doesn't exist, return null to trigger default placeholder
+            return null;
         }
-        // Return a data URI for a simple default avatar
-        return 'data:image/svg+xml;base64,' . base64_encode('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="60" fill="#e5e7eb"/><circle cx="60" cy="45" r="20" fill="#9ca3af"/><path d="M20 100c0-22 18-40 40-40s40 18 40 40" fill="#9ca3af"/></svg>');
+        return null;
+    }
+
+    /**
+     * Get the absolute file path for PDF generation.
+     * Returns the full filesystem path to the image file.
+     * Note: This method is named differently to avoid conflict with the photo_path column.
+     */
+    public function getPhotoAbsolutePath(): ?string
+    {
+        if ($this->photo_path) {
+            $fullPath = Storage::disk('public')->path($this->photo_path);
+            // Check if file exists
+            if (file_exists($fullPath)) {
+                return $fullPath;
+            }
+        }
+        return null;
     }
 
     /**

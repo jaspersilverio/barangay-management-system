@@ -59,13 +59,20 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
   const [officials, setOfficials] = useState<Official[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [searchTerms, setSearchTerms] = useState({
-    complainant: '',
-    respondent: '',
-    official: ''
-  });
+  
+  // Separate input values for each search field
+  const [complainantInput, setComplainantInput] = useState('');
+  const [respondentInput, setRespondentInput] = useState('');
+  const [officialInput, setOfficialInput] = useState('');
+  
+  // Debounced search terms
+  const [debouncedComplainant, setDebouncedComplainant] = useState('');
+  const [debouncedRespondent, setDebouncedRespondent] = useState('');
+  const [debouncedOfficial, setDebouncedOfficial] = useState('');
 
-  const [filteredResidents, setFilteredResidents] = useState<Resident[]>([]);
+  // Separate filtered results for each field
+  const [filteredComplainants, setFilteredComplainants] = useState<Resident[]>([]);
+  const [filteredRespondents, setFilteredRespondents] = useState<Resident[]>([]);
   const [filteredOfficials, setFilteredOfficials] = useState<Official[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
 
@@ -77,17 +84,44 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     }
   }, [show, blotter]);
 
+  // Debounce complainant search
   useEffect(() => {
-    filterResidents();
-  }, [searchTerms.complainant, residents]);
+    const timer = setTimeout(() => {
+      setDebouncedComplainant(complainantInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [complainantInput]);
 
+  // Debounce respondent search
   useEffect(() => {
-    filterResidents();
-  }, [searchTerms.respondent, residents]);
+    const timer = setTimeout(() => {
+      setDebouncedRespondent(respondentInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [respondentInput]);
 
+  // Debounce official search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedOfficial(officialInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [officialInput]);
+
+  // Filter complainants based on debounced term
+  useEffect(() => {
+    filterComplainants();
+  }, [debouncedComplainant, residents]);
+
+  // Filter respondents based on debounced term
+  useEffect(() => {
+    filterRespondents();
+  }, [debouncedRespondent, residents]);
+
+  // Filter officials based on debounced term
   useEffect(() => {
     filterOfficials();
-  }, [searchTerms.official, officials]);
+  }, [debouncedOfficial, officials]);
 
   const loadResidents = async () => {
     try {
@@ -136,42 +170,64 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     });
 
     // Set search terms for display
-    setSearchTerms({
-      complainant: blotter.complainant_is_resident && blotter.complainant 
-        ? `${blotter.complainant.first_name} ${blotter.complainant.last_name}`
-        : blotter.complainant_full_name || '',
-      respondent: blotter.respondent_is_resident && blotter.respondent
-        ? `${blotter.respondent.first_name} ${blotter.respondent.last_name}`
-        : blotter.respondent_full_name || '',
-      official: blotter.official ? blotter.official.name : ''
-    });
+    const complainantName = blotter.complainant_is_resident && blotter.complainant 
+      ? `${blotter.complainant.first_name} ${blotter.complainant.last_name}`
+      : blotter.complainant_full_name || '';
+    const respondentName = blotter.respondent_is_resident && blotter.respondent
+      ? `${blotter.respondent.first_name} ${blotter.respondent.last_name}`
+      : blotter.respondent_full_name || '';
+    const officialName = blotter.official ? blotter.official.name : '';
+    
+    setComplainantInput(complainantName);
+    setRespondentInput(respondentName);
+    setOfficialInput(officialName);
+    setDebouncedComplainant(complainantName);
+    setDebouncedRespondent(respondentName);
+    setDebouncedOfficial(officialName);
 
     setExistingAttachments(blotter.attachments || []);
     setErrors({});
   };
 
-  const filterResidents = () => {
-    const term = searchTerms.complainant || searchTerms.respondent;
-    if (!term) {
-      setFilteredResidents(Array.isArray(residents) ? residents : []);
+  const filterComplainants = () => {
+    if (!debouncedComplainant || debouncedComplainant.length < 1) {
+      setFilteredComplainants([]);
       return;
     }
 
     if (!Array.isArray(residents)) {
-      setFilteredResidents([]);
+      setFilteredComplainants([]);
       return;
     }
 
     const filtered = residents.filter(resident => {
       const fullName = `${resident.first_name} ${resident.last_name}`.toLowerCase();
-      return fullName.includes(term.toLowerCase());
+      return fullName.includes(debouncedComplainant.toLowerCase());
     });
-    setFilteredResidents(filtered);
+    setFilteredComplainants(filtered);
+  };
+
+  const filterRespondents = () => {
+    if (!debouncedRespondent || debouncedRespondent.length < 1) {
+      setFilteredRespondents([]);
+      return;
+    }
+
+    if (!Array.isArray(residents)) {
+      setFilteredRespondents([]);
+      return;
+    }
+
+    const filtered = residents.filter(resident => {
+      const fullName = `${resident.first_name} ${resident.last_name}`.toLowerCase();
+      return fullName.includes(debouncedRespondent.toLowerCase());
+    });
+    setFilteredRespondents(filtered);
   };
 
   const filterOfficials = () => {
-    if (!searchTerms.official) {
-      setFilteredOfficials(Array.isArray(officials) ? officials : []);
+    if (!debouncedOfficial || debouncedOfficial.length < 1) {
+      setFilteredOfficials([]);
       return;
     }
 
@@ -181,7 +237,7 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     }
 
     const filtered = officials.filter(official =>
-      official.name.toLowerCase().includes(searchTerms.official.toLowerCase())
+      official.name.toLowerCase().includes(debouncedOfficial.toLowerCase())
     );
     setFilteredOfficials(filtered);
   };
@@ -209,11 +265,16 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     }
   };
 
-  const handleSearchChange = (type: 'complainant' | 'respondent' | 'official', value: string) => {
-    setSearchTerms(prev => ({
-      ...prev,
-      [type]: value
-    }));
+  const handleComplainantSearchChange = (value: string) => {
+    setComplainantInput(value);
+  };
+
+  const handleRespondentSearchChange = (value: string) => {
+    setRespondentInput(value);
+  };
+
+  const handleOfficialSearchChange = (value: string) => {
+    setOfficialInput(value);
   };
 
   const selectResident = (type: 'complainant' | 'respondent', resident: Resident) => {
@@ -221,10 +282,15 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
       ...prev,
       [`${type}_id`]: resident.id
     }));
-    setSearchTerms(prev => ({
-      ...prev,
-      [type]: `${resident.first_name} ${resident.last_name}`
-    }));
+    
+    const fullName = `${resident.first_name} ${resident.last_name}`;
+    if (type === 'complainant') {
+      setComplainantInput(fullName);
+      setDebouncedComplainant(fullName);
+    } else {
+      setRespondentInput(fullName);
+      setDebouncedRespondent(fullName);
+    }
   };
 
   const selectOfficial = (official: Official) => {
@@ -232,10 +298,8 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
       ...prev,
       official_id: official.id
     }));
-    setSearchTerms(prev => ({
-      ...prev,
-      official: official.name
-    }));
+    setOfficialInput(official.name);
+    setDebouncedOfficial(official.name);
   };
 
   const removeExistingAttachment = (index: number) => {
@@ -345,12 +409,12 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                     <Form.Control
                       type="text"
                       placeholder="Search residents..."
-                      value={searchTerms.complainant}
-                      onChange={(e) => handleSearchChange('complainant', e.target.value)}
+                      value={complainantInput}
+                      onChange={(e) => handleComplainantSearchChange(e.target.value)}
                     />
-                    {searchTerms.complainant && filteredResidents.length > 0 && (
+                    {debouncedComplainant && filteredComplainants.length > 0 && (
                       <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {filteredResidents.map(resident => (
+                        {filteredComplainants.map(resident => (
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
@@ -479,12 +543,12 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                     <Form.Control
                       type="text"
                       placeholder="Search residents..."
-                      value={searchTerms.respondent}
-                      onChange={(e) => handleSearchChange('respondent', e.target.value)}
+                      value={respondentInput}
+                      onChange={(e) => handleRespondentSearchChange(e.target.value)}
                     />
-                    {searchTerms.respondent && filteredResidents.length > 0 && (
+                    {debouncedRespondent && filteredRespondents.length > 0 && (
                       <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {filteredResidents.map(resident => (
+                        {filteredRespondents.map(resident => (
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
@@ -586,10 +650,10 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                   <Form.Control
                     type="text"
                     placeholder="Search officials..."
-                    value={searchTerms.official}
-                    onChange={(e) => handleSearchChange('official', e.target.value)}
+                    value={officialInput}
+                    onChange={(e) => handleOfficialSearchChange(e.target.value)}
                   />
-                  {searchTerms.official && filteredOfficials.length > 0 && (
+                  {debouncedOfficial && filteredOfficials.length > 0 && (
                     <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                       {filteredOfficials.map(official => (
                         <div

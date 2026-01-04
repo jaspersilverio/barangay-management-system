@@ -40,7 +40,6 @@ export default function HouseholdDetailsPage() {
             <div className="mb-2"><strong>Household Code:</strong> {hh.household_code}</div>
             <div className="mb-2"><strong>Head Name:</strong> {hh.head_name}</div>
             <div className="mb-2"><strong>Address:</strong> {hh.address}</div>
-            <div className="mb-2"><strong>Landmark:</strong> {hh.landmark || '-'}</div>
             <div className="mb-2"><strong>Purok:</strong> {hh.purok?.name || hh.purok_id}</div>
             <div className="mb-2"><strong>Location:</strong> {hh.latitude && hh.longitude ? `${hh.latitude}, ${hh.longitude}` : '-'}</div>
           </Card>

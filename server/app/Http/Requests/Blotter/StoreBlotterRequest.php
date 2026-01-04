@@ -15,6 +15,25 @@ class StoreBlotterRequest extends FormRequest
     }
 
     /**
+     * Prepare the data for validation.
+     */
+    protected function prepareForValidation(): void
+    {
+        // Convert string booleans from FormData to actual booleans
+        if ($this->has('complainant_is_resident')) {
+            $this->merge([
+                'complainant_is_resident' => $this->input('complainant_is_resident') === '1' || $this->input('complainant_is_resident') === true,
+            ]);
+        }
+
+        if ($this->has('respondent_is_resident')) {
+            $this->merge([
+                'respondent_is_resident' => $this->input('respondent_is_resident') === '1' || $this->input('respondent_is_resident') === true,
+            ]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
@@ -40,14 +59,14 @@ class StoreBlotterRequest extends FormRequest
 
             // Other fields
             'official_id' => ['nullable', 'exists:users,id'],
-            'incident_date' => ['required', 'date', 'before_or_equal:today'],
+            'incident_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'incident_time' => ['required', 'date_format:H:i'],
             'incident_location' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
             'status' => ['sometimes', 'in:Open,Ongoing,Resolved'],
             'resolution' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
-            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:10240'], // 10MB max
+            'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:10240'],
         ];
     }
 
@@ -57,8 +76,8 @@ class StoreBlotterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            // Complainant messages
             'complainant_is_resident.required' => 'Please specify if complainant is a resident.',
+            'complainant_is_resident.boolean' => 'Invalid value for complainant type.',
             'complainant_id.required_if' => 'Please select a complainant from residents.',
             'complainant_id.exists' => 'The selected complainant does not exist.',
             'complainant_full_name.required_if' => 'Complainant full name is required for non-residents.',
@@ -68,8 +87,8 @@ class StoreBlotterRequest extends FormRequest
             'complainant_address.required_if' => 'Complainant address is required for non-residents.',
             'complainant_contact.max' => 'Complainant contact cannot exceed 20 characters.',
 
-            // Respondent messages
             'respondent_is_resident.required' => 'Please specify if respondent is a resident.',
+            'respondent_is_resident.boolean' => 'Invalid value for respondent type.',
             'respondent_id.required_if' => 'Please select a respondent from residents.',
             'respondent_id.exists' => 'The selected respondent does not exist.',
             'respondent_full_name.required_if' => 'Respondent full name is required for non-residents.',
@@ -79,12 +98,12 @@ class StoreBlotterRequest extends FormRequest
             'respondent_address.required_if' => 'Respondent address is required for non-residents.',
             'respondent_contact.max' => 'Respondent contact cannot exceed 20 characters.',
 
-            // Other messages
             'official_id.exists' => 'The selected official does not exist.',
             'incident_date.required' => 'Incident date is required.',
+            'incident_date.date_format' => 'The incident date must be in YYYY-MM-DD format.',
             'incident_date.before_or_equal' => 'Incident date cannot be in the future.',
             'incident_time.required' => 'Incident time is required.',
-            'incident_time.date_format' => 'Please enter a valid time format (HH:MM).',
+            'incident_time.date_format' => 'Please enter a valid time format (HH:MM in 24-hour format).',
             'incident_location.required' => 'Incident location is required.',
             'incident_location.max' => 'Incident location cannot exceed 255 characters.',
             'description.required' => 'Description is required.',

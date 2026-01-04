@@ -7,12 +7,26 @@
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  * {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }
   
   body {
     @apply bg-neutral-50 text-neutral-700;
     font-family: 'Inter', system-ui, sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
+  }
+
+  .dark body,
+  [data-theme="dark"] body {
+    @apply bg-neutral-900 text-neutral-100;
+    background-color: var(--color-background);
+    color: var(--color-text-primary);
   }
 
   /* Improved focus styles */
@@ -32,6 +46,16 @@
   .card-modern {
     @apply bg-white rounded-xl shadow-card border border-neutral-200 p-6;
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text-primary);
+  }
+
+  .dark .card-modern,
+  [data-theme="dark"] .card-modern {
+    @apply bg-neutral-800 border-neutral-700;
+    background-color: var(--color-surface);
+    border-color: var(--color-border);
   }
 
   /* Button styles */
@@ -125,6 +149,15 @@
   .navbar-modern {
     @apply bg-white border-b border-neutral-200 shadow-sm;
     transition: background-color 0.3s ease, border-color 0.3s ease;
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+  }
+
+  .dark .navbar-modern,
+  [data-theme="dark"] .navbar-modern {
+    @apply bg-neutral-800 border-neutral-700;
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
   }
 }
 
@@ -140,6 +173,42 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}
+
+/* Sidebar dark mode support */
+.dark .sidebar-fixed,
+[data-theme="dark"] .sidebar-fixed {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.dark .sidebar-fixed .text-neutral-500,
+[data-theme="dark"] .sidebar-fixed .text-neutral-500 {
+  color: var(--color-text-muted);
+}
+
+.dark .sidebar-fixed .text-neutral-700,
+[data-theme="dark"] .sidebar-fixed .text-neutral-700 {
+  color: var(--color-text-primary);
+}
+
+.dark .sidebar-fixed .border-neutral-200,
+[data-theme="dark"] .sidebar-fixed .border-neutral-200 {
+  border-color: var(--color-border);
+}
+
+.dark .sidebar-fixed .bg-white,
+[data-theme="dark"] .sidebar-fixed .bg-white {
+  background-color: var(--color-surface);
+}
+
+.dark .sidebar-fixed .hover\:bg-neutral-100:hover,
+[data-theme="dark"] .sidebar-fixed .hover\:bg-neutral-100:hover {
+  background-color: var(--color-border-light);
 }
 
 /* Sidebar scrollbar styling */
@@ -183,12 +252,97 @@
 
 .content-area {
   margin-top: 56px; /* navbar height */
+  background-color: var(--color-background);
+  min-height: calc(100vh - 56px);
+  transition: background-color 0.3s ease;
 }
 
 @media (min-width: 992px) {
   .content-area {
     margin-left: 240px; /* sidebar width */
   }
+}
+
+/* Bootstrap component dark mode support */
+.dark .card,
+[data-theme="dark"] .card {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dark .card-body,
+[data-theme="dark"] .card-body {
+  color: var(--color-text-primary);
+}
+
+.dark .table,
+[data-theme="dark"] .table {
+  color: var(--color-text-primary);
+}
+
+.dark .table-light,
+[data-theme="dark"] .table-light {
+  background-color: var(--color-border-light);
+  color: var(--color-text-primary);
+}
+
+.dark .table-light th,
+[data-theme="dark"] .table-light th {
+  color: var(--color-text-primary);
+}
+
+.dark .form-control,
+[data-theme="dark"] .form-control {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dark .form-select,
+[data-theme="dark"] .form-select {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dark .modal-content,
+[data-theme="dark"] .modal-content {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.dark .modal-header,
+[data-theme="dark"] .modal-header {
+  border-color: var(--color-border);
+}
+
+.dark .modal-footer,
+[data-theme="dark"] .modal-footer {
+  border-color: var(--color-border);
+}
+
+.dark .offcanvas,
+[data-theme="dark"] .offcanvas {
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.dark .offcanvas-header,
+[data-theme="dark"] .offcanvas-header {
+  border-color: var(--color-border);
+}
+
+.dark .alert,
+[data-theme="dark"] .alert {
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text-primary);
+}
+
+.dark .text-muted,
+[data-theme="dark"] .text-muted {
+  color: var(--color-text-muted) !important;
 }
 
 /* Custom utilities */

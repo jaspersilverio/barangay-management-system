@@ -48,6 +48,7 @@ export default function Officials() {
       const response = await getOfficials(params)
       
       if (response.success) {
+        // Set data immediately - no delays
         const officialsData = response.data.data || []
         setOfficials(officialsData)
       } else {
@@ -57,6 +58,7 @@ export default function Officials() {
       console.error('Error loading officials:', error)
       setError('Failed to load officials')
     } finally {
+      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }
@@ -82,7 +84,17 @@ export default function Officials() {
         setSuccess(selectedOfficial ? 'Official updated successfully' : 'Official created successfully')
         setShowForm(false)
         setSelectedOfficial(null)
+        // Reload officials to get updated data including new photo URLs
         await loadOfficials()
+        // Log the updated official to verify photo_url
+        if (response.data) {
+          console.log('Updated official response:', {
+            id: response.data.id,
+            photo_path: response.data.photo_path,
+            photo_url: response.data.photo_url,
+            updated_at: response.data.updated_at
+          })
+        }
       } else {
         setError(response.message || 'Failed to save official')
       }

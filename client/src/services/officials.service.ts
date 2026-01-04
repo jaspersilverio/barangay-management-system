@@ -102,18 +102,32 @@ export async function createOfficial(data: CreateOfficialData) {
 export async function updateOfficial(id: number, data: Partial<CreateOfficialData>) {
   const formData = new FormData()
   
-  // Add text fields
-  if (data.user_id !== undefined) formData.append('user_id', data.user_id.toString())
-  if (data.name) formData.append('name', data.name)
-  if (data.position) formData.append('position', data.position)
-  if (data.term_start) formData.append('term_start', data.term_start)
-  if (data.term_end) formData.append('term_end', data.term_end)
-  if (data.contact) formData.append('contact', data.contact)
+  // Add text fields - always send required fields
+  if (data.user_id !== undefined && data.user_id !== null) {
+    formData.append('user_id', data.user_id.toString())
+  }
+  // Always send name and position if they exist (required fields)
+  if (data.name !== undefined) formData.append('name', data.name)
+  if (data.position !== undefined) formData.append('position', data.position)
+  if (data.term_start !== undefined) formData.append('term_start', data.term_start || '')
+  if (data.term_end !== undefined) formData.append('term_end', data.term_end || '')
+  if (data.contact !== undefined) formData.append('contact', data.contact || '')
   if (data.active !== undefined) formData.append('active', data.active.toString())
   
-  // Add photo if provided
+  // Add photo if provided (File object)
   if (data.photo) {
-    formData.append('photo', data.photo)
+    if (data.photo instanceof File) {
+      formData.append('photo', data.photo)
+      console.log('Photo included in update:', {
+        name: data.photo.name,
+        size: data.photo.size,
+        type: data.photo.type
+      })
+    } else {
+      console.warn('Photo is not a File object:', typeof data.photo, data.photo)
+    }
+  } else {
+    console.log('No photo provided in update data')
   }
 
   const res = await api.put(`/officials/${id}`, formData, {

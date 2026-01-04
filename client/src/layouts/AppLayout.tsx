@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 import Sidebar from '../components/sidebar/Sidebar'
+import ThemeToggle from '../components/ui/ThemeToggle'
 
 export default function AppLayout() {
   const { user } = useAuth()
@@ -19,7 +20,7 @@ export default function AppLayout() {
 
   return (
     <NotificationProvider>
-      <div className="min-h-screen bg-neutral-50">
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
         {/* Sidebar (fixed) */}
         <Sidebar />
 
@@ -42,6 +43,8 @@ export default function AppLayout() {
             
             <Navbar.Collapse className="justify-content-end">
               <Nav className="align-items-center gap-3">
+                <ThemeToggle />
+                
                 {user && (
                   <div className="d-flex align-items-center gap-2">
                     <div className="bg-primary-100 text-primary-700 rounded-full w-8 h-8 d-flex align-items-center justify-content-center">
