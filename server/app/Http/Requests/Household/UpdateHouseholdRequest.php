@@ -17,7 +17,7 @@ class UpdateHouseholdRequest extends BaseFormRequest
         return [
             'address' => ['sometimes', 'string', 'max:255'],
             'property_type' => ['sometimes', 'string', 'max:255'],
-            'head_name' => ['sometimes', 'string', 'max:255'],
+            'head_resident_id' => ['sometimes', 'integer', 'exists:residents,id'],
             'contact' => ['sometimes', 'string', 'max:255'],
             'purok_id' => ['sometimes', 'integer', 'exists:puroks,id'],
         ];

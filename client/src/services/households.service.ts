@@ -3,7 +3,7 @@ import api from './api'
 export type HouseholdPayload = {
 	address: string
 	property_type: string
-	head_name: string
+	head_resident_id: number // Required - must be an existing resident
 	contact: string
 	purok_id: string | number
 }

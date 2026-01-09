@@ -18,7 +18,7 @@ class StoreHouseholdRequest extends BaseFormRequest
         return [
             'address' => ['required', 'string', 'max:255'],
             'property_type' => ['required', 'string', 'max:255'],
-            'head_name' => ['required', 'string', 'max:255'],
+            'head_resident_id' => ['required', 'integer', 'exists:residents,id'],
             'contact' => ['required', 'string', 'max:255'],
             'purok_id' => $user && $user->role === 'purok_leader'
                 ? ['nullable', 'integer', 'exists:puroks,id']

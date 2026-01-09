@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Modal, Table, Button, Badge, Row, Col, Toast, ToastContainer } from 'react-bootstrap'
+import { Modal, Table, Button, Badge, Row, Col, Toast, ToastContainer, Alert } from 'react-bootstrap'
+import { useNavigate } from 'react-router-dom'
 import { getHouseholdResidents, type Resident } from '../../services/households.service'
-import { createResident, updateResident, deleteResident } from '../../services/residents.service'
-import ResidentFormModal from '../residents/ResidentFormModal'
+import { updateResident, deleteResident, listResidents } from '../../services/residents.service'
 import ConfirmModal from '../modals/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
 import { useDashboard } from '../../context/DashboardContext'
-import { FaCheck, FaEdit, FaTrash, FaPlus } from 'react-icons/fa'
+import { FaCheck, FaEdit, FaTrash, FaPlus, FaUserPlus, FaExternalLinkAlt } from 'react-icons/fa'
+import Select from 'react-select'
 
 interface ViewResidentsModalProps {
   show: boolean
@@ -20,13 +21,17 @@ interface ViewResidentsModalProps {
 }
 
 export default function ViewResidentsModal({ show, onHide, household }: ViewResidentsModalProps) {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { refreshData: refreshDashboard } = useDashboard()
   const [residents, setResidents] = useState<Resident[]>([])
   const [loading, setLoading] = useState(false)
-  const [showResidentForm, setShowResidentForm] = useState(false)
-  const [editingResident, setEditingResident] = useState<Resident | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null)
+  const [showAddResidentModal, setShowAddResidentModal] = useState(false)
+  const [unassignedResidents, setUnassignedResidents] = useState<Resident[]>([])
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false)
+  const [selectedResidentToAdd, setSelectedResidentToAdd] = useState<Resident | null>(null)
+  const [isAddingResident, setIsAddingResident] = useState(false)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ 
     show: false, 
     message: '', 
@@ -56,40 +61,70 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
     }
   }, [show, household.id])
 
-  const handleCreateResident = async (values: any) => {
+  const loadUnassignedResidents = async (search?: string) => {
+    setLoadingUnassigned(true)
     try {
-      const payload = {
-        ...values,
-        household_id: household.id,
+      const response = await listResidents({ 
+        unassigned: true, 
+        search,
+        per_page: 1000 
+      })
+      if (response.success) {
+        const residentsList = response.data.data || response.data
+        const unassigned = Array.isArray(residentsList) 
+          ? residentsList.filter((r: Resident) => !r.household_id)
+          : []
+        setUnassignedResidents(unassigned)
       }
-      await createResident(payload)
-      setToast({ show: true, message: 'Resident created successfully', variant: 'success' })
-      await loadResidents()
-      // Refresh dashboard data to update counts
-      await refreshDashboard()
-      setShowResidentForm(false)
-    } catch (error: any) {
-      setToast({ show: true, message: error?.response?.data?.message || 'Failed to create resident', variant: 'danger' })
+    } catch (error) {
+      console.error('Error loading unassigned residents:', error)
+    } finally {
+      setLoadingUnassigned(false)
     }
   }
 
-  const handleUpdateResident = async (values: any) => {
-    if (!editingResident) return
-    
+  const handleAddExistingResident = async () => {
+    if (!selectedResidentToAdd) return
+
+    setIsAddingResident(true)
     try {
-      const payload = {
-        ...values,
+      // Update the resident to assign them to this household
+      await updateResident(selectedResidentToAdd.id, {
         household_id: household.id,
-      }
-      await updateResident(editingResident.id, payload)
-      setToast({ show: true, message: 'Resident updated successfully', variant: 'success' })
+        relationship_to_head: 'Member', // Default relationship, can be edited later
+      })
+      setToast({ show: true, message: 'Resident added to household successfully', variant: 'success' })
       await loadResidents()
-      // Refresh dashboard data to update counts
       await refreshDashboard()
-      setShowResidentForm(false)
-      setEditingResident(null)
+      setShowAddResidentModal(false)
+      setSelectedResidentToAdd(null)
     } catch (error: any) {
-      setToast({ show: true, message: error?.response?.data?.message || 'Failed to update resident', variant: 'danger' })
+      setToast({ 
+        show: true, 
+        message: error?.response?.data?.message || 'Failed to add resident to household', 
+        variant: 'danger' 
+      })
+    } finally {
+      setIsAddingResident(false)
+    }
+  }
+
+  const handleRemoveResident = async (residentId: number) => {
+    try {
+      // Remove resident from household by setting household_id to null
+      await updateResident(residentId, {
+        household_id: null,
+        relationship_to_head: null,
+      })
+      setToast({ show: true, message: 'Resident removed from household successfully', variant: 'success' })
+      await loadResidents()
+      await refreshDashboard()
+    } catch (error: any) {
+      setToast({ 
+        show: true, 
+        message: error?.response?.data?.message || 'Failed to remove resident from household', 
+        variant: 'danger' 
+      })
     }
   }
 
@@ -100,7 +135,6 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
       await deleteResident(showDeleteConfirm)
       setToast({ show: true, message: 'Resident deleted successfully', variant: 'success' })
       await loadResidents()
-      // Refresh dashboard data to update counts
       await refreshDashboard()
       setShowDeleteConfirm(null)
     } catch (error: any) {
@@ -108,14 +142,9 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
     }
   }
 
-  const handleEditResident = (resident: Resident) => {
-    setEditingResident(resident)
-    setShowResidentForm(true)
-  }
-
-  const handleAddResident = () => {
-    setEditingResident(null)
-    setShowResidentForm(true)
+  const handleOpenAddResidentModal = () => {
+    setShowAddResidentModal(true)
+    loadUnassignedResidents()
   }
 
   return (
@@ -138,15 +167,27 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
             </Col>
             <Col className="text-end">
               {canManage && (
-                <Button 
-                  variant="primary" 
-                  size="sm" 
-                  onClick={handleAddResident}
-                  className="btn-brand-primary"
-                >
-                  <FaPlus className="me-1" />
-                  Add Resident
-                </Button>
+                <>
+                  <Button 
+                    variant="primary" 
+                    size="sm" 
+                    onClick={handleOpenAddResidentModal}
+                    className="btn-brand-primary me-2"
+                  >
+                    <FaPlus className="me-1" />
+                    Add Existing Resident
+                  </Button>
+                  <Button 
+                    variant="outline-primary" 
+                    size="sm" 
+                    onClick={() => navigate('/residents/register')}
+                    className="btn-brand-outline"
+                  >
+                    <FaUserPlus className="me-1" />
+                    Create New Resident
+                    <FaExternalLinkAlt className="ms-1" style={{ fontSize: '0.7rem' }} />
+                  </Button>
+                </>
               )}
             </Col>
           </Row>
@@ -160,12 +201,32 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
             </div>
           ) : residents.length === 0 ? (
             <div className="text-center py-4">
-              <p className="text-muted">No residents yet</p>
+              <p className="text-muted mb-3">No residents in this household yet</p>
               {canManage && (
-                <Button variant="outline-primary" onClick={handleAddResident}>
-                  <FaPlus className="me-1" />
-                  Add First Resident
-                </Button>
+                <>
+                  <Alert variant="info" className="text-start">
+                    <strong>Note:</strong> All persons must be registered as residents first before they can be added to a household.
+                    <br />
+                    <Button 
+                      variant="link" 
+                      className="p-0 mt-2" 
+                      onClick={() => navigate('/residents/register')}
+                    >
+                      Go to Resident Registration <FaExternalLinkAlt className="ms-1" style={{ fontSize: '0.7rem' }} />
+                    </Button>
+                  </Alert>
+                  <div className="mt-3">
+                    <Button variant="outline-primary" onClick={handleOpenAddResidentModal} className="me-2">
+                      <FaPlus className="me-1" />
+                      Add Existing Resident
+                    </Button>
+                    <Button variant="primary" onClick={() => navigate('/residents/register')}>
+                      <FaUserPlus className="me-1" />
+                      Create New Resident
+                      <FaExternalLinkAlt className="ms-1" style={{ fontSize: '0.7rem' }} />
+                    </Button>
+                  </div>
+                </>
               )}
             </div>
           ) : (
@@ -176,18 +237,28 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
                     <th>Full Name</th>
                     <th>Sex</th>
                     <th>Age</th>
+                    <th>Relationship to Head</th>
                     <th>Occupation Status</th>
                     <th>PWD</th>
-                    {canManage && <th style={{ width: 120 }}>Actions</th>}
+                    {canManage && <th style={{ width: 150 }}>Actions</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {residents.map((resident) => (
                     <tr key={resident.id}>
-                      <td>{resident.full_name}</td>
-                      <td>{resident.sex}</td>
+                      <td>
+                        <Button
+                          variant="link"
+                          className="p-0 text-start text-decoration-none"
+                          onClick={() => navigate(`/residents/${resident.id}`)}
+                        >
+                          {resident.full_name}
+                        </Button>
+                      </td>
+                      <td className="text-capitalize">{resident.sex}</td>
                       <td>{resident.age || '-'}</td>
-                      <td>{resident.occupation_status}</td>
+                      <td>{resident.relationship_to_head || '-'}</td>
+                      <td className="text-capitalize">{resident.occupation_status}</td>
                       <td className="text-center">
                         {resident.is_pwd && <FaCheck className="text-success" />}
                       </td>
@@ -197,14 +268,24 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
                             <Button
                               size="sm"
                               variant="outline-primary"
-                              onClick={() => handleEditResident(resident)}
+                              onClick={() => navigate(`/residents/${resident.id}`)}
+                              title="View/Edit Resident"
                             >
                               <FaEdit />
                             </Button>
                             <Button
                               size="sm"
+                              variant="outline-warning"
+                              onClick={() => handleRemoveResident(resident.id)}
+                              title="Remove from Household"
+                            >
+                              Remove
+                            </Button>
+                            <Button
+                              size="sm"
                               variant="outline-danger"
                               onClick={() => setShowDeleteConfirm(resident.id)}
+                              title="Delete Resident"
                             >
                               <FaTrash />
                             </Button>
@@ -220,26 +301,90 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
         </Modal.Body>
       </Modal>
 
-      {/* Resident Form Modal */}
-      <ResidentFormModal
-        show={showResidentForm}
-        initial={editingResident ? {
-          household_id: household.id,
-          first_name: editingResident.first_name,
-          middle_name: editingResident.middle_name || '',
-          last_name: editingResident.last_name,
-          sex: editingResident.sex as any,
-          birthdate: editingResident.birthdate || '',
-          relationship_to_head: editingResident.relationship_to_head,
-          occupation_status: editingResident.occupation_status as any,
-          is_pwd: editingResident.is_pwd,
-        } : undefined}
-        onSubmit={editingResident ? handleUpdateResident : handleCreateResident}
-        onHide={() => {
-          setShowResidentForm(false)
-          setEditingResident(null)
-        }}
-      />
+      {/* Add Existing Resident Modal */}
+      <Modal show={showAddResidentModal} onHide={() => {
+        setShowAddResidentModal(false)
+        setSelectedResidentToAdd(null)
+      }} centered>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
+            Add Existing Resident to Household
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Alert variant="info" className="mb-3">
+            <strong>Resident-First Architecture:</strong> Only existing residents can be added to households. 
+            To create a new person, go to the <strong>Residents</strong> module first.
+          </Alert>
+          
+          <div className="mb-3">
+            <label className="form-label">Select Unassigned Resident</label>
+            <Select
+              value={selectedResidentToAdd ? {
+                value: selectedResidentToAdd.id,
+                label: selectedResidentToAdd.full_name
+              } : null}
+              onChange={(option) => {
+                if (option) {
+                  const resident = unassignedResidents.find(r => r.id === option.value)
+                  setSelectedResidentToAdd(resident || null)
+                } else {
+                  setSelectedResidentToAdd(null)
+                }
+              }}
+              options={unassignedResidents.map(r => ({
+                value: r.id,
+                label: `${r.full_name} (Age: ${r.age || 'N/A'})`
+              }))}
+              placeholder="Search for an unassigned resident..."
+              isLoading={loadingUnassigned}
+              isClearable
+              isSearchable
+              onInputChange={(newValue) => {
+                if (newValue.length >= 2) {
+                  loadUnassignedResidents(newValue)
+                } else if (newValue.length === 0) {
+                  loadUnassignedResidents()
+                }
+              }}
+            />
+            {unassignedResidents.length === 0 && !loadingUnassigned && (
+              <div className="text-muted mt-2">
+                <small>No unassigned residents found. 
+                  <Button 
+                    variant="link" 
+                    className="p-0 ms-1" 
+                    onClick={() => {
+                      setShowAddResidentModal(false)
+                      navigate('/residents/register')
+                    }}
+                  >
+                    Create a new resident first
+                  </Button>
+                </small>
+              </div>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => {
+              setShowAddResidentModal(false)
+              setSelectedResidentToAdd(null)
+            }}
+          >
+            Cancel
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={handleAddExistingResident}
+            disabled={!selectedResidentToAdd || isAddingResident}
+          >
+            {isAddingResident ? 'Adding...' : 'Add to Household'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal

@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { 
   Users, 
   Home, 
@@ -8,6 +9,37 @@ import {
 } from 'lucide-react'
 
 export default function QuickActions() {
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Simulate a brief loading state for consistency with other dashboard components
+    const timer = setTimeout(() => {
+      setLoading(false)
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Quick Actions</h5>
+        <div className="grid grid-cols-2 gap-3">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="skeleton-card" style={{ height: '80px' }}>
+              <div className="d-flex align-items-center gap-3 p-4">
+                <div className="skeleton-circle" style={{ width: '40px', height: '40px' }}></div>
+                <div className="flex-1">
+                  <div className="skeleton-line" style={{ width: '70%', height: '16px', marginBottom: '8px' }}></div>
+                  <div className="skeleton-line" style={{ width: '50%', height: '12px' }}></div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
   const actions = [
     {
       title: 'Add Resident',

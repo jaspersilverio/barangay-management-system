@@ -54,13 +54,18 @@ export default function BlotterTrendChart() {
 
   if (loading) {
     return (
-      <div className="skeleton-card" style={{ height: '400px' }}>
-        <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
-        <div className="skeleton-line" style={{ width: '100%', height: '250px', marginBottom: '20px' }}></div>
-        <div className="d-flex justify-content-between">
-          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
-          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
-          <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+      <div className="card-modern p-4">
+        <h5 className="h5 font-bold text-brand-primary mb-4">Monthly Blotter Cases Trend</h5>
+        <div className="w-full h-80 flex items-center justify-center">
+          <div className="skeleton-card" style={{ height: '320px', width: '100%' }}>
+            <div className="skeleton-line" style={{ width: '60%', height: '20px', marginBottom: '20px' }}></div>
+            <div className="skeleton-line" style={{ width: '100%', height: '250px', marginBottom: '20px' }}></div>
+            <div className="d-flex justify-content-between">
+              <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+              <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+              <div className="skeleton-badge" style={{ width: '80px', height: '20px' }}></div>
+            </div>
+          </div>
         </div>
       </div>
     )

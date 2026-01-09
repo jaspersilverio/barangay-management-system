@@ -50,14 +50,9 @@ export const sidebarMenu: MenuItem[] = [
     icon: Home,
     children: [
       {
-        label: 'Register Household',
-        to: '/households/register',
-        icon: UserPlus,
-      },
-      {
-        label: 'Register Resident',
-        to: '/residents/register',
-        icon: Users,
+        label: 'Household',
+        to: '/households',
+        icon: Home,
       },
       {
         label: 'Sketch Map',

@@ -4,13 +4,14 @@ import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
 import ViewResidentsModal from '../../components/households/ViewResidentsModal'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import { useDashboard } from '../../context/DashboardContext'
 
 const HouseholdListPage = React.memo(() => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { puroks } = usePuroks()
   const { user } = useAuth()
   const { refreshData: refreshDashboard } = useDashboard()
@@ -78,6 +79,39 @@ const HouseholdListPage = React.memo(() => {
   useEffect(() => {
     loadHouseholds()
   }, [loadHouseholds])
+
+  // Refresh data when navigating to this page (location change)
+  useEffect(() => {
+    // Refresh when the location pathname changes to this page
+    if (location.pathname === '/households') {
+      loadHouseholds()
+    }
+  }, [location.pathname, loadHouseholds])
+
+  // Refresh data when page becomes visible (e.g., user navigates back to this page)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && location.pathname === '/households') {
+        // Page became visible, refresh the data
+        loadHouseholds()
+      }
+    }
+
+    const handleFocus = () => {
+      // Window gained focus, refresh the data if we're on this page
+      if (location.pathname === '/households') {
+        loadHouseholds()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+    }
+  }, [loadHouseholds, location.pathname])
 
   const items = useMemo(() => {
     if (!householdsData?.data?.data) return []
@@ -167,18 +201,6 @@ const HouseholdListPage = React.memo(() => {
           <p className="text-brand-muted mb-0">Manage household information and records</p>
         </div>
         <div className="page-actions">
-          {canManage && (
-            <Button 
-              variant="primary" 
-              size="lg"
-              onClick={handleShowForm} 
-              disabled={isLoading}
-              className="btn-brand-primary"
-            >
-              <i className="fas fa-plus me-2"></i>
-              Add Household
-            </Button>
-          )}
         </div>
       </div>
 
@@ -470,7 +492,7 @@ const HouseholdListPage = React.memo(() => {
           return {
             address: hh.address,
             property_type: hh.property_type || '',
-            head_name: hh.head_name,
+            head_resident_id: hh.head_resident_id || hh.head_resident?.id || '',
             contact: hh.contact || '',
             purok_id: hh.purok_id ? String(hh.purok_id) : '',
           }
@@ -481,6 +503,7 @@ const HouseholdListPage = React.memo(() => {
             const payload = {
               address: values.address,
               property_type: values.property_type,
+              head_resident_id: typeof values.head_resident_id === 'string' ? parseInt(values.head_resident_id) : values.head_resident_id,
               head_name: values.head_name,
               contact: values.contact,
               purok_id: values.purok_id || '', // Convert undefined to empty string

@@ -1,16 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal, Button, Form } from 'react-bootstrap'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
+import { listResidents } from '../../services/residents.service'
+import type { Resident } from '../../types'
 
 // Dynamic schema based on user role
 const createSchema = (isPurokLeader: boolean) => z.object({
   address: z.string().min(1, 'Address is required'),
   property_type: z.string().min(1, 'Property type is required'),
-  head_name: z.string().min(1, 'Head of household is required'),
+  head_resident_id: z.union([z.string().min(1, 'Head resident is required'), z.number().min(1, 'Head resident is required')]),
   contact: z.string().min(1, 'Contact is required'),
   purok_id: isPurokLeader 
     ? z.string().optional() // Optional for purok leaders (auto-assigned)
@@ -29,22 +31,69 @@ type Props = {
 export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: Props) {
   const { puroks } = usePuroks()
   const { user } = useAuth()
+  const [residents, setResidents] = useState<Resident[]>([])
+  const [loadingResidents, setLoadingResidents] = useState(false)
+  const [residentSearchTerm, setResidentSearchTerm] = useState('')
+  const [selectedResident, setSelectedResident] = useState<Resident | null>(null)
 
   // Determine if user is a purok leader
   const isPurokLeader = user?.role === 'purok_leader'
   const assignedPurokId = user?.assigned_purok_id
 
   const schema = createSchema(isPurokLeader)
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<HouseholdFormValues>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue, watch } = useForm<HouseholdFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       address: '',
       property_type: '',
-      head_name: '',
+      head_resident_id: '',
       contact: '',
       purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
       ...initial,
     },
+  })
+
+  // Load residents for head selection
+  useEffect(() => {
+    if (show) {
+      loadResidents()
+      if (initial?.head_resident_id) {
+        // If editing, find and set the selected resident
+        const residentId = typeof initial.head_resident_id === 'string' ? parseInt(initial.head_resident_id) : initial.head_resident_id
+        loadResidents().then(() => {
+          const resident = residents.find(r => r.id === residentId)
+          if (resident) {
+            setSelectedResident(resident)
+            setResidentSearchTerm(resident.full_name || `${resident.first_name} ${resident.last_name}`)
+          }
+        })
+      }
+    } else {
+      setResidents([])
+      setResidentSearchTerm('')
+      setSelectedResident(null)
+    }
+  }, [show, initial])
+
+  const loadResidents = async () => {
+    setLoadingResidents(true)
+    try {
+      const response = await listResidents({ per_page: 1000 })
+      if (response.success) {
+        const residentsList = response.data.data || response.data
+        setResidents(Array.isArray(residentsList) ? residentsList : [])
+      }
+    } catch (error) {
+      console.error('Error loading residents:', error)
+    } finally {
+      setLoadingResidents(false)
+    }
+  }
+
+  const filteredResidents = residents.filter(resident => {
+    if (!residentSearchTerm.trim()) return true
+    const fullName = `${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.toLowerCase()
+    return fullName.includes(residentSearchTerm.toLowerCase())
   })
 
   useEffect(() => { 
@@ -125,14 +174,63 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
           </Form.Group>
           
           <Form.Group className="modal-form-group">
-            <Form.Label className="modal-form-label">Head of Household</Form.Label>
-            <Form.Control 
-              placeholder="Enter head of household name" 
-              {...register('head_name')} 
-              isInvalid={!!errors.head_name}
-              className="modal-form-control"
-            />
-            <Form.Control.Feedback type="invalid">{errors.head_name?.message}</Form.Control.Feedback>
+            <Form.Label className="modal-form-label">Head of Household (Select Existing Resident) *</Form.Label>
+            <div className="position-relative">
+              <Form.Control
+                type="text"
+                placeholder="Search for a resident..."
+                value={residentSearchTerm}
+                onChange={(e) => {
+                  setResidentSearchTerm(e.target.value)
+                  if (selectedResident) {
+                    setSelectedResident(null)
+                    setValue('head_resident_id', '')
+                  }
+                }}
+                onFocus={() => {
+                  if (!residentSearchTerm && residents.length === 0) {
+                    loadResidents()
+                  }
+                }}
+                isInvalid={!!errors.head_resident_id}
+                className="modal-form-control"
+              />
+              {residentSearchTerm && filteredResidents.length > 0 && !selectedResident && (
+                <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                  {filteredResidents.map((resident) => (
+                    <div
+                      key={resident.id}
+                      className="px-3 py-2 cursor-pointer"
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                      onClick={() => {
+                        setSelectedResident(resident)
+                        setResidentSearchTerm(resident.full_name || `${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.trim())
+                        setValue('head_resident_id', resident.id)
+                      }}
+                    >
+                      <div className="fw-medium">{resident.full_name || `${resident.first_name} ${resident.last_name}`}</div>
+                      {resident.household && (
+                        <small className="text-muted">
+                          {resident.household.address} • {resident.relationship_to_head || 'Unassigned'}
+                        </small>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <input type="hidden" {...register('head_resident_id')} />
+            </div>
+            {selectedResident && (
+              <Form.Text className="text-success d-block mt-1">
+                Selected: {selectedResident.full_name || `${selectedResident.first_name} ${selectedResident.last_name}`}
+              </Form.Text>
+            )}
+            <Form.Control.Feedback type="invalid">{errors.head_resident_id?.message}</Form.Control.Feedback>
+            <Form.Text className="text-muted">
+              The head must be an existing resident. Create the resident first if they don't exist.
+            </Form.Text>
           </Form.Group>
           
           <Form.Group className="modal-form-group">

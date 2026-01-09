@@ -18,7 +18,8 @@ class Household extends Model
     protected $fillable = [
         'address',
         'property_type',
-        'head_name',
+        'head_name', // Keep for backward compatibility during migration
+        'head_resident_id', // New: Reference to resident who is the head
         'contact',
         'purok_id',
     ];
@@ -44,6 +45,14 @@ class Household extends Model
     }
 
     /**
+     * @return BelongsTo<Resident>
+     */
+    public function headResident(): BelongsTo
+    {
+        return $this->belongsTo(Resident::class, 'head_resident_id');
+    }
+
+    /**
      * @return HasMany<Resident>
      */
     public function residents(): HasMany
@@ -52,7 +61,7 @@ class Household extends Model
     }
 
     /**
-     * Scope search by address, head_name, or contact.
+     * Scope search by address, head_name, head resident name, or contact.
      */
     public function scopeSearch($query, string $term)
     {
@@ -60,7 +69,12 @@ class Household extends Model
         return $query->where(function ($q) use ($like) {
             $q->where('address', 'like', $like)
                 ->orWhere('head_name', 'like', $like)
-                ->orWhere('contact', 'like', $like);
+                ->orWhere('contact', 'like', $like)
+                ->orWhereHas('headResident', function ($residentQuery) use ($like) {
+                    $residentQuery->where('first_name', 'like', $like)
+                        ->orWhere('middle_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like);
+                });
         });
     }
 
