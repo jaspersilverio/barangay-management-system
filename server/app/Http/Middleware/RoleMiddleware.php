@@ -41,6 +41,18 @@ class RoleMiddleware
                         break 2;
                     }
                     break;
+                case 'captain':
+                    if ($user->isCaptain()) {
+                        $hasRole = true;
+                        break 2;
+                    }
+                    break;
+                case 'staff':
+                    if ($user->isStaff()) {
+                        $hasRole = true;
+                        break 2;
+                    }
+                    break;
             }
         }
 

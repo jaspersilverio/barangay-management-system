@@ -5,10 +5,13 @@ namespace App\Http\Controllers;
 use App\Http\Requests\IncidentReport\StoreIncidentReportRequest;
 use App\Http\Requests\IncidentReport\UpdateIncidentReportRequest;
 use App\Models\IncidentReport;
+use App\Models\User;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class IncidentReportController extends Controller
 {
@@ -21,7 +24,9 @@ class IncidentReportController extends Controller
             $query = IncidentReport::withoutTrashed()->with([
                 'reportingOfficer:id,name',
                 'creator:id,name',
-                'updater:id,name'
+                'updater:id,name',
+                'approver:id,name',
+                'rejector:id,name'
             ]);
 
             // Apply filters
@@ -67,6 +72,15 @@ class IncidentReportController extends Controller
             $data = $request->validated();
             $data['created_by'] = Auth::id();
 
+            // If created by staff, set status to pending for approval
+            $user = Auth::user();
+            if ($user && $user->isStaff()) {
+                $data['status'] = 'pending';
+            } else {
+                // Admin/purok_leader can set status directly (default to 'Recorded' if not set)
+                $data['status'] = $data['status'] ?? 'Recorded';
+            }
+
             // Convert persons_involved string to JSON array if provided
             if (isset($data['persons_involved']) && is_string($data['persons_involved'])) {
                 // If it's a JSON string, decode it; otherwise, create an array
@@ -79,6 +93,16 @@ class IncidentReportController extends Controller
                 'reportingOfficer:id,name',
                 'creator:id,name'
             ]);
+
+            // If created by staff (pending status), notify captain for approval
+            if ($incidentReport->status === 'pending') {
+                NotificationController::notifyCaptainForApproval(
+                    'incident',
+                    $incidentReport->incident_title,
+                    $incidentReport->id,
+                    $incidentReport->created_by
+                );
+            }
 
             Log::info('Incident report created', ['id' => $incidentReport->id, 'title' => $incidentReport->incident_title]);
 
@@ -159,6 +183,150 @@ class IncidentReportController extends Controller
                 'message' => 'Failed to update incident report'
             ], 500);
         }
+    }
+
+    /**
+     * Approve an incident report (captain only)
+     */
+    public function approve(Request $request, IncidentReport $incidentReport): JsonResponse
+    {
+        // Authorization: Only captain or admin can approve
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can approve incident reports'
+            ], 403);
+        }
+
+        if (!$incidentReport->canBeApproved()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incident report cannot be approved'
+            ], 400);
+        }
+
+        // Get the captain user (if current user is captain, use them; otherwise find captain user)
+        $captainUser = $user->isCaptain() ? $user : User::where('role', 'captain')->first();
+        
+        if (!$captainUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Barangay Captain found in the system'
+            ], 400);
+        }
+
+        // Check if captain has a signature uploaded (mandatory for approval)
+        if (!$captainUser->signature_path) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Barangay Captain signature is not set. Please upload signature first before approving any requests.'
+            ], 400);
+        }
+
+        // Approve the incident report
+        $incidentReport->approve($user);
+        
+        // Move to 'Recorded' status after approval (becomes official record)
+        $incidentReport->status = 'Recorded';
+        $incidentReport->save();
+
+        // Reload relationships
+        $incidentReport->load([
+            'reportingOfficer:id,name',
+            'creator:id,name',
+            'approver:id,name'
+        ]);
+
+        // Notify the creator (staff) that their request was approved
+        if ($incidentReport->created_by) {
+            NotificationController::createUserNotification(
+                $incidentReport->created_by,
+                'Incident Report Approved',
+                "Your incident report '{$incidentReport->incident_title}' has been approved by the Barangay Captain.",
+                'incident_approved'
+            );
+        }
+
+        // Create system notification
+        NotificationController::createSystemNotification(
+            'Incident Report Approved',
+            "Incident report '{$incidentReport->incident_title}' has been approved and is now an official record.",
+            'incident_approved'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Incident report approved successfully',
+            'data' => $incidentReport
+        ]);
+    }
+
+    /**
+     * Reject an incident report (captain only)
+     */
+    public function reject(Request $request, IncidentReport $incidentReport): JsonResponse
+    {
+        // Authorization: Only captain or admin can reject
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can reject incident reports'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'remarks' => 'required|string|max:500'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        if (!$incidentReport->canBeRejected()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incident report cannot be rejected'
+            ], 400);
+        }
+
+        // Reject the incident report
+        $incidentReport->reject($user, $request->remarks);
+        
+        // Reload relationships
+        $incidentReport->load([
+            'reportingOfficer:id,name',
+            'creator:id,name',
+            'rejector:id,name'
+        ]);
+
+        // Notify the creator (staff) that their request was rejected
+        if ($incidentReport->created_by) {
+            NotificationController::createUserNotification(
+                $incidentReport->created_by,
+                'Incident Report Rejected',
+                "Your incident report '{$incidentReport->incident_title}' has been rejected. Reason: {$request->remarks}",
+                'incident_rejected'
+            );
+        }
+
+        // Create system notification
+        NotificationController::createSystemNotification(
+            'Incident Report Rejected',
+            "Incident report '{$incidentReport->incident_title}' has been rejected. Reason: {$request->remarks}",
+            'incident_rejected'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Incident report rejected successfully',
+            'data' => $incidentReport
+        ]);
     }
 
     /**

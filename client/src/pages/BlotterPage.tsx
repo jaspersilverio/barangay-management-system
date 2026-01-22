@@ -6,7 +6,8 @@ import {
   FileText,
   Calendar,
   MapPin,
-  CheckCircle
+  CheckCircle,
+  Download
 } from 'lucide-react';
 import { type Blotter, type BlotterFilters } from '../services/blotter.service';
 import blotterService from '../services/blotter.service';
@@ -15,6 +16,8 @@ import EditBlotterModal from '../components/blotter/EditBlotterModal';
 import ViewBlotterModal from '../components/blotter/ViewBlotterModal';
 import DeleteConfirmModal from '../components/blotter/DeleteConfirmModal';
 import { Button, Alert } from 'react-bootstrap';
+import { exportBlottersToPdf } from '../services/pdf.service';
+import api from '../services/api';
 
 const BlotterPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -26,6 +29,13 @@ const BlotterPage: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBlotter, setDeleteBlotter] = useState<Blotter | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   
   // Filters and pagination
   const [filters, setFilters] = useState<BlotterFilters>({
@@ -52,6 +62,16 @@ const BlotterPage: React.FC = () => {
     this_month: 0,
     this_year: 0
   });
+
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput);
+      setFilters(prev => ({ ...prev, search: searchInput, page: 1 }));
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchInput]);
 
   // Load blotters
   const loadBlotters = async () => {
@@ -90,7 +110,7 @@ const BlotterPage: React.FC = () => {
       loadBlotters();
       loadStatistics();
     }
-  }, [isAuthenticated, filters]);
+  }, [isAuthenticated, debouncedSearch, filters.status, filters.start_date, filters.end_date, filters.per_page, filters.page]);
 
   const handleFilterChange = (key: keyof BlotterFilters, value: string | number) => {
     setFilters(prev => ({
@@ -150,6 +170,55 @@ const BlotterPage: React.FC = () => {
     loadBlotters();
     loadStatistics();
   };
+
+  const handleExport = async (type: 'pdf' | 'excel') => {
+    try {
+      setExporting(true)
+      setExportType(type)
+      setError(null)
+
+      if (type === 'pdf') {
+        // Build query parameters for PDF export
+        const params: any = {}
+        if (filters.status) params.status = filters.status
+        if (filters.start_date) params.start_date = filters.start_date
+        if (filters.end_date) params.end_date = filters.end_date
+        if (debouncedSearch) params.search = debouncedSearch
+
+        await exportBlottersToPdf(params)
+      } else {
+        // Excel export
+        const params = new URLSearchParams()
+        if (filters.status) params.append('status', filters.status)
+        if (filters.start_date) params.append('start_date', filters.start_date)
+        if (filters.end_date) params.append('end_date', filters.end_date)
+        if (debouncedSearch) params.append('search', debouncedSearch)
+
+        const response = await api.get(`/excel/export/blotters?${params.toString()}`, {
+          responseType: 'blob',
+        })
+
+        // Create blob URL and trigger download
+        const blob = new Blob([response.data], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `blotter-records-${new Date().toISOString().split('T')[0]}.xlsx`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }
+    } catch (err: any) {
+      console.error('Export error:', err)
+      setError(err?.response?.data?.message || `Failed to export ${type.toUpperCase()}`)
+    } finally {
+      setExporting(false)
+      setExportType(null)
+    }
+  }
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
@@ -312,8 +381,8 @@ const BlotterPage: React.FC = () => {
                   type="text"
                   className="form-control"
                   placeholder="Case number, location, or names..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
             </div>
@@ -361,14 +430,43 @@ const BlotterPage: React.FC = () => {
                 <option value={50}>50</option>
               </select>
             </div>
-            <div className="col-md-1 d-flex align-items-end">
+            <div className="col-md-2 d-flex align-items-end gap-2">
               <Button variant="outline-secondary" onClick={loadBlotters}>
                 <RefreshCw size={16} />
               </Button>
             </div>
           </div>
+          <div className="row g-3 mt-2">
+            <div className="col-md-12 d-flex justify-content-end">
+              <div className="btn-group">
+                <Button
+                  variant="outline-primary"
+                  onClick={() => handleExport('pdf')}
+                  disabled={exporting}
+                >
+                  <Download size={16} className="me-2" />
+                  {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+                </Button>
+                <Button
+                  variant="outline-success"
+                  onClick={() => handleExport('excel')}
+                  disabled={exporting}
+                >
+                  <Download size={16} className="me-2" />
+                  {exporting && exportType === 'excel' ? 'Exporting Excel...' : 'Export Excel'}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Error Alert */}
+      {error && (
+        <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {/* Blotter Table */}
       <div className="card">

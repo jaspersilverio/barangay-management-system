@@ -20,7 +20,20 @@ export interface Blotter {
   incident_time: string;
   incident_location: string;
   description: string;
-  status: 'Open' | 'Ongoing' | 'Resolved';
+  status: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
+  approved_by?: number;
+  rejected_by?: number;
+  approved_at?: string;
+  rejected_at?: string;
+  rejection_remarks?: string;
+  approver?: {
+    id: number;
+    name: string;
+  };
+  rejector?: {
+    id: number;
+    name: string;
+  };
   resolution?: string;
   attachments?: Array<{
     filename: string;
@@ -92,7 +105,7 @@ export interface CreateBlotterData {
   incident_time: string;
   incident_location: string;
   description: string;
-  status?: 'Open' | 'Ongoing' | 'Resolved';
+  status?: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
   resolution?: string;
   attachments?: File[];
 }
@@ -120,7 +133,7 @@ export interface UpdateBlotterData {
   incident_time?: string;
   incident_location?: string;
   description?: string;
-  status?: 'Open' | 'Ongoing' | 'Resolved';
+  status?: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
   resolution?: string;
   attachments?: File[];
 }
@@ -307,6 +320,18 @@ export const blotterService = {
   // Get statistics
   async getStatistics(): Promise<BlotterStatistics> {
     const response = await api.get('/blotters/statistics');
+    return response.data.data;
+  },
+
+  // Approve blotter (captain only)
+  async approveBlotter(id: number): Promise<Blotter> {
+    const response = await api.post(`/blotters/${id}/approve`);
+    return response.data.data;
+  },
+
+  // Reject blotter (captain only)
+  async rejectBlotter(id: number, remarks: string): Promise<Blotter> {
+    const response = await api.post(`/blotters/${id}/reject`, { remarks });
     return response.data.data;
   },
 

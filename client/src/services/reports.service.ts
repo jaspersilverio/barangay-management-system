@@ -73,10 +73,11 @@ export type ReportFilters = {
   sex?: string
   vulnerabilities?: string
   per_page?: number
+  search?: string
 }
 
 export type ExportRequest = {
-  type: 'pdf' | 'excel'
+  type: 'pdf'
   reportType: 'households' | 'residents' | 'puroks'
   filters?: ReportFilters
 }
@@ -112,7 +113,124 @@ export async function getPuroksReport() {
   return res.data as { success: boolean; data: PurokReport[]; message: string | null; errors: any }
 }
 
-export async function exportReport(exportRequest: ExportRequest) {
-  const res = await api.post('/reports/export', exportRequest)
-  return res.data as { success: boolean; data: any; message: string | null; errors: any }
+export async function exportResidentsCsv(filters: ReportFilters = {}) {
+  const params = new URLSearchParams()
+  
+  if (filters.date_from) params.append('date_from', filters.date_from)
+  if (filters.date_to) params.append('date_to', filters.date_to)
+  if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
+  if (filters.sex) params.append('sex', filters.sex)
+  if (filters.vulnerabilities) params.append('vulnerabilities', filters.vulnerabilities)
+  if (filters.search) params.append('search', filters.search)
+
+  const res = await api.get(`/reports/residents/export/csv?${params.toString()}`, {
+    responseType: 'blob',
+  })
+  
+  // Handle blob response (file download)
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], { 
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `residents_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+  
+  throw new Error('Failed to download CSV export')
+}
+
+export async function exportPuroksCsv() {
+  const res = await api.get('/reports/puroks/export/csv', {
+    responseType: 'blob',
+  })
+  
+  // Handle blob response (file download)
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], { 
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `puroks_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+  
+  throw new Error('Failed to download CSV export')
+}
+
+export async function exportSoloParentsCsv(filters: { search?: string; purok_id?: string; status?: string } = {}) {
+  const params = new URLSearchParams()
+  
+  if (filters.search) params.append('search', filters.search)
+  if (filters.purok_id) params.append('purok_id', filters.purok_id)
+  if (filters.status) params.append('status', filters.status)
+
+  const res = await api.get(`/reports/solo-parents/export/csv?${params.toString()}`, {
+    responseType: 'blob',
+  })
+  
+  // Handle blob response (file download)
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], { 
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `solo_parents_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+  
+  throw new Error('Failed to download CSV export')
+}
+
+export async function exportHouseholdsCsv(filters: ReportFilters = {}) {
+  const params = new URLSearchParams()
+  
+  if (filters.date_from) params.append('date_from', filters.date_from)
+  if (filters.date_to) params.append('date_to', filters.date_to)
+  if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
+  if (filters.search) params.append('search', filters.search)
+
+  const res = await api.get(`/reports/households/export/csv?${params.toString()}`, {
+    responseType: 'blob',
+  })
+  
+  // Handle blob response (file download)
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], { 
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `household_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+  
+  throw new Error('Failed to download CSV export')
 }

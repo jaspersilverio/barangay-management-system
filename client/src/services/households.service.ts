@@ -43,6 +43,7 @@ export type Resident = {
 	relationship_to_head: string
 	occupation_status: string
 	is_pwd: boolean
+	household_id?: number | null
 }
 
 export async function listHouseholds(params: { search?: string; purok_id?: number | string; page?: number; per_page?: number }) {

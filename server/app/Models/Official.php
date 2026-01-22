@@ -14,10 +14,20 @@ class Official extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'category',
+        'first_name',
+        'middle_name',
+        'last_name',
+        'suffix',
+        'sex',
+        'birthdate',
         'position',
         'term_start',
         'term_end',
         'contact',
+        'email',
+        'address',
+        'purok_id',
         'photo_path',
         'active',
     ];
@@ -25,6 +35,7 @@ class Official extends Model
     protected $casts = [
         'term_start' => 'date',
         'term_end' => 'date',
+        'birthdate' => 'date',
         'active' => 'boolean',
     ];
 
@@ -37,11 +48,27 @@ class Official extends Model
     }
 
     /**
+     * Get the purok associated with this official.
+     */
+    public function purok(): BelongsTo
+    {
+        return $this->belongsTo(Purok::class);
+    }
+
+    /**
      * Scope to get only active officials.
      */
     public function scopeActive($query)
     {
         return $query->where('active', true);
+    }
+
+    /**
+     * Scope to filter by category.
+     */
+    public function scopeByCategory($query, $category)
+    {
+        return $query->where('category', $category);
     }
 
     /**

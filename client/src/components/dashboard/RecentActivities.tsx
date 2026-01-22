@@ -100,15 +100,25 @@ export default function RecentActivities() {
         <h5 className="mb-4 font-semibold text-brand-primary">Recent Activities</h5>
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {activities.map((activity, index) => (
-            <div key={index} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50">
+            <div 
+              key={index} 
+              className="flex items-start gap-3 p-2 rounded-lg transition-colors"
+              style={{ backgroundColor: 'transparent' }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+              }}
+            >
               <div className="mt-1">
                 {getActionIcon(activity.action)}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-brand-primary truncate">
                   {activity.description}
                 </p>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-brand-muted">
                   {formatTimeAgo(activity.timestamp)}
                 </p>
               </div>

@@ -10,6 +10,7 @@ import {
 import NotificationBell from '../components/ui/NotificationBell'
 import Sidebar from '../components/sidebar/Sidebar'
 import ThemeToggle from '../components/ui/ThemeToggle'
+import PendingApprovalBanner from '../components/ui/PendingApprovalBanner'
 
 export default function AppLayout() {
   const { user } = useAuth()
@@ -77,7 +78,25 @@ export default function AppLayout() {
           className="d-lg-none"
         >
           <Offcanvas.Header closeButton>
-            <Offcanvas.Title className="text-gradient font-bold">🏘️ HMMS</Offcanvas.Title>
+            <Offcanvas.Title className="text-gradient font-bold d-flex align-items-center gap-2">
+              <img 
+                src="/houselogo1.png" 
+                alt="HMMS Logo" 
+                style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  const parent = target.parentElement;
+                  if (parent && !parent.querySelector('.logo-fallback')) {
+                    const fallback = document.createElement('span');
+                    fallback.className = 'logo-fallback';
+                    fallback.textContent = '🏘️';
+                    parent.insertBefore(fallback, target);
+                  }
+                }}
+              />
+              HMMS
+            </Offcanvas.Title>
           </Offcanvas.Header>
           <Offcanvas.Body>
             <div className="mb-4">
@@ -89,6 +108,8 @@ export default function AppLayout() {
 
         {/* Main content area */}
         <div className="content-area">
+          {/* Pending Approval Banner - Only visible to Captain/Admin */}
+          <PendingApprovalBanner />
           <Container fluid className="p-4">
             <Outlet />
           </Container>

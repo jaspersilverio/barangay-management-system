@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination } from 'react-bootstrap'
 import { listResidents } from '../../services/residents.service'
 import { usePuroks } from '../../context/PurokContext'
@@ -12,11 +12,17 @@ export default function SeniorCitizensPage() {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
   const [residentsData, setResidentsData] = useState<any>(null)
+
+  // Ref to maintain input focus and manage debounce timer
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimeoutRef = useRef<number | null>(null)
 
   const effectivePurokId = useMemo(() => {
     if (role === 'admin') return purokId
@@ -24,25 +30,49 @@ export default function SeniorCitizensPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  const loadResidents = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const data = await listResidents({ 
-        search, 
-        page, 
-        purok_id: effectivePurokId || undefined,
-        seniors: true, // Filter for seniors only
-        per_page: 15 
-      })
-      // Set data immediately - no delays
-      setResidentsData(data)
-    } catch (err) {
-      console.error('Error loading senior citizens:', err)
-    } finally {
-      // Clear loading state immediately when data is ready
-      setIsLoading(false)
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
     }
-  }, [search, page, effectivePurokId])
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(1) // Reset to first page when search changes
+    }, 300)
+
+    debounceTimeoutRef.current = timeoutId
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [searchInput])
+
+  const loadResidents = useCallback(
+    async (overrideSearch?: string, overridePage?: number) => {
+      setIsLoading(true)
+      try {
+        const data = await listResidents({ 
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
+          page: overridePage !== undefined ? overridePage : page, 
+          purok_id: effectivePurokId || undefined,
+          seniors: true, // Filter for seniors only
+          per_page: 15 
+        })
+        // Set data immediately - no delays
+        setResidentsData(data)
+      } catch (err) {
+        console.error('Error loading senior citizens:', err)
+      } finally {
+        // Clear loading state immediately when data is ready
+        setIsLoading(false)
+      }
+    },
+    [debouncedSearch, page, effectivePurokId]
+  )
 
   useEffect(() => {
     loadResidents()
@@ -60,6 +90,43 @@ export default function SeniorCitizensPage() {
   const total = useMemo(() => {
     return residentsData?.data?.total ?? 0
   }, [residentsData])
+
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value)
+    // Page reset is handled in debounce effect
+  }, [])
+
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+      debounceTimeoutRef.current = null
+    }
+
+    const searchTerm = searchInput
+    setDebouncedSearch(searchTerm)
+    setPage(1)
+    // Trigger an immediate search using the latest input value
+    loadResidents(searchTerm, 1)
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [searchInput, loadResidents])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearchSubmit()
+      }
+    },
+    [handleSearchSubmit]
+  )
 
   const calculateAge = (birthdate: string) => {
     const today = new Date()
@@ -90,16 +157,26 @@ export default function SeniorCitizensPage() {
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control
+                  ref={searchInputRef}
                   placeholder="Name, relationship, or occupation"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  disabled={isLoading}
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   className="form-control-custom"
+                  autoComplete="off"
                 />
               </Form.Group>
+            </Col>
+            <Col md="auto">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={isLoading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
             </Col>
             {role === 'admin' && (
               <Col md={4}>

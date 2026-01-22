@@ -14,6 +14,7 @@ import DeleteBoundaryModal from '../components/map/DeleteBoundaryModal'
 import MapSearch from '../components/map/MapSearch'
 import MapLayers from '../components/map/MapLayers'
 import MarkerLayerGroup from '../components/map/MarkerLayerGroup'
+import HouseholdHoverPanel from '../components/map/HouseholdHoverPanel'
 import { type SearchResult } from '../services/search.service'
 import { getLayerState, getLayerConfig } from '../utils/layerConfig'
 
@@ -40,6 +41,7 @@ export default function SketchMap() {
 
   // Search and highlighting states
   const [highlightedMarker, setHighlightedMarker] = useState<MapMarker | null>(null)
+  const [hoveredMarker, setHoveredMarker] = useState<MapMarker | null>(null)
   const [mapLayers, setMapLayers] = useState(getLayerState())
 
   // Drawing tool states
@@ -138,6 +140,8 @@ export default function SketchMap() {
   const handleImageClick = (e: React.MouseEvent) => {
     // Close any open marker info popup
     setSelectedMarkerForInfo(null)
+    // Clear hover when clicking on map
+    setHoveredMarker(null)
     
     // If in drawing mode, don't handle marker clicks
     if (isDrawingMode) {
@@ -456,6 +460,9 @@ export default function SketchMap() {
   const handleMarkerClick = (e: React.MouseEvent, marker: MapMarker) => {
     e.stopPropagation() // Prevent map click
     
+    // Clear hover when clicking
+    setHoveredMarker(null)
+    
     // If it's a household marker and user is admin, show household assignment modal
     if (marker.type === 'household' && isAdmin) {
       setSelectedMarkerForHousehold(marker)
@@ -472,13 +479,28 @@ export default function SketchMap() {
     }
   }
 
+  const handleMarkerDelete = async (markerId: number) => {
+    try {
+      // Remove from state immediately for better UX
+      setMarkers(prev => prev.filter(m => m.id !== markerId))
+      setSelectedMarkerForInfo(null) // Close the info popup
+      
+      // Reload markers to ensure consistency with backend
+      await loadMarkers()
+    } catch (error) {
+      console.error('Error handling marker deletion:', error)
+      // Reload markers to restore state if deletion failed
+      await loadMarkers()
+    }
+  }
+
   return (
     <div className="page-container">
       <div className="d-flex gap-4" style={{ minHeight: '80vh' }}>
         {/* Left Sidebar - Controls */}
         <div style={{ width: '300px', flexShrink: 0 }}>
           {/* Search and Zoom Controls Group */}
-          <div className="bg-white rounded border p-3 mb-3">
+          <div className="rounded border p-3 mb-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
             <MapSearch onResultSelect={handleSearchResultSelect} />
             
             <hr className="my-3" />
@@ -606,10 +628,10 @@ export default function SketchMap() {
             {/* Map Container */}
             <div 
               style={{ 
-                border: '2px solid #e9ecef', 
+                border: '2px solid var(--color-border)', 
                 borderRadius: '8px', 
                 padding: '20px',
-                backgroundColor: '#f8f9fa',
+                backgroundColor: 'var(--color-border-light)',
                 position: 'relative',
                 overflow: 'hidden',
                 height: '80vh',
@@ -618,6 +640,8 @@ export default function SketchMap() {
                 maxHeight: '800px'
               }}
             >
+              {/* Household Hover Information Panel */}
+              <HouseholdHoverPanel marker={hoveredMarker} />
               <div
                 style={{
                   position: 'relative',
@@ -756,6 +780,7 @@ export default function SketchMap() {
                       onMarkerClick={handleMarkerClick}
                       selectedMarkerForInfo={selectedMarkerForInfo}
                       isAdmin={isAdmin}
+                      onMarkerHover={setHoveredMarker}
                     />
                   ))}
 
@@ -775,6 +800,7 @@ export default function SketchMap() {
                         marker={selectedMarkerForInfo}
                         onClose={() => setSelectedMarkerForInfo(null)}
                         isAdmin={isAdmin}
+                        onDelete={handleMarkerDelete}
                       />
                     </div>
                   )}
@@ -836,7 +862,7 @@ export default function SketchMap() {
               />
             </Form.Group>
             {clickPosition && (
-              <div className="p-2 bg-light rounded">
+              <div className="p-2 rounded" style={{ backgroundColor: 'var(--color-border-light)' }}>
                 <small>Position: X: {clickPosition.x.toFixed(1)}%, Y: {clickPosition.y.toFixed(1)}%</small>
               </div>
             )}
@@ -866,6 +892,7 @@ export default function SketchMap() {
         marker={selectedMarkerForHousehold}
         isAdmin={isAdmin}
         onHouseholdAssigned={handleHouseholdAssigned}
+        onMarkerDeleted={handleMarkerDelete}
       />
 
       {/* Assign Purok Modal */}

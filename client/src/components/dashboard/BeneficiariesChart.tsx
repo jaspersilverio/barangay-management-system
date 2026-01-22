@@ -57,9 +57,16 @@ export default function BeneficiariesChart() {
       const percentage = total > 0 ? Math.round((data.payload.value / total) * 100) : 0
       
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900">{data.name}</p>
-          <p className="text-sm text-gray-600">
+        <div 
+          className="p-3 border rounded-lg shadow-lg"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border)',
+            color: 'var(--color-text-primary)',
+          }}
+        >
+          <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{data.name}</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             {data.value} beneficiaries ({percentage}%)
           </p>
         </div>
@@ -156,7 +163,7 @@ export default function BeneficiariesChart() {
       </div>
       
       {/* Summary Stats */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
+      <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
         <div className="grid grid-cols-4 gap-4 text-center">
           {data.categories.map((cat, index) => (
             <div key={cat.name}>

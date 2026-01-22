@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Row, Col, Card, Button, Table, Badge, Alert } from 'react-bootstrap'
 import { Download, BarChart3, Users, Home, MapPin, Phone } from 'lucide-react'
-import { getPuroksReport, exportReport, type PurokReport } from '../../services/reports.service'
+import { getPuroksReport, exportPuroksCsv, type PurokReport } from '../../services/reports.service'
 import api from '../../services/api'
 
 export default function PuroksReport() {
@@ -33,11 +33,16 @@ export default function PuroksReport() {
     }
   }
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
-      
-      if (type === 'pdf') {
+      setError(null)
+
+      if (type === 'csv') {
+        // CSV export - use dedicated CSV export function
+        await exportPuroksCsv()
+        setError(null)
+      } else if (type === 'pdf') {
         // Call PDF export API
         const response = await api.get('/pdf/export/puroks', {
           responseType: 'blob',
@@ -53,21 +58,8 @@ export default function PuroksReport() {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-        
+
         setError(null)
-      } else {
-        // Excel export - use existing exportReport function
-        const response = await exportReport({
-          type,
-          reportType: 'puroks'
-        })
-        
-        if (response.success) {
-          // TODO: Handle actual file download when backend is implemented
-          alert(`${type.toUpperCase()} export started: ${response.data.message}`)
-        } else {
-          setError(response.message || `Failed to export ${type}`)
-        }
       }
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
@@ -141,12 +133,12 @@ export default function PuroksReport() {
             </Button>
             <Button
               variant="outline-success"
-              onClick={() => handleExport('excel')}
+              onClick={() => handleExport('csv')}
               disabled={exporting}
               className="d-flex align-items-center gap-2 btn-success"
             >
               <Download className="h-4 w-4" />
-              Export Excel
+              Export CSV
             </Button>
           </div>
         </Col>

@@ -16,7 +16,9 @@ import {
 
 export default function Officials() {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  // Only admin can manage (create/edit/delete) officials
+  // All authenticated users can view officials
+  const canManage = user?.role === 'admin'
 
   // State
   const [officials, setOfficials] = useState<Official[]>([])
@@ -40,7 +42,9 @@ export default function Officials() {
       setLoading(true)
       setError(null)
       
-      const params: any = {}
+      const params: any = {
+        category: 'official' // Always filter by official category
+      }
       if (filters.search) params.search = filters.search
       if (filters.position) params.position = filters.position
       if (filters.active !== null) params.active = filters.active
@@ -69,15 +73,27 @@ export default function Officials() {
 
   // Handle form submission
   const handleFormSubmit = async (data: CreateOfficialData) => {
+    // Authorization check
+    if (!canManage) {
+      setError('You do not have permission to create or edit officials.')
+      return
+    }
+
     try {
       setFormLoading(true)
       setError(null)
 
+      // Ensure category is always 'official' for this page
+      const submitData: CreateOfficialData = {
+        ...data,
+        category: 'official'
+      }
+
       let response
       if (selectedOfficial) {
-        response = await updateOfficial(selectedOfficial.id, data)
+        response = await updateOfficial(selectedOfficial.id, submitData)
       } else {
-        response = await createOfficial(data)
+        response = await createOfficial(submitData)
       }
 
       if (response.success) {
@@ -86,15 +102,6 @@ export default function Officials() {
         setSelectedOfficial(null)
         // Reload officials to get updated data including new photo URLs
         await loadOfficials()
-        // Log the updated official to verify photo_url
-        if (response.data) {
-          console.log('Updated official response:', {
-            id: response.data.id,
-            photo_path: response.data.photo_path,
-            photo_url: response.data.photo_url,
-            updated_at: response.data.updated_at
-          })
-        }
       } else {
         setError(response.message || 'Failed to save official')
       }
@@ -106,6 +113,8 @@ export default function Officials() {
         const validationErrors = error.response.data.errors
         const errorMessages = Object.values(validationErrors).flat().join(', ')
         setError(`Validation errors: ${errorMessages}`)
+      } else if (error.response?.status === 403) {
+        setError(error.response?.data?.message || 'You do not have permission to perform this action.')
       } else {
         setError(error.response?.data?.message || 'Failed to save official')
       }
@@ -116,6 +125,12 @@ export default function Officials() {
 
   // Handle delete
   const handleDelete = async (id: number) => {
+    // Authorization check
+    if (!canManage) {
+      setError('You do not have permission to delete officials.')
+      return
+    }
+
     if (!window.confirm('Are you sure you want to delete this official?')) {
       return
     }
@@ -133,14 +148,24 @@ export default function Officials() {
       } else {
         setError(response.message || 'Failed to delete official')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting official:', error)
-      setError('Failed to delete official')
+      if (error.response?.status === 403) {
+        setError(error.response?.data?.message || 'You do not have permission to delete officials.')
+      } else {
+        setError(error.response?.data?.message || 'Failed to delete official')
+      }
     }
   }
 
   // Handle toggle active
   const handleToggleActive = async (id: number) => {
+    // Authorization check
+    if (!canManage) {
+      setError('You do not have permission to change official status.')
+      return
+    }
+
     try {
       setError(null)
       const response = await toggleOfficialActive(id)
@@ -154,14 +179,24 @@ export default function Officials() {
       } else {
         setError(response.message || 'Failed to update official status')
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating official status:', error)
-      setError('Failed to update official status')
+      if (error.response?.status === 403) {
+        setError(error.response?.data?.message || 'You do not have permission to change official status.')
+      } else {
+        setError(error.response?.data?.message || 'Failed to update official status')
+      }
     }
   }
 
   // Handle edit
   const handleEdit = (official: Official) => {
+    // Authorization check
+    if (!canManage) {
+      setError('You do not have permission to edit officials.')
+      return
+    }
+
     setSelectedOfficial(official)
     setShowForm(true)
   }
@@ -198,7 +233,7 @@ export default function Officials() {
           <h2 className="mb-1 text-brand-primary">Barangay Officials</h2>
           <p className="text-brand-muted mb-0">Manage barangay officials and their information</p>
         </div>
-        {isAdmin && (
+        {canManage && (
           <Button 
             variant="primary" 
             onClick={() => {
@@ -236,6 +271,7 @@ export default function Officials() {
             onSearch={handleSearch}
             onFilterPosition={handleFilterPosition}
             onFilterStatus={handleFilterStatus}
+            canManage={canManage}
           />
         </Col>
 
@@ -270,6 +306,7 @@ export default function Officials() {
         official={selectedOfficial}
         onSubmit={handleFormSubmit}
         loading={formLoading}
+        category="official"
       />
     </div>
   )

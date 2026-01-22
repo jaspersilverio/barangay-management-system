@@ -61,6 +61,14 @@ class Household extends Model
     }
 
     /**
+     * @return HasMany<FourPsBeneficiary>
+     */
+    public function fourPsBeneficiaries(): HasMany
+    {
+        return $this->hasMany(FourPsBeneficiary::class);
+    }
+
+    /**
      * Scope search by address, head_name, head resident name, or contact.
      */
     public function scopeSearch($query, string $term)

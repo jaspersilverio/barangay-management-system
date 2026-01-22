@@ -26,7 +26,7 @@ export default function MapLayers({ onLayerToggle, markers }: MapLayersProps) {
   }
 
   return (
-    <div className="bg-white rounded border p-3">
+    <div className="rounded border p-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
       <h6 className="mb-3 fw-bold">🗺️ Map Layers</h6>
       
       <Form>
@@ -60,7 +60,7 @@ export default function MapLayers({ onLayerToggle, markers }: MapLayersProps) {
       </div>
 
       {/* Layer Summary */}
-      <div className="mt-3 p-2 bg-light rounded">
+      <div className="mt-3 p-2 rounded" style={{ backgroundColor: 'var(--color-border-light)' }}>
         <small className="text-muted">
           <strong>Total Markers:</strong> {markers.length} | 
           <strong>Visible:</strong> {Object.values(layerStates).filter(Boolean).length} layers

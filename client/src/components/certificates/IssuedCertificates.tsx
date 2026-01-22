@@ -13,6 +13,7 @@ import {
   Filter, 
   Eye, 
   Download,
+  Printer,
   RefreshCw,
   XCircle
 } from 'lucide-react'
@@ -22,6 +23,9 @@ import {
   createIssuedCertificate,
   regenerateCertificatePdf,
   invalidateCertificate,
+  downloadCertificatePdf,
+  previewCertificatePdf,
+  printCertificatePdf,
   type IssuedCertificate as IssuedCertificateType,
   type IssuedCertificateForm
 } from '../../services/certificate.service'
@@ -44,7 +48,9 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   const [showActionModal, setShowActionModal] = useState(false)
   const [selectedCertificate, setSelectedCertificate] = useState<IssuedCertificateType | null>(null)
   const [actionType, setActionType] = useState<'invalidate' | 'regenerate'>('invalidate')
-  const [searchTerm, setSearchTerm] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState(certificateType || 'all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -64,11 +70,21 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   const [requestSearchTerm, setRequestSearchTerm] = useState('')
   const [filteredRequests, setFilteredRequests] = useState<any[]>([])
 
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setCurrentPage(1) // Reset to first page when search changes
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
   useEffect(() => {
     fetchCertificates()
     fetchResidents()
     fetchApprovedRequests()
-  }, [currentPage, searchTerm, statusFilter, typeFilter])
+  }, [currentPage, debouncedSearch, statusFilter, typeFilter])
 
   useEffect(() => {
     if (residents.length > 0) {
@@ -97,7 +113,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       setLoading(true)
       const response = await getIssuedCertificates({
         page: currentPage,
-        search: searchTerm || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         certificate_type: typeFilter !== 'all' ? typeFilter : undefined,
         per_page: 10
@@ -173,70 +189,92 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
     }
   }
 
+  const [downloadingId, setDownloadingId] = useState<number | null>(null)
+  const [previewingId, setPreviewingId] = useState<number | null>(null)
+  const [printingId, setPrintingId] = useState<number | null>(null)
+
   const handleDownloadPdf = async (certificate: IssuedCertificateType) => {
     try {
-      // Make a direct request to download the file
-      const response = await fetch(`http://localhost:8000/api/certificates/${certificate.id}/download`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Accept': 'application/pdf'
-        }
-      });
-
-      if (response.ok) {
-        // Get the filename from the response headers or use a default
-        const contentDisposition = response.headers.get('content-disposition');
-        let filename = `certificate_${certificate.certificate_number}.pdf`;
-        
-        if (contentDisposition) {
-          const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-          if (filenameMatch) {
-            filename = filenameMatch[1];
-          }
-        }
-
-        // Create blob and download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } else {
-        console.error('Failed to download PDF:', response.statusText);
-      }
-    } catch (error) {
-      console.error('Failed to download PDF:', error);
+      setDownloadingId(certificate.id)
+      
+      // Add timeout to prevent indefinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+      })
+      
+      const downloadPromise = downloadCertificatePdf(certificate.id)
+      const blob = await Promise.race([downloadPromise, timeoutPromise]) as Blob
+      
+      // Generate filename
+      const filename = `${certificate.certificate_type}_${certificate.certificate_number}.pdf`
+      
+      // Create blob URL and download
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error: any) {
+      console.error('Failed to download PDF:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to download certificate PDF'
+      alert(errorMessage)
+      setError(errorMessage)
+    } finally {
+      setDownloadingId(null)
     }
   }
 
   const handlePreviewPdf = async (certificate: IssuedCertificateType) => {
     try {
-      // Make a direct request to get the PDF for preview
-      const response = await fetch(`http://localhost:8000/api/certificates/${certificate.id}/preview`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Accept': 'application/pdf'
+      setPreviewingId(certificate.id)
+      
+      // Add timeout to prevent indefinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+      })
+      
+      const previewPromise = previewCertificatePdf(certificate.id)
+      const url = await Promise.race([previewPromise, timeoutPromise]) as string
+      
+      if (url) {
+        const newWindow = window.open(url, '_blank')
+        if (!newWindow) {
+          alert('Please allow popups to preview the certificate')
         }
-      });
-
-      if (response.ok) {
-        // Create blob and open in new tab for preview
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank');
-        // Note: We don't revoke the URL immediately as it's being used in the new tab
-        // The browser will clean it up when the tab is closed
       } else {
-        console.error('Failed to preview PDF:', response.statusText);
+        throw new Error('Failed to generate preview URL')
       }
-    } catch (error) {
-      console.error('Failed to preview PDF:', error);
+    } catch (error: any) {
+      console.error('Failed to preview PDF:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to preview certificate PDF'
+      alert(errorMessage)
+      setError(errorMessage)
+    } finally {
+      setPreviewingId(null)
+    }
+  }
+
+  const handlePrintPdf = async (certificate: IssuedCertificateType) => {
+    try {
+      setPrintingId(certificate.id)
+      
+      // Add timeout to prevent indefinite loading
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+      })
+      
+      const printPromise = printCertificatePdf(certificate.id)
+      await Promise.race([printPromise, timeoutPromise])
+    } catch (error: any) {
+      console.error('Failed to print PDF:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to print certificate PDF'
+      alert(errorMessage)
+      setError(errorMessage)
+    } finally {
+      setPrintingId(null)
     }
   }
 
@@ -301,8 +339,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
               </InputGroup.Text>
               <Form.Control
                 placeholder="Search by resident name or certificate number..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </InputGroup>
           </div>
@@ -400,15 +438,40 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                           size="sm"
                           variant="outline"
                           onClick={() => handlePreviewPdf(certificate)}
+                          disabled={previewingId === certificate.id}
+                          title="Preview PDF"
                         >
-                          <Eye size={14} />
+                          {previewingId === certificate.id ? (
+                            <RefreshCw size={14} className="spinning" />
+                          ) : (
+                            <Eye size={14} />
+                          )}
                         </ButtonComponent>
                         <ButtonComponent
                           size="sm"
                           variant="outline"
                           onClick={() => handleDownloadPdf(certificate)}
+                          disabled={downloadingId === certificate.id}
+                          title="Download PDF"
                         >
-                          <Download size={14} />
+                          {downloadingId === certificate.id ? (
+                            <RefreshCw size={14} className="spinning" />
+                          ) : (
+                            <Download size={14} />
+                          )}
+                        </ButtonComponent>
+                        <ButtonComponent
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePrintPdf(certificate)}
+                          disabled={printingId === certificate.id}
+                          title="Print PDF"
+                        >
+                          {printingId === certificate.id ? (
+                            <RefreshCw size={14} className="spinning" />
+                          ) : (
+                            <Printer size={14} />
+                          )}
                         </ButtonComponent>
                         <ButtonComponent
                           size="sm"
@@ -418,6 +481,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                             setActionType('regenerate')
                             setShowActionModal(true)
                           }}
+                          title="Regenerate PDF"
                         >
                           <RefreshCw size={14} />
                         </ButtonComponent>
@@ -430,6 +494,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                             setShowActionModal(true)
                           }}
                           disabled={!certificate.is_valid}
+                          title="Invalidate Certificate"
                         >
                           <XCircle size={14} />
                         </ButtonComponent>

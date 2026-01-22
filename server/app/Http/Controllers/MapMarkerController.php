@@ -15,7 +15,7 @@ class MapMarkerController extends Controller
      */
     public function index(): JsonResponse
     {
-        $markers = MapMarker::with(['creator:id,name', 'household.residents'])
+        $markers = MapMarker::with(['creator:id,name', 'household.purok', 'household.residents'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -65,7 +65,7 @@ class MapMarkerController extends Controller
      */
     public function show(MapMarker $mapMarker): JsonResponse
     {
-        $mapMarker->load(['creator:id,name', 'household.residents']);
+        $mapMarker->load(['creator:id,name', 'household.purok', 'household.residents']);
 
         return response()->json([
             'success' => true,
@@ -154,7 +154,7 @@ class MapMarkerController extends Controller
         ]);
 
         $mapMarker->update(['household_id' => $validated['household_id']]);
-        $mapMarker->load(['creator:id,name', 'household.residents']);
+        $mapMarker->load(['creator:id,name', 'household.purok', 'household.residents']);
 
         return response()->json([
             'success' => true,
@@ -191,7 +191,7 @@ class MapMarkerController extends Controller
      */
     public function showWithHousehold(MapMarker $mapMarker): JsonResponse
     {
-        $mapMarker->load(['creator:id,name', 'household.residents']);
+        $mapMarker->load(['creator:id,name', 'household.purok', 'household.residents']);
 
         return response()->json([
             'success' => true,

@@ -6,12 +6,15 @@ use App\Http\Requests\Blotter\StoreBlotterRequest;
 use App\Http\Requests\Blotter\UpdateBlotterRequest;
 use App\Models\Blotter;
 use App\Models\Notification;
+use App\Models\User;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 
 class BlotterController extends Controller
 {
@@ -26,7 +29,9 @@ class BlotterController extends Controller
                 'respondent:id,first_name,last_name,middle_name',
                 'official:id,name',
                 'creator:id,name',
-                'updater:id,name'
+                'updater:id,name',
+                'approver:id,name',
+                'rejector:id,name'
             ]);
 
             // Apply filters
@@ -92,6 +97,15 @@ class BlotterController extends Controller
             $data['case_number'] = Blotter::generateCaseNumber();
             $data['created_by'] = Auth::id();
 
+            // If created by staff, set status to pending for approval
+            $user = Auth::user();
+            if ($user && $user->isStaff()) {
+                $data['status'] = 'pending';
+            } else {
+                // Admin/purok_leader can set status directly (default to 'Open' if not set)
+                $data['status'] = $data['status'] ?? 'Open';
+            }
+
             // Handle resident/non-resident logic
             // For residents, clear non-resident fields
             if ($data['complainant_is_resident']) {
@@ -137,8 +151,18 @@ class BlotterController extends Controller
                 'creator:id,name'
             ]);
 
-            // Create notification for new blotter case
-            $this->createBlotterNotification($blotter, 'created');
+            // If created by staff (pending status), notify captain for approval
+            if ($blotter->status === 'pending') {
+                NotificationController::notifyCaptainForApproval(
+                    'blotter',
+                    $blotter->case_number . ' - ' . $blotter->complainant_name . ' vs ' . $blotter->respondent_name,
+                    $blotter->id,
+                    $blotter->created_by
+                );
+            } else {
+                // Create notification for new blotter case (admin/purok_leader created)
+                $this->createBlotterNotification($blotter, 'created');
+            }
 
             Log::info('Blotter case created', ['case_number' => $blotter->case_number, 'id' => $blotter->id]);
 
@@ -335,6 +359,154 @@ class BlotterController extends Controller
                 'message' => 'Failed to retrieve blotter statistics'
             ], 500);
         }
+    }
+
+    /**
+     * Approve a blotter case (captain only)
+     */
+    public function approve(Request $request, Blotter $blotter): JsonResponse
+    {
+        // Authorization: Only captain or admin can approve
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can approve blotter cases'
+            ], 403);
+        }
+
+        if (!$blotter->canBeApproved()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Blotter case cannot be approved'
+            ], 400);
+        }
+
+        // Get the captain user (if current user is captain, use them; otherwise find captain user)
+        $captainUser = $user->isCaptain() ? $user : User::where('role', 'captain')->first();
+        
+        if (!$captainUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Barangay Captain found in the system'
+            ], 400);
+        }
+
+        // Check if captain has a signature uploaded (mandatory for approval)
+        if (!$captainUser->signature_path) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Barangay Captain signature is not set. Please upload signature first before approving any requests.'
+            ], 400);
+        }
+
+        // Approve the blotter
+        $blotter->approve($user);
+        
+        // Move to 'Open' status after approval (becomes official record)
+        $blotter->status = 'Open';
+        $blotter->save();
+
+        // Reload relationships
+        $blotter->load([
+            'complainant:id,first_name,last_name,middle_name',
+            'respondent:id,first_name,last_name,middle_name',
+            'official:id,name',
+            'creator:id,name',
+            'approver:id,name'
+        ]);
+
+        // Notify the creator (staff) that their request was approved
+        if ($blotter->created_by) {
+            NotificationController::createUserNotification(
+                $blotter->created_by,
+                'Blotter Case Approved',
+                "Your blotter case {$blotter->case_number} has been approved by the Barangay Captain.",
+                'blotter_approved'
+            );
+        }
+
+        // Create system notification
+        NotificationController::createSystemNotification(
+            'Blotter Case Approved',
+            "Blotter case {$blotter->case_number} has been approved and is now an official record.",
+            'blotter_approved'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Blotter case approved successfully',
+            'data' => $blotter
+        ]);
+    }
+
+    /**
+     * Reject a blotter case (captain only)
+     */
+    public function reject(Request $request, Blotter $blotter): JsonResponse
+    {
+        // Authorization: Only captain or admin can reject
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can reject blotter cases'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'remarks' => 'required|string|max:500'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        if (!$blotter->canBeRejected()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Blotter case cannot be rejected'
+            ], 400);
+        }
+
+        // Reject the blotter
+        $blotter->reject($user, $request->remarks);
+        
+        // Reload relationships
+        $blotter->load([
+            'complainant:id,first_name,last_name,middle_name',
+            'respondent:id,first_name,last_name,middle_name',
+            'official:id,name',
+            'creator:id,name',
+            'rejector:id,name'
+        ]);
+
+        // Notify the creator (staff) that their request was rejected
+        if ($blotter->created_by) {
+            NotificationController::createUserNotification(
+                $blotter->created_by,
+                'Blotter Case Rejected',
+                "Your blotter case {$blotter->case_number} has been rejected. Reason: {$request->remarks}",
+                'blotter_rejected'
+            );
+        }
+
+        // Create system notification
+        NotificationController::createSystemNotification(
+            'Blotter Case Rejected',
+            "Blotter case {$blotter->case_number} has been rejected. Reason: {$request->remarks}",
+            'blotter_rejected'
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Blotter case rejected successfully',
+            'data' => $blotter
+        ]);
     }
 
     /**

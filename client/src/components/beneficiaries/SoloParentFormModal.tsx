@@ -219,6 +219,44 @@ export default function SoloParentFormModal({ show, initial, onSubmit, onHide }:
                 control: (provided) => ({
                   ...provided,
                   borderColor: errors.resident_id ? '#dc3545' : provided.borderColor,
+                  backgroundColor: '#FFFFFF',
+                  color: '#0F172A',
+                }),
+                menu: (provided) => ({
+                  ...provided,
+                  backgroundColor: '#FFFFFF',
+                  zIndex: 9999,
+                }),
+                menuList: (provided) => ({
+                  ...provided,
+                  backgroundColor: '#FFFFFF',
+                  padding: 0,
+                }),
+                option: (provided, state) => ({
+                  ...provided,
+                  backgroundColor: state.isSelected 
+                    ? '#2563EB' 
+                    : state.isFocused 
+                    ? '#F1F5F9' 
+                    : '#FFFFFF',
+                  color: state.isSelected ? '#FFFFFF' : '#0F172A',
+                  cursor: 'pointer',
+                  ':active': {
+                    backgroundColor: '#2563EB',
+                    color: '#FFFFFF',
+                  },
+                }),
+                singleValue: (provided) => ({
+                  ...provided,
+                  color: '#0F172A',
+                }),
+                input: (provided) => ({
+                  ...provided,
+                  color: '#0F172A',
+                }),
+                placeholder: (provided) => ({
+                  ...provided,
+                  color: '#6B7280',
                 }),
               }}
             />

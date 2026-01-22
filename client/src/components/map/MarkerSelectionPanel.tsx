@@ -40,7 +40,7 @@ export default function MarkerSelectionPanel({
 
   if (!isAdmin) {
     return (
-      <div className="p-4 bg-light rounded border">
+      <div className="p-4 rounded border" style={{ backgroundColor: 'var(--color-border-light)', borderColor: 'var(--color-border)' }}>
         <h6 className="text-muted mb-3">👁️ View Only Mode</h6>
         <p className="text-muted small mb-0">
           Only administrators can add markers to the map.
@@ -50,7 +50,7 @@ export default function MarkerSelectionPanel({
   }
 
   return (
-    <div className="p-4 bg-light rounded border">
+    <div className="p-4 rounded border" style={{ backgroundColor: 'var(--color-border-light)', borderColor: 'var(--color-border)' }}>
       <h6 className="text-primary mb-3">
         {selectedMarkerType ? '✅ Marker Selected' : '🎯 Select Marker Type'}
       </h6>

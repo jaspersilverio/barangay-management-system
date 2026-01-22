@@ -27,7 +27,6 @@ api.interceptors.response.use(
         sessionStorage.removeItem('token')
         sessionStorage.removeItem('user')
         // Don't auto-redirect - let the auth context handle it
-        console.log('Unauthorized access - token cleared')
       }
     }
     return Promise.reject(error)

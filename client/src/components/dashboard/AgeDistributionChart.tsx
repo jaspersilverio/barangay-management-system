@@ -51,10 +51,17 @@ export default function AgeDistributionChart() {
       const count = payload[0].value
       const percentage = totalResidents > 0 ? Math.round((count / totalResidents) * 100) : 0
       return (
-        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
-          <p className="font-medium text-gray-900 mb-1">{data?.label || label}</p>
-          <p className="text-xs text-gray-500 mb-1">{data?.ageGroup || ''}</p>
-          <p className="text-sm text-gray-600">
+        <div 
+          className="p-3 border rounded-lg shadow-lg"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border)',
+            color: 'var(--color-text-primary)',
+          }}
+        >
+          <p className="font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>{data?.label || label}</p>
+          <p className="text-xs mb-1" style={{ color: 'var(--color-text-muted)' }}>{data?.ageGroup || ''}</p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
             <span className="font-semibold">{count}</span> residents ({percentage}%)
           </p>
         </div>
@@ -147,7 +154,7 @@ export default function AgeDistributionChart() {
       </div>
 
       {/* Summary Stats */}
-      <div className="mt-4 pt-4 border-t border-gray-200">
+      <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div>
             <div className="text-2xl font-bold text-blue-600">{totalResidents}</div>

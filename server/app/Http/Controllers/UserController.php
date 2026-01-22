@@ -10,6 +10,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
 {
@@ -194,8 +197,10 @@ class UserController extends Controller
             'success' => true,
             'data' => [
                 ['value' => 'admin', 'label' => 'Administrator'],
+                ['value' => 'captain', 'label' => 'Barangay Captain'],
                 ['value' => 'purok_leader', 'label' => 'Purok Leader'],
                 ['value' => 'staff', 'label' => 'Staff'],
+                ['value' => 'viewer', 'label' => 'Viewer'],
             ],
             'message' => null,
             'errors' => null,
@@ -214,6 +219,113 @@ class UserController extends Controller
             'data' => $puroks,
             'message' => null,
             'errors' => null,
+        ]);
+    }
+
+    /**
+     * Upload captain signature
+     */
+    public function uploadSignature(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        // Authorization: Only captain or admin can upload signature
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can upload signature'
+            ], 403);
+        }
+
+        // Get the captain user (if current user is captain, use them; otherwise find captain user)
+        $captainUser = $user->isCaptain() ? $user : User::where('role', 'captain')->first();
+
+        if (!$captainUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Barangay Captain found in the system'
+            ], 400);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'signature' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:2048'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        try {
+            // Delete old signature if exists
+            if ($captainUser->signature_path) {
+                try {
+                    Storage::disk('public')->delete($captainUser->signature_path);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete old signature: ' . $e->getMessage());
+                }
+            }
+
+            // Store new signature
+            $file = $request->file('signature');
+            $extension = $file->getClientOriginalExtension();
+            $filename = 'captain_signature_' . time() . '_' . uniqid() . '.' . $extension;
+            $signaturePath = $file->storeAs('signatures', $filename, 'public');
+
+            // Update captain user with signature path
+            $captainUser->signature_path = $signaturePath;
+            $captainUser->save();
+
+            Log::info('Captain signature uploaded', [
+                'captain_id' => $captainUser->id,
+                'path' => $signaturePath,
+                'uploaded_by' => $user->id
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Signature uploaded successfully',
+                'data' => [
+                    'signature_url' => $captainUser->signature_url,
+                    'signature_path' => $captainUser->signature_path
+                ]
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to upload signature: ' . $e->getMessage(), [
+                'exception' => $e
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to upload signature: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get captain signature
+     */
+    public function getSignature(Request $request): JsonResponse
+    {
+        $captainUser = User::where('role', 'captain')->first();
+
+        if (!$captainUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Barangay Captain found in the system'
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'has_signature' => !empty($captainUser->signature_path),
+                'signature_url' => $captainUser->signature_url,
+                'signature_path' => $captainUser->signature_path
+            ]
         ]);
     }
 }

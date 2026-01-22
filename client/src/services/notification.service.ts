@@ -5,7 +5,7 @@ export type Notification = {
   user_id: number | null
   title: string
   message: string
-  type: 'info' | 'event' | 'system' | 'household' | 'resident'
+  type: 'info' | 'event' | 'system' | 'household' | 'resident' | 'certificate_request' | 'certificate_approved' | 'certificate_rejected' | 'certificate_released' | 'certificate_issued' | 'certificate_invalidated' | 'blotter' | 'blotter_pending' | 'blotter_approved' | 'blotter_rejected' | 'incident_pending' | 'incident_approved' | 'incident_rejected' | 'approval_required'
   is_read: boolean
   created_at: string
   icon?: string

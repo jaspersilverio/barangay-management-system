@@ -22,6 +22,10 @@ export interface MapMarker {
     head_name: string
     contact: string
     purok_id: number
+    purok?: {
+      id: number
+      name: string
+    }
     residents?: Array<{
       id: number
       first_name: string

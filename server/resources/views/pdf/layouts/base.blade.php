@@ -219,9 +219,18 @@
                 🏘️</div>
         @endif
         <div class="header-title">{{ $barangay_info['name'] ?? 'Barangay' }}</div>
-        <div class="header-subtitle">{{ $barangay_info['address'] ?? 'Municipality, Province' }}</div>
+        <div class="header-subtitle">
+            @if(!empty($barangay_info['province']) && !empty($barangay_info['municipality']))
+                {{ $barangay_info['municipality'] }}, {{ $barangay_info['province'] }}
+            @else
+                {{ $barangay_info['address'] ?? 'Municipality, Province' }}
+            @endif
+        </div>
         @if (!empty($barangay_info['contact']))
             <div class="header-contact">Contact: {{ $barangay_info['contact'] }}</div>
+        @endif
+        @if (!empty($barangay_info['slogan']))
+            <div class="header-contact" style="font-style: italic; margin-top: 3px;">{{ $barangay_info['slogan'] }}</div>
         @endif
     </div>
 

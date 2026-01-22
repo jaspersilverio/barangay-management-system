@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Badge, ToastContainer, Toast, Modal } from 'react-bootstrap'
 import { Plus, FileText } from 'lucide-react'
 import { 
@@ -22,7 +22,9 @@ export default function SoloParentsPage() {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
@@ -38,6 +40,10 @@ export default function SoloParentsPage() {
     variant: 'success' 
   })
 
+  // Ref to maintain input focus and manage debounce timer
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimeoutRef = useRef<number | null>(null)
+
   const canManage = role === 'admin' || role === 'staff'
 
   const effectivePurokId = useMemo(() => {
@@ -46,24 +52,48 @@ export default function SoloParentsPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  const loadSoloParents = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const data = await listSoloParents({ 
-        search, 
-        page, 
-        purok_id: effectivePurokId || undefined,
-        status: statusFilter || undefined,
-        per_page: 15 
-      })
-      setSoloParentsData(data)
-    } catch (err) {
-      console.error('Error loading solo parents:', err)
-      setToast({ show: true, message: 'Failed to load solo parents', variant: 'danger' })
-    } finally {
-      setIsLoading(false)
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
     }
-  }, [search, page, effectivePurokId, statusFilter])
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(1) // Reset to first page when search changes
+    }, 300)
+
+    debounceTimeoutRef.current = timeoutId
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [searchInput])
+
+  const loadSoloParents = useCallback(
+    async (overrideSearch?: string, overridePage?: number) => {
+      setIsLoading(true)
+      try {
+        const data = await listSoloParents({ 
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
+          page: overridePage !== undefined ? overridePage : page, 
+          purok_id: effectivePurokId || undefined,
+          status: statusFilter || undefined,
+          per_page: 15 
+        })
+        setSoloParentsData(data)
+      } catch (err) {
+        console.error('Error loading solo parents:', err)
+        setToast({ show: true, message: 'Failed to load solo parents', variant: 'danger' })
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [debouncedSearch, page, effectivePurokId, statusFilter]
+  )
 
   useEffect(() => {
     loadSoloParents()
@@ -124,6 +154,43 @@ export default function SoloParentsPage() {
       setShowDelete(null)
     }
   }, [showDelete, loadSoloParents])
+
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value)
+    // Page reset is handled in debounce effect
+  }, [])
+
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+      debounceTimeoutRef.current = null
+    }
+
+    const searchTerm = searchInput
+    setDebouncedSearch(searchTerm)
+    setPage(1)
+    // Trigger an immediate search using the latest input value
+    loadSoloParents(searchTerm, 1)
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [searchInput, loadSoloParents])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearchSubmit()
+      }
+    },
+    [handleSearchSubmit]
+  )
 
   const handleEdit = useCallback((soloParent: SoloParent) => {
     setEditingId(soloParent.id)
@@ -205,16 +272,26 @@ export default function SoloParentsPage() {
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control
+                  ref={searchInputRef}
                   placeholder="Resident name or eligibility reason"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  disabled={isLoading}
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   className="form-control-custom"
+                  autoComplete="off"
                 />
               </Form.Group>
+            </Col>
+            <Col md="auto">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={isLoading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
             </Col>
             {role === 'admin' && (
               <Col md={3}>

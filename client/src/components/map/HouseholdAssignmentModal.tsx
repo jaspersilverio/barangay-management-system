@@ -13,6 +13,7 @@ interface HouseholdAssignmentModalProps {
   marker: MapMarker | null
   isAdmin: boolean
   onHouseholdAssigned: (marker: MapMarker) => void
+  onMarkerDeleted?: (markerId: number) => void
 }
 
 export default function HouseholdAssignmentModal({
@@ -20,7 +21,8 @@ export default function HouseholdAssignmentModal({
   onHide,
   marker,
   isAdmin,
-  onHouseholdAssigned
+  onHouseholdAssigned,
+  onMarkerDeleted
 }: HouseholdAssignmentModalProps) {
   const [households, setHouseholds] = useState<HouseholdOption[]>([])
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string>('')
@@ -42,7 +44,8 @@ export default function HouseholdAssignmentModal({
     if (show && marker) {
       loadMarkerWithHousehold()
     }
-  }, [show, marker])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [show, marker?.id])
 
   // Load households for assignment
   useEffect(() => {
@@ -51,17 +54,20 @@ export default function HouseholdAssignmentModal({
     }
   }, [show, isAdmin, searchTerm])
 
-  const loadMarkerWithHousehold = async () => {
-    if (!marker) return
+  const loadMarkerWithHousehold = async (): Promise<MapMarker | null> => {
+    if (!marker) return null
     
     setIsLoading(true)
     try {
       const markerData = await MapService.getMarkerWithHousehold(marker.id)
       if (markerData) {
         setMarkerWithHousehold(markerData)
+        return markerData
       }
+      return null
     } catch (error) {
       console.error('Failed to load marker with household:', error)
+      return null
     } finally {
       setIsLoading(false)
     }
@@ -154,8 +160,10 @@ export default function HouseholdAssignmentModal({
     try {
       await deleteResident(residentId)
       // Reload marker with household data to refresh the residents list
-      await loadMarkerWithHousehold()
-      onHouseholdAssigned(markerWithHousehold!)
+      const updatedMarker = await loadMarkerWithHousehold()
+      if (updatedMarker) {
+        onHouseholdAssigned(updatedMarker)
+      }
     } catch (error: any) {
       console.error('Failed to delete resident:', error)
       alert(error?.response?.data?.message || 'Failed to delete resident')
@@ -165,9 +173,13 @@ export default function HouseholdAssignmentModal({
   }
 
   const handleResidentSaved = async () => {
+    // Reset editing state
+    setEditingResidentId(null)
     // Reload marker with household data to refresh the residents list
-    await loadMarkerWithHousehold()
-    onHouseholdAssigned(markerWithHousehold!)
+    const updatedMarker = await loadMarkerWithHousehold()
+    if (updatedMarker) {
+      onHouseholdAssigned(updatedMarker)
+    }
   }
 
   return (
@@ -233,14 +245,14 @@ export default function HouseholdAssignmentModal({
                             <tbody>
                               {markerWithHousehold.household.residents.map((resident) => (
                                 <tr key={resident.id}>
-                                  <td>{resident.full_name}</td>
-                                  <td>{resident.age || 'N/A'}</td>
+                                  <td className="text-brand-primary">{resident.full_name || `${resident.first_name} ${resident.last_name}`.trim()}</td>
+                                  <td className="text-brand-primary">{resident.age || 'N/A'}</td>
                                   <td>
                                     <Badge bg={resident.sex === 'male' ? 'primary' : 'secondary'}>
                                       {resident.sex}
                                     </Badge>
                                   </td>
-                                  <td>{resident.relationship_to_head}</td>
+                                  <td className="text-brand-primary">{resident.relationship_to_head}</td>
                                   <td>
                                     <Badge bg={resident.is_pwd ? 'warning' : 'success'}>
                                       {resident.is_pwd ? 'PWD' : resident.occupation_status}
@@ -407,6 +419,32 @@ export default function HouseholdAssignmentModal({
         )}
       </Modal.Body>
       <Modal.Footer>
+        {isAdmin && marker && (
+          <Button
+            variant="outline-danger"
+            onClick={async () => {
+              if (window.confirm(`Are you sure you want to delete the marker "${marker.name}"? This will remove the marker from the map but will not delete the associated household.`)) {
+                try {
+                  const success = await MapService.deleteMarker(marker.id)
+                  if (success) {
+                    if (onMarkerDeleted) {
+                      onMarkerDeleted(marker.id)
+                    }
+                    onHide()
+                  } else {
+                    alert('Failed to delete marker. Please try again.')
+                  }
+                } catch (error) {
+                  console.error('Error deleting marker:', error)
+                  alert('Failed to delete marker. Please try again.')
+                }
+              }
+            }}
+            className="me-auto"
+          >
+            🗑️ Delete Marker
+          </Button>
+        )}
         <Button variant="secondary" onClick={onHide}>
           Close
         </Button>
@@ -414,7 +452,10 @@ export default function HouseholdAssignmentModal({
        {/* Resident Form Modal */}
        <ResidentFormModal
          show={showResidentForm}
-         onHide={() => setShowResidentForm(false)}
+         onHide={() => {
+           setShowResidentForm(false)
+           setEditingResidentId(null)
+         }}
          householdId={markerWithHousehold?.household?.id || 0}
          editingResidentId={editingResidentId}
          onResidentSaved={handleResidentSaved}

@@ -36,6 +36,7 @@ export async function listResidents(params: {
   seniors?: boolean
   pwds?: boolean
   children?: boolean
+  unassigned?: boolean
 }) {
   const res = await api.get('/residents', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }

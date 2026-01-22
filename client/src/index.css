@@ -3,7 +3,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base styles */
+/* Base styles */ 
 @layer base {
   html {
     font-family: 'Inter', system-ui, sans-serif;
@@ -15,18 +15,18 @@
   }
   
   body {
-    @apply bg-neutral-50 text-neutral-700;
     font-family: 'Inter', system-ui, sans-serif;
     transition: background-color 0.3s ease, color 0.3s ease;
-    background-color: var(--color-background);
-    color: var(--color-text-primary);
+    background-color: var(--color-background) !important;
+    color: var(--color-text-primary) !important;
   }
 
   .dark body,
   [data-theme="dark"] body {
-    @apply bg-neutral-900 text-neutral-100;
-    background-color: var(--color-background);
-    color: var(--color-text-primary);
+    font-family: 'Inter', system-ui, sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    background-color: var(--color-background) !important;
+    color: var(--color-text-primary) !important;
   }
 
   /* Improved focus styles */
@@ -44,18 +44,17 @@
 @layer components {
   /* Card styles */
   .card-modern {
-    @apply bg-white rounded-xl shadow-card border border-neutral-200 p-6;
+    @apply rounded-xl shadow-card border p-6;
     transition: background-color 0.3s ease, border-color 0.3s ease;
-    background-color: var(--color-surface);
-    border-color: var(--color-border);
-    color: var(--color-text-primary);
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-primary) !important;
   }
 
   .dark .card-modern,
   [data-theme="dark"] .card-modern {
-    @apply bg-neutral-800 border-neutral-700;
-    background-color: var(--color-surface);
-    border-color: var(--color-border);
+    background-color: var(--color-surface) !important;
+    border-color: var(--color-border) !important;
   }
 
   /* Button styles */
@@ -115,8 +114,9 @@
 
   /* Table styles */
   .table-modern {
-    @apply w-full bg-white rounded-xl shadow-card overflow-hidden;
+    @apply w-full rounded-xl shadow-card overflow-hidden;
     transition: background-color 0.3s ease;
+    background-color: var(--color-surface) !important;
   }
 
   .table-modern th {
@@ -164,6 +164,7 @@
 
 
 /* Bootstrap layout helpers for fixed sidebar + top navbar */
+/* Sidebar always stays dark regardless of theme */
 .sidebar-fixed {
   position: fixed;
   top: 0;
@@ -173,42 +174,57 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
+  /* Always use dark theme colors for sidebar */
+  background-color: #1E293B !important; /* Dark surface color */
+  border-right: 1px solid #334155 !important; /* Dark border color */
+  color: #F1F5F9 !important; /* Light text color */
   transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
-/* Sidebar dark mode support */
-.dark .sidebar-fixed,
-[data-theme="dark"] .sidebar-fixed {
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
+/* Sidebar text colors - always use dark theme colors */
+.sidebar-fixed .text-neutral-500 {
+  color: #94A3B8 !important; /* Dark theme muted text */
 }
 
-.dark .sidebar-fixed .text-neutral-500,
-[data-theme="dark"] .sidebar-fixed .text-neutral-500 {
-  color: var(--color-text-muted);
+.sidebar-fixed .text-neutral-700 {
+  color: #F1F5F9 !important; /* Dark theme primary text */
 }
 
-.dark .sidebar-fixed .text-neutral-700,
-[data-theme="dark"] .sidebar-fixed .text-neutral-700 {
-  color: var(--color-text-primary);
+.sidebar-fixed .border-neutral-200 {
+  border-color: #334155 !important; /* Dark theme border */
 }
 
-.dark .sidebar-fixed .border-neutral-200,
-[data-theme="dark"] .sidebar-fixed .border-neutral-200 {
-  border-color: var(--color-border);
+.sidebar-fixed .bg-white {
+  background-color: #1E293B !important; /* Dark theme surface */
 }
 
-.dark .sidebar-fixed .bg-white,
-[data-theme="dark"] .sidebar-fixed .bg-white {
-  background-color: var(--color-surface);
+.sidebar-fixed .hover\:bg-neutral-100:hover {
+  background-color: #334155 !important; /* Dark theme hover */
 }
 
-.dark .sidebar-fixed .hover\:bg-neutral-100:hover,
-[data-theme="dark"] .sidebar-fixed .hover\:bg-neutral-100:hover {
-  background-color: var(--color-border-light);
+/* Sidebar menu item active states - adjusted for dark theme */
+.sidebar-fixed .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.2) !important; /* Dark blue highlight */
+}
+
+.sidebar-fixed .bg-blue-50\/50 {
+  background-color: rgba(59, 130, 246, 0.15) !important; /* Subtle dark blue */
+}
+
+.sidebar-fixed .text-blue-700 {
+  color: #60A5FA !important; /* Light blue text for dark background */
+}
+
+.sidebar-fixed .text-blue-600 {
+  color: #93C5FD !important; /* Lighter blue for dark background */
+}
+
+.sidebar-fixed button:hover {
+  background-color: #334155 !important;
+}
+
+.sidebar-fixed a:hover {
+  background-color: #334155 !important;
 }
 
 /* Sidebar scrollbar styling */
@@ -263,86 +279,252 @@
   }
 }
 
-/* Bootstrap component dark mode support */
-.dark .card,
-[data-theme="dark"] .card {
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
+/* Bootstrap component theme support - Base overrides using CSS variables */
+.card {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .card-body,
-[data-theme="dark"] .card-body {
-  color: var(--color-text-primary);
+.card-body {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .table,
-[data-theme="dark"] .table {
-  color: var(--color-text-primary);
+.card-header {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .table-light,
-[data-theme="dark"] .table-light {
-  background-color: var(--color-border-light);
-  color: var(--color-text-primary);
+.card-footer {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .table-light th,
-[data-theme="dark"] .table-light th {
-  color: var(--color-text-primary);
+.table {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  --bs-table-border-color: var(--color-border) !important;
+  --bs-table-striped-bg: var(--color-border-light) !important;
+  --bs-table-striped-color: var(--color-text-primary) !important;
+  --bs-table-active-bg: var(--color-border-light) !important;
+  --bs-table-active-color: var(--color-text-primary) !important;
+  --bs-table-hover-bg: var(--color-border-light) !important;
+  --bs-table-hover-color: var(--color-text-primary) !important;
+  color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
 }
 
-.dark .form-control,
-[data-theme="dark"] .form-control {
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
+.table > :not(caption) > * > * {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
 }
 
-.dark .form-select,
-[data-theme="dark"] .form-select {
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
+.table thead th {
+  --bs-table-bg: var(--color-border-light) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  background-color: var(--color-border-light) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .modal-content,
-[data-theme="dark"] .modal-content {
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
+.table tbody td {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .modal-header,
-[data-theme="dark"] .modal-header {
-  border-color: var(--color-border);
+.table tbody tr {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
 }
 
-.dark .modal-footer,
-[data-theme="dark"] .modal-footer {
-  border-color: var(--color-border);
+.table tbody tr > td {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
 }
 
-.dark .offcanvas,
-[data-theme="dark"] .offcanvas {
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
+.table-striped > tbody > tr:nth-of-type(odd) {
+  --bs-table-accent-bg: var(--color-border-light) !important;
 }
 
-.dark .offcanvas-header,
-[data-theme="dark"] .offcanvas-header {
-  border-color: var(--color-border);
+.table-striped > tbody > tr:nth-of-type(odd) > td,
+.table-striped > tbody > tr:nth-of-type(odd) > th {
+  --bs-table-bg: var(--color-border-light) !important;
+  --bs-table-accent-bg: var(--color-border-light) !important;
+  background-color: var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .alert,
-[data-theme="dark"] .alert {
-  background-color: var(--color-surface);
-  border-color: var(--color-border);
-  color: var(--color-text-primary);
+.table-striped > tbody > tr:nth-of-type(even) > td,
+.table-striped > tbody > tr:nth-of-type(even) > th {
+  --bs-table-bg: var(--color-surface) !important;
+  --bs-table-accent-bg: var(--color-surface) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
 }
 
-.dark .text-muted,
-[data-theme="dark"] .text-muted {
+.table-hover > tbody > tr:hover {
+  --bs-table-accent-bg: var(--color-border-light) !important;
+}
+
+.table-hover > tbody > tr:hover > td,
+.table-hover > tbody > tr:hover > th {
+  --bs-table-accent-bg: var(--color-border-light) !important;
+  background-color: var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-control {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-control:focus {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-select {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.form-select:focus {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-primary) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.modal-content {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.modal-header {
+  border-color: var(--color-border) !important;
+  background-color: var(--color-surface) !important;
+}
+
+.modal-footer {
+  border-color: var(--color-border) !important;
+  background-color: var(--color-surface) !important;
+}
+
+.offcanvas {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.offcanvas-header {
+  border-color: var(--color-border) !important;
+  background-color: var(--color-surface) !important;
+}
+
+.alert {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.text-muted {
   color: var(--color-text-muted) !important;
+}
+
+.nav-tabs .nav-link {
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
+  background-color: transparent !important;
+}
+
+.nav-tabs .nav-link:hover {
+  border-color: var(--color-border) !important;
+  background-color: var(--color-border-light) !important;
+}
+
+.nav-tabs .nav-link.active {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) var(--color-border) var(--color-surface) !important;
+  color: var(--color-primary) !important;
+}
+
+.pagination .page-link {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.pagination .page-link:hover {
+  background-color: var(--color-border-light) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.pagination .page-item.active .page-link {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+.pagination .page-item.disabled .page-link {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-muted) !important;
+  opacity: 0.6;
+}
+
+/* Bootstrap background utility classes */
+.bg-light {
+  background-color: var(--color-border-light) !important;
+}
+
+.bg-white {
+  background-color: var(--color-surface) !important;
+}
+
+/* List group items */
+.list-group-item {
+  background-color: var(--color-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.list-group-item:hover {
+  background-color: var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.list-group-item-action:focus {
+  background-color: var(--color-border-light) !important;
+  color: var(--color-text-primary) !important;
+}
+
+.list-group-item-action.active {
+  background-color: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: white !important;
+}
+
+/* Outline button hover states */
+button.bg-transparent.border:hover {
+  background-color: var(--color-border-light) !important;
+}
+
+button.bg-transparent:not(.border):hover {
+  background-color: var(--color-border-light) !important;
 }
 
 /* Custom utilities */
@@ -361,5 +543,19 @@
 
   .animate-slide-up {
     animation: slideUp 0.3s ease-out;
+}
+
+/* Spinning animation for loading icons */
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
   }
 }

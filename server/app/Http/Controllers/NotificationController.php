@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -128,5 +129,55 @@ class NotificationController extends Controller
             'message' => $message,
             'type' => $type
         ]);
+    }
+
+    /**
+     * Create a notification for the Barangay Captain
+     */
+    public static function createCaptainNotification($title, $message, $type = 'approval_required'): ?Notification
+    {
+        $captain = User::where('role', 'captain')->first();
+        
+        if (!$captain) {
+            return null;
+        }
+
+        return self::createUserNotification($captain->id, $title, $message, $type);
+    }
+
+    /**
+     * Create notification for captain when a new request needs approval
+     */
+    public static function notifyCaptainForApproval($requestType, $requestTitle, $requestId, $createdBy = null): ?Notification
+    {
+        $captain = User::where('role', 'captain')->first();
+        
+        if (!$captain) {
+            return null;
+        }
+
+        $creatorName = $createdBy ? User::find($createdBy)?->name : 'Staff';
+        $type = match ($requestType) {
+            'certificate' => 'certificate_request',
+            'blotter' => 'blotter_pending',
+            'incident' => 'incident_pending',
+            default => 'approval_required'
+        };
+
+        $title = match ($requestType) {
+            'certificate' => 'Certificate Request Requires Approval',
+            'blotter' => 'Blotter Case Requires Approval',
+            'incident' => 'Incident Report Requires Approval',
+            default => 'Request Requires Approval'
+        };
+
+        $message = match ($requestType) {
+            'certificate' => "New certificate request from {$creatorName}: {$requestTitle}. Request ID: #{$requestId}",
+            'blotter' => "New blotter case from {$creatorName}: {$requestTitle}. Case #{$requestId}",
+            'incident' => "New incident report from {$creatorName}: {$requestTitle}. Report ID: #{$requestId}",
+            default => "New request from {$creatorName}: {$requestTitle}. Request ID: #{$requestId}"
+        };
+
+        return self::createUserNotification($captain->id, $title, $message, $type);
     }
 }

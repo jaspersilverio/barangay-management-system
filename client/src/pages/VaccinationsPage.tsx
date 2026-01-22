@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { Syringe, Filter, Download, Plus } from 'lucide-react'
 import { getVaccinations, getVaccinationStatistics, COMMON_VACCINES, VACCINATION_STATUSES, AGE_GROUPS } from '../services/vaccination.service'
+import { exportVaccinationsToPdf } from '../services/pdf.service'
+import api from '../services/api'
 import { usePuroks } from '../context/PurokContext'
 import { useDashboard } from '../context/DashboardContext'
 import VaccinationTable from '../components/vaccinations/VaccinationTable'
@@ -17,6 +19,12 @@ export default function VaccinationsPage() {
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null)
+
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
   // Filters
   const [filters, setFilters] = useState<VaccinationFilters>({
@@ -38,16 +46,21 @@ export default function VaccinationsPage() {
     total: 0
   })
 
+  // Debounce input value to search query (300ms delay)
   useEffect(() => {
-    loadVaccinations()
-    loadStatistics()
-  }, [filters])
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setFilters(prev => ({ ...prev, search: searchInput, page: 1 }))
+    }, 300)
 
-  const loadVaccinations = async () => {
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
+  const loadVaccinations = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await getVaccinations(filters)
       if (response.success) {
         // Set data immediately - no delays
@@ -68,9 +81,9 @@ export default function VaccinationsPage() {
       // Clear loading state immediately when data is ready
       setLoading(false)
     }
-  }
+  }, [filters])
 
-  const loadStatistics = async () => {
+  const loadStatistics = useCallback(async () => {
     try {
       const response = await getVaccinationStatistics({
         purok_id: filters.purok_id,
@@ -83,7 +96,12 @@ export default function VaccinationsPage() {
     } catch (err) {
       console.error('Error loading statistics:', err)
     }
-  }
+  }, [filters.purok_id, filters.date_from, filters.date_to])
+
+  useEffect(() => {
+    loadVaccinations()
+    loadStatistics()
+  }, [loadVaccinations, loadStatistics])
 
   const handleFilterChange = (key: keyof VaccinationFilters, value: any) => {
     setFilters(prev => ({
@@ -134,6 +152,61 @@ export default function VaccinationsPage() {
       per_page: 15,
       page: 1
     })
+  }
+
+  const handleExport = async (type: 'pdf' | 'excel') => {
+    try {
+      setExporting(true)
+      setExportType(type)
+      setError(null)
+
+      if (type === 'pdf') {
+        // Build query parameters for PDF export
+        const params: any = {}
+        if (filters.purok_id) params.purok_id = filters.purok_id
+        if (filters.status) params.status = filters.status
+        if (filters.vaccine_name) params.vaccine_name = filters.vaccine_name
+        if (filters.date_from) params.date_from = filters.date_from
+        if (filters.date_to) params.date_to = filters.date_to
+        if (filters.age_group) params.age_group = filters.age_group
+        if (debouncedSearch) params.search = debouncedSearch
+
+        await exportVaccinationsToPdf(params)
+      } else {
+        // Excel export
+        const params = new URLSearchParams()
+        if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
+        if (filters.status) params.append('status', filters.status)
+        if (filters.vaccine_name) params.append('vaccine_name', filters.vaccine_name)
+        if (filters.date_from) params.append('date_from', filters.date_from)
+        if (filters.date_to) params.append('date_to', filters.date_to)
+        if (filters.age_group) params.append('age_group', filters.age_group)
+        if (debouncedSearch) params.append('search', debouncedSearch)
+
+        const response = await api.get(`/excel/export/vaccinations?${params.toString()}`, {
+          responseType: 'blob',
+        })
+
+        // Create blob URL and trigger download
+        const blob = new Blob([response.data], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `vaccination-records-${new Date().toISOString().split('T')[0]}.xlsx`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      }
+    } catch (err: any) {
+      console.error('Export error:', err)
+      setError(err?.response?.data?.message || `Failed to export ${type.toUpperCase()}`)
+    } finally {
+      setExporting(false)
+      setExportType(null)
+    }
   }
 
   return (
@@ -207,8 +280,8 @@ export default function VaccinationsPage() {
                 <Form.Control
                   type="text"
                   placeholder="Search by vaccine, resident name..."
-                  value={filters.search || ''}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </Form.Group>
             </Col>
@@ -302,10 +375,24 @@ export default function VaccinationsPage() {
               <Button variant="outline-secondary" onClick={clearFilters} className="me-2">
                 Clear Filters
               </Button>
-              <Button variant="outline-primary">
-                <Download size={16} className="me-2" />
-                Export
-              </Button>
+              <div className="btn-group">
+                <Button
+                  variant="outline-primary"
+                  onClick={() => handleExport('pdf')}
+                  disabled={exporting}
+                >
+                  <Download size={16} className="me-2" />
+                  {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+                </Button>
+                <Button
+                  variant="outline-success"
+                  onClick={() => handleExport('excel')}
+                  disabled={exporting}
+                >
+                  <Download size={16} className="me-2" />
+                  {exporting && exportType === 'excel' ? 'Exporting Excel...' : 'Export Excel'}
+                </Button>
+              </div>
             </Col>
           </Row>
         </Card.Body>
@@ -355,7 +442,7 @@ export default function VaccinationsPage() {
                       Previous
                     </button>
                   </li>
-                  
+
                   {Array.from({ length: pagination.last_page }, (_, i) => i + 1).map((page) => (
                     <li key={page} className={`page-item ${pagination.current_page === page ? 'active' : ''}`}>
                       <button
@@ -366,7 +453,7 @@ export default function VaccinationsPage() {
                       </button>
                     </li>
                   ))}
-                  
+
                   <li className={`page-item ${pagination.current_page === pagination.last_page ? 'disabled' : ''}`}>
                     <button
                       className="page-link"

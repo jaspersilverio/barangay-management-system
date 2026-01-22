@@ -7,7 +7,7 @@ interface ResidentFormModalProps {
   onHide: () => void
   householdId: number
   editingResidentId?: number | null
-  onResidentSaved: () => void
+  onResidentSaved: () => void | Promise<void>
 }
 
 interface SearchResult {
@@ -179,10 +179,16 @@ export default function ResidentFormModal({
 
     try {
       if (editingResidentId) {
-        await updateResident(editingResidentId, formData)
+        const response = await updateResident(editingResidentId, formData)
+        if (!response.success) {
+          throw new Error(response.message || 'Update failed')
+        }
         setSuccess('Resident updated successfully!')
       } else {
-        await createResident(formData)
+        const response = await createResident(formData)
+        if (!response.success) {
+          throw new Error(response.message || 'Create failed')
+        }
         setSuccess('Resident added successfully!')
       }
 
@@ -199,11 +205,12 @@ export default function ResidentFormModal({
         is_pwd: false
       })
 
-      // Notify parent component
+      // Notify parent component - call immediately to reload data
+      await onResidentSaved()
+      // Close modal after a short delay to show success message
       setTimeout(() => {
-        onResidentSaved()
         onHide()
-      }, 1000)
+      }, 500)
     } catch (error: any) {
       setError(error?.response?.data?.message || 'Failed to save resident')
     } finally {

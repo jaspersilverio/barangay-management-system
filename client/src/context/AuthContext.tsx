@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null)
       }
     } catch (error: any) {
-      console.log('Auth check failed:', error)
+      console.error('Auth check failed:', error)
       setUser(null)
       setToken(null)
       sessionStorage.removeItem('token')

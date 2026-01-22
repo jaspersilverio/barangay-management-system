@@ -34,12 +34,16 @@ const Certificates = lazy(() => import('../pages/Certificates'))
 const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
 const Officials = lazy(() => import('../pages/Officials'))
 const SKOfficialsPage = lazy(() => import('../pages/officials/SKOfficialsPage'))
+const TanodPage = lazy(() => import('../pages/officials/TanodPage'))
+const BHWPage = lazy(() => import('../pages/officials/BHWPage'))
+const StaffPage = lazy(() => import('../pages/officials/StaffPage'))
 const SeniorCitizensPage = lazy(() => import('../pages/beneficiaries/SeniorCitizensPage'))
 const PWDBeneficiariesPage = lazy(() => import('../pages/beneficiaries/PWDBeneficiariesPage'))
 const FourPsBeneficiariesPage = lazy(() => import('../pages/beneficiaries/FourPsBeneficiariesPage'))
 const SoloParentsPage = lazy(() => import('../pages/beneficiaries/SoloParentsPage'))
 const BlotterPage = lazy(() => import('../pages/BlotterPage'))
 const IncidentReportsPage = lazy(() => import('../pages/incidents/IncidentReportsPage'))
+const ApprovalCenter = lazy(() => import('../pages/ApprovalCenter'))
 const RegisterHouseholdPage = lazy(() => import('../pages/households/RegisterHouseholdPage'))
 const RegisterResidentPage = lazy(() => import('../pages/residents/RegisterResidentPage'))
 
@@ -289,6 +293,18 @@ const router = createBrowserRouter([
             element: <SKOfficialsPageWithSuspense />
           },
           {
+            path: 'officials/tanod',
+            element: <Suspense fallback={<PageLoader />}><TanodPage /></Suspense>,
+          },
+          {
+            path: 'officials/bhw',
+            element: <Suspense fallback={<PageLoader />}><BHWPage /></Suspense>,
+          },
+          {
+            path: 'officials/staff',
+            element: <Suspense fallback={<PageLoader />}><StaffPage /></Suspense>,
+          },
+          {
             path: 'beneficiaries/senior-citizens',
             element: <SeniorCitizensPageWithSuspense />
           },
@@ -311,6 +327,10 @@ const router = createBrowserRouter([
           {
             path: 'incident-reports',
             element: <IncidentReportsPageWithSuspense />
+          },
+          {
+            path: 'approval-center',
+            element: <Suspense fallback={<PageLoader />}><ApprovalCenter /></Suspense>
           },
           {
             path: 'incidents/report',

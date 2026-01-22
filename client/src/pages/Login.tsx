@@ -86,12 +86,31 @@ export default function Login() {
           {/* Brand Header */}
           <div className="text-center mb-8">
             <div className="mb-4">
-              <h1 
-                className="text-3xl font-bold mb-2"
-                style={{ color: 'var(--color-primary)' }}
-              >
-                🏘️ HMMS
-              </h1>
+              <div className="d-flex align-items-center justify-content-center gap-3 mb-3">
+                <img 
+                  src="/houselogo1.png" 
+                  alt="HMMS Logo" 
+                  style={{ width: '48px', height: '48px', objectFit: 'contain' }}
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent && !parent.querySelector('.logo-fallback')) {
+                      const fallback = document.createElement('span');
+                      fallback.className = 'logo-fallback';
+                      fallback.textContent = '🏘️';
+                      fallback.style.fontSize = '48px';
+                      parent.insertBefore(fallback, target);
+                    }
+                  }}
+                />
+                <h1 
+                  className="text-3xl font-bold mb-0"
+                  style={{ color: 'var(--color-primary)' }}
+                >
+                  HMMS
+                </h1>
+              </div>
               <p 
                 className="text-sm font-medium"
                 style={{ color: 'var(--color-text-muted)' }}

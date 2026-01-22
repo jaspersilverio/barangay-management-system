@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Table, Button, Badge, Form, InputGroup, Dropdown } from 'react-bootstrap'
 import { type Official } from '../../services/officials.service'
 
@@ -11,6 +11,7 @@ interface OfficialListProps {
   onSearch: (search: string) => void
   onFilterPosition: (position: string) => void
   onFilterStatus: (active: boolean | null) => void
+  canManage?: boolean
 }
 
 export default function OfficialList({
@@ -21,15 +22,26 @@ export default function OfficialList({
   onToggleActive,
   onSearch,
   onFilterPosition,
-  onFilterStatus
+  onFilterStatus,
+  canManage = false
 }: OfficialListProps) {
-  const [searchTerm, setSearchTerm] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
   const [selectedPosition, setSelectedPosition] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<boolean | null>(null)
 
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      onSearch(searchInput)
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput]) // Remove onSearch from dependencies to avoid infinite loop
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    onSearch(searchTerm)
+    // Search is already handled by debounce effect
   }
 
   const handlePositionFilter = (position: string) => {
@@ -77,8 +89,8 @@ export default function OfficialList({
                 <Form.Control
                   type="text"
                   placeholder="Search officials..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
                 <Button type="submit" variant="outline-secondary">
                   🔍
@@ -118,7 +130,7 @@ export default function OfficialList({
             <Button
               variant="outline-secondary"
               onClick={() => {
-                setSearchTerm('')
+                setSearchInput('')
                 setSelectedPosition('')
                 setSelectedStatus(null)
                 onSearch('')
@@ -189,29 +201,45 @@ export default function OfficialList({
                 <tr key={official.id}>
                   <td>
                     {official.photo_url ? (
-                      <img
-                        key={`${official.id}-${official.updated_at || ''}`}
-                        src={official.photo_url}
-                        alt={official.name}
-                        width={40}
-                        height={40}
-                        className="rounded-circle"
-                        style={{ objectFit: 'cover', display: 'block' }}
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          console.error('Failed to load official photo in list:', {
-                            url: official.photo_url,
-                            photo_path: official.photo_path,
-                            official_id: official.id
-                          });
-                          target.style.display = 'none';
+                      <div
+                        className="rounded-circle overflow-hidden"
+                        style={{
+                          width: '40px',
+                          height: '40px',
+                          minWidth: '40px',
+                          minHeight: '40px',
+                          maxWidth: '40px',
+                          maxHeight: '40px',
+                          display: 'inline-block',
+                          backgroundColor: 'var(--color-border-light)'
                         }}
-                        onLoad={() => {
-                          console.log('Official photo loaded in list:', official.photo_url);
-                        }}
-                      />
+                      >
+                        <img
+                          key={`${official.id}-${official.updated_at || ''}`}
+                          src={official.photo_url}
+                          alt={official.name}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block'
+                          }}
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            console.error('Failed to load official photo in list:', {
+                              url: official.photo_url,
+                              photo_path: official.photo_path,
+                              official_id: official.id
+                            });
+                            target.style.display = 'none';
+                          }}
+                          onLoad={() => {
+                            // Photo loaded successfully
+                          }}
+                        />
+                      </div>
                     ) : (
-                      <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', backgroundColor: 'var(--color-border-light)' }}>
+                      <div className="rounded-circle d-flex align-items-center justify-content-center" style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px', maxWidth: '40px', maxHeight: '40px', backgroundColor: 'var(--color-border-light)' }}>
                         <span style={{ fontSize: '20px' }}>👤</span>
                       </div>
                     )}
@@ -245,26 +273,30 @@ export default function OfficialList({
                     {getStatusBadge(official.active)}
                   </td>
                   <td>
-                    <Dropdown>
-                      <Dropdown.Toggle variant="outline-secondary" size="sm">
-                        Actions
-                      </Dropdown.Toggle>
-                      <Dropdown.Menu>
-                        <Dropdown.Item onClick={() => onEdit(official)}>
-                          ✏️ Edit
-                        </Dropdown.Item>
-                        <Dropdown.Item onClick={() => onToggleActive(official.id)}>
-                          {official.active ? '🔴 Deactivate' : '🟢 Activate'}
-                        </Dropdown.Item>
-                        <Dropdown.Divider />
-                        <Dropdown.Item 
-                          onClick={() => onDelete(official.id)}
-                          className="text-danger"
-                        >
-                          🗑️ Delete
-                        </Dropdown.Item>
-                      </Dropdown.Menu>
-                    </Dropdown>
+                    {canManage ? (
+                      <Dropdown>
+                        <Dropdown.Toggle variant="outline-secondary" size="sm">
+                          Actions
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <Dropdown.Item onClick={() => onEdit(official)}>
+                            ✏️ Edit
+                          </Dropdown.Item>
+                          <Dropdown.Item onClick={() => onToggleActive(official.id)}>
+                            {official.active ? '🔴 Deactivate' : '🟢 Activate'}
+                          </Dropdown.Item>
+                          <Dropdown.Divider />
+                          <Dropdown.Item
+                            onClick={() => onDelete(official.id)}
+                            className="text-danger"
+                          >
+                            🗑️ Delete
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    ) : (
+                      <span className="text-muted small">View Only</span>
+                    )}
                   </td>
                 </tr>
               ))

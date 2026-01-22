@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Search, 
@@ -50,26 +50,42 @@ const IncidentReportsPage: React.FC = () => {
     total: 0
   });
 
-  // Debounce search input
+  // Ref to maintain input focus and manage debounce timer
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimeoutRef = useRef<number | null>(null);
+
+  // Debounce input value to search query (300ms delay)
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current);
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(inputValue);
-      setPage(1); // Reset to first page when search changes
+      // Reset to first page when search changes
+      setPage(1);
     }, 300);
 
-    return () => clearTimeout(timer);
+    debounceTimeoutRef.current = timeoutId;
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current);
+      }
+    };
   }, [inputValue]);
 
-  // Load incident reports
-  const loadIncidentReports = async () => {
+  // Load incident reports - depends on debouncedSearch, not inputValue
+  const loadIncidentReports = useCallback(async (overrideSearch?: string, overridePage?: number) => {
     try {
       setLoading(true);
       const params: IncidentReportListParams = {
-        search: debouncedSearch || undefined,
+        search: overrideSearch !== undefined ? overrideSearch : debouncedSearch || undefined,
         status: statusFilter || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
-        page,
+        page: overridePage !== undefined ? overridePage : page,
         per_page: 15
       };
       
@@ -87,17 +103,55 @@ const IncidentReportsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, statusFilter, startDate, endDate, page]);
 
+  // Load data on mount and when dependencies change
   useEffect(() => {
     if (isAuthenticated) {
       loadIncidentReports();
     }
-  }, [isAuthenticated, debouncedSearch, statusFilter, startDate, endDate, page]);
+  }, [isAuthenticated, loadIncidentReports]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    // Page reset is handled in debounce effect
+  }, []);
+
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current);
+      debounceTimeoutRef.current = null;
+    }
+
+    const searchTerm = inputValue;
+    setDebouncedSearch(searchTerm);
+    setPage(1);
+    // Trigger an immediate search using the latest input value
+    loadIncidentReports(searchTerm, 1);
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [inputValue, loadIncidentReports]);
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSearchSubmit();
+      }
+    },
+    [handleSearchSubmit]
+  );
 
   const handleAddIncidentReport = () => {
     setSelectedIncidentReport(null);
@@ -232,15 +286,28 @@ const IncidentReportsPage: React.FC = () => {
                     <Search size={16} />
                   </InputGroup.Text>
                   <Form.Control
+                    ref={searchInputRef}
                     type="text"
                     placeholder="Title, description, or location..."
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    disabled={loading}
+                    onChange={handleSearchChange}
+                    onKeyDown={handleSearchKeyDown}
                     className="form-control-custom"
+                    autoComplete="off"
                   />
                 </InputGroup>
               </Form.Group>
+            </div>
+            <div className="col-md-auto d-flex align-items-end">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={loading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
             </div>
             <div className="col-md-2">
               <Form.Group>
@@ -351,32 +418,35 @@ const IncidentReportsPage: React.FC = () => {
                         {incidentReport.reporting_officer?.name || 'N/A'}
                       </td>
                       <td>
-                        <div className="d-flex justify-content-end gap-2">
+                        <div className="action-buttons">
                           <Button
-                            variant="outline-primary"
                             size="sm"
                             onClick={() => handleViewIncidentReport(incidentReport)}
+                            className="btn-action btn-action-view"
                             title="View Details"
                           >
-                            <Eye size={16} />
+                            <i className="fas fa-eye"></i>
+                            View
                           </Button>
                           {canManage && (
                             <>
                               <Button
-                                variant="outline-warning"
                                 size="sm"
                                 onClick={() => handleEditIncidentReport(incidentReport)}
+                                className="btn-action btn-action-edit"
                                 title="Edit"
                               >
-                                <Edit size={16} />
+                                <i className="fas fa-edit"></i>
+                                Edit
                               </Button>
                               <Button
-                                variant="outline-danger"
                                 size="sm"
                                 onClick={() => handleDeleteIncidentReport(incidentReport.id)}
+                                className="btn-action btn-action-delete"
                                 title="Delete"
                               >
-                                <Trash2 size={16} />
+                                <i className="fas fa-trash"></i>
+                                Delete
                               </Button>
                             </>
                           )}

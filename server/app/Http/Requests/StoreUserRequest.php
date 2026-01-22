@@ -26,7 +26,7 @@ class StoreUserRequest extends FormRequest
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'password' => 'required|string|min:8',
-            'role' => ['required', Rule::in(['admin', 'purok_leader', 'staff'])],
+            'role' => ['required', Rule::in(['admin', 'purok_leader', 'staff', 'captain', 'viewer'])],
             'assigned_purok_id' => [
                 'nullable',
                 'exists:puroks,id',

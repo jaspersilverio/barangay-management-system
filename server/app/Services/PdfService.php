@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Setting;
+use App\Models\BarangayInfo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -24,29 +25,42 @@ use Illuminate\Support\Facades\Storage;
 class PdfService
 {
     /**
-     * Get barangay information from settings
+     * Get barangay information from BarangayInfo model (singleton - id = 1)
      */
     public function getBarangayInfo(): array
     {
-        $setting = Setting::where('key', 'barangay_info')->first();
+        $barangayInfo = BarangayInfo::find(1);
 
-        if (!$setting || !$setting->value) {
-            // Return defaults if settings not configured
+        if (!$barangayInfo) {
+            // Return defaults if not configured
             return [
-                'name' => 'Barangay',
-                'address' => 'Municipality, Province',
-                'contact' => '',
+                'barangay_name' => 'Barangay',
+                'municipality' => 'Municipality',
+                'province' => 'Province',
+                'region' => 'Region',
+                'address' => '',
+                'contact_number' => '',
+                'email' => '',
+                'captain_name' => '',
                 'logo_path' => null,
             ];
         }
 
-        $info = $setting->value;
-
+        // Return both new and legacy field names for backward compatibility with PDF templates
         return [
-            'name' => $info['name'] ?? 'Barangay',
-            'address' => $info['address'] ?? 'Municipality, Province',
-            'contact' => $info['contact'] ?? '',
-            'logo_path' => $info['logo_path'] ?? null,
+            // New structure
+            'barangay_name' => $barangayInfo->barangay_name ?? 'Barangay',
+            'municipality' => $barangayInfo->municipality ?? 'Municipality',
+            'province' => $barangayInfo->province ?? 'Province',
+            'region' => $barangayInfo->region ?? 'Region',
+            'address' => $barangayInfo->address ?? '',
+            'contact_number' => $barangayInfo->contact_number ?? '',
+            'email' => $barangayInfo->email ?? '',
+            'captain_name' => $barangayInfo->captain_name ?? '',
+            'logo_path' => $barangayInfo->logo_path,
+            // Legacy field names for backward compatibility with existing PDF templates
+            'name' => $barangayInfo->barangay_name ?? 'Barangay',
+            'contact' => $barangayInfo->contact_number ?? '',
         ];
     }
 
@@ -80,25 +94,43 @@ class PdfService
 
         $mergedOptions = array_merge($defaultOptions, $options);
 
-        // Render HTML
-        $html = view($view, $data)->render();
-
-        // Generate PDF
-        $pdf = Pdf::loadHTML($html)
-            ->setPaper($mergedOptions['paper'], $mergedOptions['orientation'])
-            ->setOptions([
-                'isHtml5ParserEnabled' => true,
-                'isRemoteEnabled' => true,
-                'defaultFont' => 'Arial',
-                'margin-top' => $mergedOptions['margin']['top'] ?? 20,
-                'margin-right' => $mergedOptions['margin']['right'] ?? 15,
-                'margin-bottom' => $mergedOptions['margin']['bottom'] ?? 20,
-                'margin-left' => $mergedOptions['margin']['left'] ?? 15,
-                'enable-local-file-access' => true,
-                'enable-javascript' => false,
+        // Render HTML with error handling
+        try {
+            $html = view($view, $data)->render();
+        } catch (\Exception $e) {
+            Log::error('Failed to render PDF view', [
+                'view' => $view,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
+            throw new \Exception('Failed to render PDF template: ' . $e->getMessage());
+        }
 
-        return $pdf;
+        // Generate PDF with timeout protection
+        try {
+            $pdf = Pdf::loadHTML($html)
+                ->setPaper($mergedOptions['paper'], $mergedOptions['orientation'])
+                ->setOptions([
+                    'isHtml5ParserEnabled' => true,
+                    'isRemoteEnabled' => true,
+                    'defaultFont' => 'Arial',
+                    'margin-top' => $mergedOptions['margin']['top'] ?? 20,
+                    'margin-right' => $mergedOptions['margin']['right'] ?? 15,
+                    'margin-bottom' => $mergedOptions['margin']['bottom'] ?? 20,
+                    'margin-left' => $mergedOptions['margin']['left'] ?? 15,
+                    'enable-local-file-access' => true,
+                    'enable-javascript' => false,
+                ]);
+
+            return $pdf;
+        } catch (\Exception $e) {
+            Log::error('Failed to generate PDF', [
+                'view' => $view,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw new \Exception('PDF generation failed: ' . $e->getMessage());
+        }
     }
 
     /**

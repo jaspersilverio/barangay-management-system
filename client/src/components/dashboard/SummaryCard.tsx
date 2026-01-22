@@ -11,38 +11,38 @@ export type SummaryCardProps = {
 export default function SummaryCard({ title, value, subtext, icon, color = 'primary' }: SummaryCardProps) {
   const colorClasses = {
     primary: {
-      bg: 'bg-blue-50',
-      icon: 'bg-blue-100 text-blue-600',
-      text: 'text-blue-600'
+      icon: 'text-blue-600 dark:text-blue-400',
+      text: 'text-blue-600 dark:text-blue-400'
     },
     success: {
-      bg: 'bg-green-50',
-      icon: 'bg-green-100 text-green-600',
-      text: 'text-green-600'
+      icon: 'text-green-600 dark:text-green-400',
+      text: 'text-green-600 dark:text-green-400'
     },
     warning: {
-      bg: 'bg-orange-50',
-      icon: 'bg-orange-100 text-orange-600',
-      text: 'text-orange-600'
+      icon: 'text-orange-600 dark:text-orange-400',
+      text: 'text-orange-600 dark:text-orange-400'
     },
     info: {
-      bg: 'bg-blue-50',
-      icon: 'bg-blue-100 text-blue-600',
-      text: 'text-blue-600'
+      icon: 'text-blue-600 dark:text-blue-400',
+      text: 'text-blue-600 dark:text-blue-400'
     },
     danger: {
-      bg: 'bg-red-50',
-      icon: 'bg-red-100 text-red-600',
-      text: 'text-red-600'
+      icon: 'text-red-600 dark:text-red-400',
+      text: 'text-red-600 dark:text-red-400'
     }
   }
 
   const classes = colorClasses[color]
 
   return (
-    <div className={`card-modern p-4 ${classes.bg} hover:shadow-soft transition-all duration-300`}>
+    <div className="card-modern p-4 hover:shadow-soft transition-all duration-300">
       <div className="d-flex align-items-center gap-4">
-        <div className={`d-flex align-items-center justify-content-center rounded-xl ${classes.icon} w-12 h-12`}>
+        <div 
+          className={`d-flex align-items-center justify-content-center rounded-xl w-12 h-12 ${classes.icon}`}
+          style={{
+            backgroundColor: 'var(--color-border-light)',
+          }}
+        >
           {icon}
         </div>
         <div className="flex-1">

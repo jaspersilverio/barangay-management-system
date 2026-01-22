@@ -4,14 +4,13 @@ import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import HouseholdFormModal from '../../components/households/HouseholdFormModal'
 import ViewResidentsModal from '../../components/households/ViewResidentsModal'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import { useDashboard } from '../../context/DashboardContext'
 
 const HouseholdListPage = React.memo(() => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { puroks } = usePuroks()
   const { user } = useAuth()
   const { refreshData: refreshDashboard } = useDashboard()
@@ -33,8 +32,9 @@ const HouseholdListPage = React.memo(() => {
   const [householdsData, setHouseholdsData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
 
-  // Ref to maintain input focus
+  // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimeoutRef = useRef<number | null>(null)
 
   const canManage = role === 'admin' || role === 'purok_leader'
 
@@ -46,72 +46,53 @@ const HouseholdListPage = React.memo(() => {
 
   // Debounce input value to search query (300ms delay)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(inputValue)
       // Reset to first page when search changes
       setPage(1)
     }, 300)
 
-    return () => clearTimeout(timeoutId)
+    debounceTimeoutRef.current = timeoutId
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
   }, [inputValue])
 
   // Manual data fetching - depends on debouncedSearch, not inputValue
-  const loadHouseholds = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const data = await listHouseholds({ 
-        search: debouncedSearch, 
-        page, 
-        purok_id: effectivePurokId || undefined,
-        per_page: 15 
-      })
-      // Set data immediately - no delays
-      setHouseholdsData(data)
-    } catch (err) {
-      console.error('Failed to load households:', err)
-    } finally {
-      // Clear loading state immediately when data is ready
-      setIsLoading(false)
-    }
-  }, [debouncedSearch, page, effectivePurokId])
+  const loadHouseholds = useCallback(
+    async (overrideSearch?: string, overridePage?: number) => {
+      setIsLoading(true)
+      try {
+        const data = await listHouseholds({
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
+          page: overridePage !== undefined ? overridePage : page,
+          purok_id: effectivePurokId || undefined,
+          per_page: 15,
+        })
+        // Set data immediately - no delays
+        setHouseholdsData(data)
+      } catch (err) {
+        console.error('Failed to load households:', err)
+      } finally {
+        // Clear loading state immediately when data is ready
+        setIsLoading(false)
+      }
+    },
+    [debouncedSearch, page, effectivePurokId]
+  )
 
   // Load data on mount and when dependencies change
   useEffect(() => {
     loadHouseholds()
   }, [loadHouseholds])
-
-  // Refresh data when navigating to this page (location change)
-  useEffect(() => {
-    // Refresh when the location pathname changes to this page
-    if (location.pathname === '/households') {
-      loadHouseholds()
-    }
-  }, [location.pathname, loadHouseholds])
-
-  // Refresh data when page becomes visible (e.g., user navigates back to this page)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && location.pathname === '/households') {
-        // Page became visible, refresh the data
-        loadHouseholds()
-      }
-    }
-
-    const handleFocus = () => {
-      // Window gained focus, refresh the data if we're on this page
-      if (location.pathname === '/households') {
-        loadHouseholds()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleFocus)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleFocus)
-    }
-  }, [loadHouseholds, location.pathname])
 
   const items = useMemo(() => {
     if (!householdsData?.data?.data) return []
@@ -131,9 +112,6 @@ const HouseholdListPage = React.memo(() => {
     return (householdsData as any)?.data?.total ?? 0
   }, [householdsData])
 
-  const currentPageData = useMemo(() => {
-    return (householdsData as any)?.data?.data ?? []
-  }, [householdsData])
 
   const handleDelete = useCallback(async () => {
     if (showDelete == null) return
@@ -161,6 +139,36 @@ const HouseholdListPage = React.memo(() => {
     // Page reset is handled in debounce effect
   }, [])
 
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+      debounceTimeoutRef.current = null
+    }
+
+    const searchTerm = inputValue
+    setDebouncedSearch(searchTerm)
+    setPage(1)
+    // Trigger an immediate search using the latest input value
+    loadHouseholds(searchTerm, 1)
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [inputValue, loadHouseholds])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearchSubmit()
+      }
+    },
+    [handleSearchSubmit]
+  )
+
   const handlePurokChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setPurokId(e.target.value)
     setPage(1)
@@ -168,10 +176,6 @@ const HouseholdListPage = React.memo(() => {
 
   const handlePageChange = useCallback((pageNumber: number) => {
     setPage(pageNumber)
-  }, [])
-
-  const handleShowForm = useCallback(() => {
-    setShowForm(true)
   }, [])
 
   const handleHideForm = useCallback(() => {
@@ -216,11 +220,22 @@ const HouseholdListPage = React.memo(() => {
                   placeholder="Address, head name, or contact" 
                   value={inputValue} 
                   onChange={handleSearchChange}
-                  disabled={isLoading}
+                  onKeyDown={handleSearchKeyDown}
                   className="form-control-custom"
                   autoComplete="off"
                 />
               </Form.Group>
+            </Col>
+            <Col md="auto">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={isLoading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
             </Col>
             {role === 'admin' && (
               <Col md={4}>
@@ -252,7 +267,7 @@ const HouseholdListPage = React.memo(() => {
           <div className="d-flex justify-content-between align-items-center">
             <h5 className="mb-0 text-brand-primary">Households</h5>
             <span className="text-brand-muted">
-              Showing {currentPageData.length} of {totalRecords} households
+              Showing {items.length} of {totalRecords} households
             </span>
           </div>
         </Col>

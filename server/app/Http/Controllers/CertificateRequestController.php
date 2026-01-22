@@ -3,13 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\CertificateRequest;
+use App\Models\IssuedCertificate;
+use App\Models\Official;
 use App\Models\Resident;
 use App\Models\User;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\CertificatePdfController;
+use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Carbon\Carbon;
 
 class CertificateRequestController extends Controller
 {
@@ -85,11 +90,15 @@ class CertificateRequestController extends Controller
             'status' => 'pending'
         ]);
 
-        // Create notification for admins
-        NotificationController::createSystemNotification(
-            'New Certificate Request',
-            "New {$certificateRequest->certificate_type_label} request from {$certificateRequest->resident->full_name}",
-            'certificate_request'
+        // Reload to get relationships
+        $certificateRequest->load('resident');
+
+        // Notify captain for approval (instead of system-wide notification)
+        NotificationController::notifyCaptainForApproval(
+            'certificate',
+            $certificateRequest->certificate_type_label . ' - ' . $certificateRequest->resident->full_name,
+            $certificateRequest->id,
+            $certificateRequest->requested_by
         );
 
         return response()->json([
@@ -150,12 +159,76 @@ class CertificateRequestController extends Controller
         ]);
     }
 
+    /**
+     * Get officials for certificate signing
+     */
+    protected function getOfficialsForCertificate(): array
+    {
+        $officials = Official::active()
+            ->orderBy('position')
+            ->get();
+
+        $organized = [];
+        foreach ($officials as $official) {
+            $position = strtolower($official->position);
+
+            // Map common positions
+            if (str_contains($position, 'captain') || str_contains($position, 'punong barangay')) {
+                $organized['captain'] = [
+                    'name' => $official->name,
+                    'position' => $official->position
+                ];
+            } elseif (str_contains($position, 'secretary')) {
+                $organized['secretary'] = [
+                    'name' => $official->name,
+                    'position' => $official->position
+                ];
+            } elseif (str_contains($position, 'treasurer')) {
+                $organized['treasurer'] = [
+                    'name' => $official->name,
+                    'position' => $official->position
+                ];
+            }
+        }
+
+        return $organized;
+    }
+
+    /**
+     * Get default validity dates for a certificate
+     */
+    protected function getDefaultValidityDates(): array
+    {
+        $validFrom = Carbon::today();
+        // Default validity: 30 days for most certificates
+        $validUntil = $validFrom->copy()->addDays(30);
+
+        return [
+            'valid_from' => $validFrom,
+            'valid_until' => $validUntil
+        ];
+    }
+
     public function approve(Request $request, CertificateRequest $certificateRequest): JsonResponse
     {
+        // Authorization: Only captain or admin can approve
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can approve certificate requests'
+            ], 403);
+        }
+
+        // Load the relationship to check if an issued certificate exists
+        $certificateRequest->loadMissing('issuedCertificate');
+
         if (!$certificateRequest->canBeApproved()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Certificate request cannot be approved'
+                'message' => $certificateRequest->issuedCertificate 
+                    ? 'Certificate has already been issued for this request'
+                    : 'Certificate request cannot be approved'
             ], 400);
         }
 
@@ -171,19 +244,96 @@ class CertificateRequestController extends Controller
             ], 422);
         }
 
-        $certificateRequest->approve(Auth::user(), $request->remarks);
+        // Get the captain user (if current user is captain, use them; otherwise find captain user)
+        $captainUser = $user->isCaptain() ? $user : User::where('role', 'captain')->first();
+        
+        if (!$captainUser) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No Barangay Captain found in the system'
+            ], 400);
+        }
+
+        // Check if captain has a signature uploaded
+        if (!$captainUser->signature_path) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Barangay Captain signature is not set. Please upload signature first.'
+            ], 400);
+        }
+
+        // Approve the certificate request
+        $certificateRequest->approve($user, $request->remarks);
+        
+        // Reload the request to get updated relationships
+        $certificateRequest->refresh();
+        $certificateRequest->load(['resident']);
+
+        // Get default validity dates
+        $validityDates = $this->getDefaultValidityDates();
+
+        // Generate certificate number before creating the record to ensure correct sequence
+        $tempCertificate = new IssuedCertificate([
+            'certificate_type' => $certificateRequest->certificate_type
+        ]);
+        $certificateNumber = $tempCertificate->generateCertificateNumber();
+
+        // Create the issued certificate with generated certificate number
+        $issuedCertificate = IssuedCertificate::create([
+            'certificate_request_id' => $certificateRequest->id,
+            'resident_id' => $certificateRequest->resident_id,
+            'issued_by' => $user->id,
+            'certificate_type' => $certificateRequest->certificate_type,
+            'certificate_number' => $certificateNumber,
+            'purpose' => $certificateRequest->purpose,
+            'valid_from' => $validityDates['valid_from'],
+            'valid_until' => $validityDates['valid_until'],
+            'is_valid' => true,
+            'signed_by' => $captainUser->name,
+            'signature_position' => 'Barangay Captain',
+            'signed_at' => now()
+        ]);
+
+        // Generate QR code after certificate is created (needs certificate_number and resident relationship)
+        $issuedCertificate->load('resident');
+        $issuedCertificate->qr_code = $issuedCertificate->generateQrCode();
+        $issuedCertificate->save();
+
+        // Generate PDF with captain's signature
+        $pdfService = app(PdfService::class);
+        $pdfController = new CertificatePdfController($pdfService);
+        $pdfPath = $pdfController->generateCertificatePdf($issuedCertificate);
+
+        if ($pdfPath) {
+            $issuedCertificate->pdf_path = $pdfPath;
+            $issuedCertificate->save();
+        }
+
+        // Reload relationships for response
+        $issuedCertificate->load(['resident', 'issuedBy', 'certificateRequest']);
+
+        // Update certificate request status to 'issued' after certificate is generated
+        $certificateRequest->update(['status' => 'issued']);
 
         // Create system notification for admins
         NotificationController::createSystemNotification(
-            'Certificate Request Approved',
-            "Certificate request for {$certificateRequest->resident->full_name} has been approved.",
+            'Certificate Request Approved & Issued',
+            "Certificate request for {$certificateRequest->resident->full_name} has been approved and issued. Certificate Number: {$issuedCertificate->certificate_number}",
             'certificate_approved'
+        );
+
+        // Also notify about the issued certificate
+        NotificationController::createSystemNotification(
+            'Certificate Issued',
+            "Certificate {$issuedCertificate->certificate_number} has been issued for {$certificateRequest->resident->full_name}",
+            'certificate_issued'
         );
 
         return response()->json([
             'success' => true,
-            'message' => 'Certificate request approved successfully',
-            'data' => $certificateRequest->load(['resident', 'approvedBy'])
+            'message' => 'Certificate request approved and issued successfully',
+            'data' => $certificateRequest->load(['resident', 'approvedBy', 'issuedCertificate']),
+            'issued_certificate' => $issuedCertificate
         ]);
     }
 

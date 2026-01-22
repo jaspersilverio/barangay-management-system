@@ -73,6 +73,13 @@ class Notification extends Model
             'certificate_issued' => '📜',
             'certificate_invalidated' => '🚫',
             'blotter' => '📝',
+            'blotter_pending' => '⏳',
+            'blotter_approved' => '✅',
+            'blotter_rejected' => '❌',
+            'incident_pending' => '⏳',
+            'incident_approved' => '✅',
+            'incident_rejected' => '❌',
+            'approval_required' => '🔔',
             default => 'ℹ️'
         };
     }

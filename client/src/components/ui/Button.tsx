@@ -2,13 +2,14 @@ import React from 'react'
 
 interface ButtonProps {
   children: React.ReactNode
-  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'outline'
+  variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger' | 'outline' | 'ghost'
   size?: 'sm' | 'md' | 'lg'
   disabled?: boolean
   loading?: boolean
   className?: string
-  onClick?: () => void
+  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void
   type?: 'button' | 'submit' | 'reset'
+  title?: string
 }
 
 export default function Button({ 
@@ -19,7 +20,8 @@ export default function Button({
   loading = false,
   className = '',
   onClick,
-  type = 'button'
+  type = 'button',
+  title
 }: ButtonProps) {
   const baseClasses = 'font-medium rounded-lg transition-all duration-200 focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
   
@@ -29,7 +31,21 @@ export default function Button({
     success: 'btn-success',
     warning: 'btn-warning',
     danger: 'btn-danger',
-    outline: 'bg-transparent border border-neutral-300 text-neutral-700 hover:bg-neutral-50 focus:ring-neutral-500'
+    outline: 'bg-transparent border focus:ring-neutral-500',
+    ghost: 'bg-transparent focus:ring-neutral-500'
+  }
+
+  const getVariantStyle = (variant: string): React.CSSProperties => {
+    const baseStyle: React.CSSProperties = {}
+    
+    if (variant === 'outline') {
+      baseStyle.borderColor = 'var(--color-border)'
+      baseStyle.color = 'var(--color-text-primary)'
+    } else if (variant === 'ghost') {
+      baseStyle.color = 'var(--color-text-primary)'
+    }
+    
+    return baseStyle
   }
 
   const sizeClasses = {
@@ -38,12 +54,25 @@ export default function Button({
     lg: 'px-6 py-3 text-lg'
   }
 
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    if (disabled || loading) {
+      e.preventDefault()
+      e.stopPropagation()
+      return
+    }
+    if (onClick) {
+      onClick(e)
+    }
+  }
+
   return (
     <button
       type={type}
       className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+      style={getVariantStyle(variant)}
       disabled={disabled || loading}
-      onClick={onClick}
+      onClick={handleClick}
+      title={title}
     >
       {loading ? (
         <div className="d-flex align-items-center gap-2">
@@ -75,5 +104,3 @@ export function DeleteButton({ children = 'Delete', ...props }: Omit<ButtonProps
 export function EditButton({ children = 'Edit', ...props }: Omit<ButtonProps, 'variant'>) {
   return <Button variant="outline" {...props}>{children}</Button>
 }
-
-

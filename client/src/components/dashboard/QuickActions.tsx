@@ -87,12 +87,12 @@ export default function QuickActions() {
 
   const getColorClasses = (color: string) => {
     const colorMap = {
-      primary: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
-      success: 'bg-green-50 text-green-600 hover:bg-green-100',
-      warning: 'bg-orange-50 text-orange-600 hover:bg-orange-100',
-      danger: 'bg-red-50 text-red-600 hover:bg-red-100',
-      info: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
-      neutral: 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+      primary: 'text-blue-600 dark:text-blue-400',
+      success: 'text-green-600 dark:text-green-400',
+      warning: 'text-orange-600 dark:text-orange-400',
+      danger: 'text-red-600 dark:text-red-400',
+      info: 'text-blue-600 dark:text-blue-400',
+      neutral: 'text-gray-600 dark:text-gray-400'
     }
     return colorMap[color as keyof typeof colorMap] || colorMap.neutral
   }
@@ -105,7 +105,17 @@ export default function QuickActions() {
           <a
             key={index}
             href={action.href}
-            className={`p-4 rounded-xl border border-gray-200 transition-all duration-200 hover:shadow-soft ${getColorClasses(action.color)}`}
+            className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-soft ${getColorClasses(action.color)}`}
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-surface)'
+            }}
           >
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-lg ${getColorClasses(action.color)}`}>

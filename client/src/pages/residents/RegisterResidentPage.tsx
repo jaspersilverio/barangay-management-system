@@ -69,9 +69,7 @@ export default function RegisterResidentPage() {
         
         // Verify the household was created and resident was linked
         if (householdResponse.success && householdResponse.data) {
-          // The backend should have already updated the resident's household_id
-          // But we can verify by checking the response
-          console.log('Household created successfully:', householdResponse.data)
+          // Household created successfully, resident is already linked
         }
       }
       // If unassigned or existing household, we're done!

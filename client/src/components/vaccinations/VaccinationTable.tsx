@@ -137,9 +137,18 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
                   <div className="fw-medium">{vaccination.vaccine_name}</div>
                 </td>
                 <td>
-                  <Badge bg="light" text="dark" className="rounded-pill">
+                  <span
+                    className="badge rounded-pill"
+                    style={{ 
+                      color: '#0F172A', 
+                      backgroundColor: '#F1F5F9', 
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.875rem',
+                      fontWeight: '500'
+                    }}
+                  >
                     {vaccination.dose_number}
-                  </Badge>
+                  </span>
                 </td>
                 <td>
                   <div className="d-flex align-items-center">

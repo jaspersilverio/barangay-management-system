@@ -54,7 +54,7 @@ export default function OfficialCard({ official, className = '' }: OfficialCardP
                 target.style.display = 'none';
               }}
               onLoad={() => {
-                console.log('Official photo loaded successfully:', official.photo_url);
+                // Photo loaded successfully
               }}
             />
           ) : (

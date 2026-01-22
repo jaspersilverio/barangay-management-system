@@ -204,14 +204,93 @@ export const deleteIssuedCertificate = async (id: number) => {
   return response.data
 }
 
-export const downloadCertificatePdf = async (id: number) => {
-  const response = await api.get(`/certificates/${id}/download`)
-  return response.data
+export const downloadCertificatePdf = async (id: number): Promise<Blob> => {
+  try {
+    const response = await api.get(`/certificates/${id}/download`, {
+      responseType: 'blob',
+      timeout: 30000 // 30 second timeout
+    })
+    
+    // Check if response is actually a blob (PDF) or an error JSON
+    if (response.data instanceof Blob) {
+      // Check if it's actually a PDF or an error JSON blob
+      const contentType = response.headers['content-type']
+      if (contentType && contentType.includes('application/json')) {
+        // It's an error JSON, parse it
+        const text = await response.data.text()
+        const error = JSON.parse(text)
+        throw new Error(error.message || 'Failed to download certificate PDF')
+      }
+      return response.data
+    }
+    
+    throw new Error('Invalid response format')
+  } catch (error: any) {
+    if (error.response && error.response.data instanceof Blob) {
+      // Try to parse error from blob
+      try {
+        const text = await error.response.data.text()
+        const errorData = JSON.parse(text)
+        throw new Error(errorData.message || 'Failed to download certificate PDF')
+      } catch {
+        throw new Error('Failed to download certificate PDF')
+      }
+    }
+    throw error
+  }
 }
 
-export const previewCertificatePdf = async (id: number) => {
-  const response = await api.get(`/certificates/${id}/preview`)
-  return response.data
+export const previewCertificatePdf = async (id: number): Promise<string> => {
+  try {
+    const response = await api.get(`/certificates/${id}/preview`, {
+      responseType: 'blob',
+      timeout: 30000 // 30 second timeout
+    })
+    
+    // Check if response is actually a blob (PDF) or an error JSON
+    if (response.data instanceof Blob) {
+      // Check if it's actually a PDF or an error JSON blob
+      const contentType = response.headers['content-type']
+      if (contentType && contentType.includes('application/json')) {
+        // It's an error JSON, parse it
+        const text = await response.data.text()
+        const error = JSON.parse(text)
+        throw new Error(error.message || 'Failed to preview certificate PDF')
+      }
+      const url = window.URL.createObjectURL(response.data)
+      return url
+    }
+    
+    throw new Error('Invalid response format')
+  } catch (error: any) {
+    if (error.response && error.response.data instanceof Blob) {
+      // Try to parse error from blob
+      try {
+        const text = await error.response.data.text()
+        const errorData = JSON.parse(text)
+        throw new Error(errorData.message || 'Failed to preview certificate PDF')
+      } catch {
+        throw new Error('Failed to preview certificate PDF')
+      }
+    }
+    throw error
+  }
+}
+
+export const printCertificatePdf = async (id: number): Promise<void> => {
+  try {
+    const url = await previewCertificatePdf(id)
+    const printWindow = window.open(url, '_blank')
+    if (printWindow) {
+      // Wait for PDF to load, then trigger print
+      setTimeout(() => {
+        printWindow.print()
+      }, 500)
+    }
+  } catch (error) {
+    console.error('Failed to print PDF:', error)
+    throw error
+  }
 }
 
 export const regenerateCertificatePdf = async (id: number) => {

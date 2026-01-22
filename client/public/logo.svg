@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- House/Building icon matching the 🏘️ emoji style -->
+  <path d="M 20 60 L 50 30 L 80 60 Z" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  <rect x="25" y="60" width="50" height="35" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+  <rect x="42" y="70" width="16" height="20" fill="#2563eb" rx="2"/>
+  <rect x="30" y="65" width="8" height="8" fill="#2563eb" rx="1"/>
+  <rect x="62" y="65" width="8" height="8" fill="#2563eb" rx="1"/>
+</svg>
+

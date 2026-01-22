@@ -152,7 +152,16 @@ export default function UpcomingEvents() {
           <h5 className="font-semibold text-brand-primary">Upcoming Events</h5>
           <button
             onClick={() => setShowForm(true)}
-            className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+            className="p-2 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
+            style={{
+              backgroundColor: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
             title="Add Event"
           >
             <Plus className="h-4 w-4" />
@@ -160,23 +169,50 @@ export default function UpcomingEvents() {
         </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+          <div 
+            className="mb-4 p-3 text-red-600 dark:text-red-400 rounded-lg text-sm"
+            style={{
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            }}
+          >
             {error}
           </div>
         )}
         
         <div className="space-y-3 max-h-80 overflow-y-auto">
           {events?.slice(0, 5).map((event) => (
-            <div key={event.id} className="p-3 border border-gray-200 rounded-xl hover:bg-gray-50">
+            <div 
+              key={event.id} 
+              className="p-3 border rounded-xl transition-colors"
+              style={{
+                borderColor: 'var(--color-border)',
+                backgroundColor: 'var(--color-surface)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-surface)'
+              }}
+            >
               <div className="flex items-start justify-between mb-2">
-                <h6 className="font-medium text-gray-900 text-sm flex-1">{event.title}</h6>
+                <h6 className="font-medium text-sm flex-1 text-brand-primary">{event.title}</h6>
                 <div className="flex gap-1 ml-2">
                   <button
                     onClick={() => {
                       setEditingEvent(event)
                       setShowForm(true)
                     }}
-                    className="p-1 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+                    className="p-1 text-blue-600 dark:text-blue-400 rounded-xl transition-colors"
+                    style={{
+                      backgroundColor: 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
                     title="Edit Event"
                   >
                     <Edit className="h-3 w-3" />
@@ -186,7 +222,16 @@ export default function UpcomingEvents() {
                       setDeletingEvent(event)
                       setShowDeleteConfirm(true)
                     }}
-                    className="p-1 text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                    className="p-1 text-red-600 dark:text-red-400 rounded-xl transition-colors"
+                    style={{
+                      backgroundColor: 'transparent',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent'
+                    }}
                     title="Delete Event"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -194,16 +239,16 @@ export default function UpcomingEvents() {
                 </div>
               </div>
               <div className="space-y-1">
-                <div className="flex items-center gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-2 text-xs text-brand-muted">
                   <Calendar className="h-3 w-3" />
                   <span>{formatDate(event.date)}</span>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-600">
+                <div className="flex items-center gap-2 text-xs text-brand-muted">
                   <MapPin className="h-3 w-3" />
                   <span className="truncate">{event.location}</span>
                 </div>
                 {event.description && (
-                  <p className="text-xs text-gray-500 mt-2 line-clamp-2">{event.description}</p>
+                  <p className="text-xs text-brand-muted mt-2 line-clamp-2">{event.description}</p>
                 )}
               </div>
             </div>
@@ -211,7 +256,7 @@ export default function UpcomingEvents() {
         </div>
         
         {events && events.length > 5 && (
-          <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="mt-3 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
             <button 
               onClick={() => navigate('/events')}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium"

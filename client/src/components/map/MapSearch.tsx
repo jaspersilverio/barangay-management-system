@@ -79,8 +79,10 @@ export default function MapSearch({ onResultSelect }: MapSearchProps) {
       {/* Search Results Dropdown */}
       {showResults && searchResults.length > 0 && (
         <div 
-          className="position-absolute w-100 bg-white border rounded mt-1 shadow-sm"
+          className="position-absolute w-100 border rounded mt-1 shadow-sm"
           style={{ 
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border)',
             maxHeight: '200px', 
             overflowY: 'auto',
             zIndex: 1000
@@ -90,10 +92,14 @@ export default function MapSearch({ onResultSelect }: MapSearchProps) {
             <div
               key={`${result.type}-${result.id}`}
               className="p-2 border-bottom"
-              style={{ cursor: 'pointer' }}
+              style={{ 
+                cursor: 'pointer',
+                backgroundColor: 'var(--color-surface)',
+                borderColor: 'var(--color-border)'
+              }}
               onClick={() => handleResultSelect(result)}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-border-light)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
             >
               <div className="d-flex align-items-center">
                 <div className="me-2">{getResultIcon(result.type)}</div>
@@ -115,7 +121,13 @@ export default function MapSearch({ onResultSelect }: MapSearchProps) {
 
       {/* No Results Message */}
       {showResults && searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && (
-        <div className="position-absolute w-100 bg-white border rounded mt-1 p-2 text-muted small">
+        <div 
+          className="position-absolute w-100 border rounded mt-1 p-2 text-muted small"
+          style={{ 
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border)'
+          }}
+        >
           No results found
         </div>
       )}

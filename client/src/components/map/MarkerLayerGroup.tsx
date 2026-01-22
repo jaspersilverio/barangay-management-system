@@ -12,6 +12,7 @@ interface MarkerLayerGroupProps {
   onMarkerClick: (e: React.MouseEvent, marker: MapMarker) => void
   selectedMarkerForInfo: MapMarker | null
   isAdmin: boolean
+  onMarkerHover?: (marker: MapMarker | null) => void
 }
 
 export default function MarkerLayerGroup({
@@ -21,7 +22,8 @@ export default function MarkerLayerGroup({
   highlightedMarker,
   onMarkerClick,
   selectedMarkerForInfo,
-  isAdmin
+  isAdmin,
+  onMarkerHover
 }: MarkerLayerGroupProps) {
   if (!isVisible) return null
 
@@ -71,6 +73,18 @@ export default function MarkerLayerGroup({
               onClick={(e) => {
                 e.stopPropagation()
                 onMarkerClick(e, marker)
+              }}
+              onMouseEnter={() => {
+                // Only trigger hover for household markers
+                if (marker.type === 'household' && onMarkerHover) {
+                  onMarkerHover(marker)
+                }
+              }}
+              onMouseLeave={() => {
+                // Clear hover when leaving household markers
+                if (marker.type === 'household' && onMarkerHover) {
+                  onMarkerHover(null)
+                }
               }}
             >
               {getMarkerIcon(marker.type) || '📍'}

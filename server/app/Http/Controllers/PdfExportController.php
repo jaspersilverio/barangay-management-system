@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Services\PdfService;
+use App\Exports\VaccinationExport;
+use App\Exports\BlotterExport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Centralized PDF Export Controller
@@ -106,8 +109,19 @@ class PdfExportController extends Controller
         }
 
         try {
-            // Get households data
-            $query = \App\Models\Household::with(['purok']);
+            // Get households data with residents and related data
+            $query = \App\Models\Household::with([
+                'purok',
+                'residents' => function ($q) {
+                    $q->with('soloParent') // Load solo parent relationship for each resident
+                      ->orderBy('relationship_to_head')
+                      ->orderBy('first_name');
+                },
+                'headResident',
+                'fourPsBeneficiaries' => function ($q) {
+                    $q->where('status', 'active'); // Only load active 4Ps beneficiaries
+                }
+            ]);
 
             // Role-based filtering for purok leaders
             if ($user->role === 'purok_leader' && $user->assigned_purok_id) {
@@ -129,12 +143,13 @@ class PdfExportController extends Controller
             // Prepare data
             $data = [
                 'title' => 'Households List',
-                'document_title' => 'HOUSEHOLDS LIST',
+                'document_title' => 'HOUSEHOLD MASTERLIST REPORT',
                 'households' => $households,
                 'filters' => [
                     'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
                     'search' => $request->search ?? 'None',
                 ],
+                'generated_by' => $user->name ?? 'System',
             ];
 
             $filename = 'households-list-' . date('Y-m-d') . '.pdf';
@@ -166,9 +181,8 @@ class PdfExportController extends Controller
         }
 
         try {
-            // Get blotters data
-            $query = \App\Models\Blotter::withoutTrashed()
-                ->with(['complainant', 'respondent', 'official']);
+            // Get blotters data - start with query() to avoid issues when applying scopes
+            $query = \App\Models\Blotter::query()->withoutTrashed();
 
             // Apply filters
             if ($request->has('status') && $request->status) {
@@ -180,7 +194,29 @@ class PdfExportController extends Controller
                 $query->byDateRange($request->start_date, $endDate);
             }
 
-            $blotters = $query->orderBy('incident_date', 'desc')->get();
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('case_number', 'like', "%{$search}%")
+                        ->orWhere('incident_location', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('complainant_full_name', 'like', "%{$search}%")
+                        ->orWhere('respondent_full_name', 'like', "%{$search}%")
+                        ->orWhereHas('complainant', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('respondent', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Eager load relationships and sort
+            $blotters = $query->with(['complainant.household.purok', 'respondent.household.purok', 'official', 'creator'])
+                ->orderBy('incident_date', 'desc')
+                ->get();
 
             // Prepare data
             $data = [
@@ -192,10 +228,11 @@ class PdfExportController extends Controller
                     'date_range' => $request->start_date && $request->end_date
                         ? $request->start_date . ' to ' . $request->end_date
                         : 'All dates',
+                    'search' => $request->search ?? null,
                 ],
             ];
 
-            $filename = 'blotter-entries-' . date('Y-m-d') . '.pdf';
+            $filename = 'blotter-records-' . date('Y-m-d') . '.pdf';
             return $this->pdfService->generateReport('pdf.reports.blotters', $data, $filename);
         } catch (\Exception $e) {
             Log::error('Blotters PDF export failed: ' . $e->getMessage(), [
@@ -289,27 +326,41 @@ class PdfExportController extends Controller
         }
 
         try {
+            // Apply role-based filtering
+            $purokQuery = \App\Models\Purok::query();
+
+            // For purok leaders, only show their assigned purok
+            /** @var \App\Models\User $user */
+            if ($user->isPurokLeader() && $user->assigned_purok_id) {
+                $purokQuery->where('id', $user->assigned_purok_id);
+            }
+
             // Get puroks data with statistics (matching ReportController logic)
-            $puroks = \App\Models\Purok::withCount([
-                'households' => function ($query) {
-                    $query->withoutTrashed();
-                },
-                'residents' => function ($query) {
-                    $query->withoutTrashed();
-                }
-            ])->with(['households.residents'])->get();
+            $puroks = $purokQuery->get();
 
             // Calculate statistics for each purok
             $puroksData = $puroks->map(function ($purok) {
-                $residents = $purok->households->flatMap->residents;
+                // Get only non-deleted households
+                $households = \App\Models\Household::where('purok_id', $purok->id)
+                    ->withoutTrashed()
+                    ->get();
+
+                // Get only non-deleted residents from non-deleted households
+                $residents = \App\Models\Resident::whereIn('household_id', $households->pluck('id'))
+                    ->withoutTrashed()
+                    ->get();
+
+                // Calculate counts
+                $householdCount = $households->count();
+                $residentCount = $residents->count();
 
                 return [
                     'id' => $purok->id,
                     'name' => $purok->name,
                     'captain' => $purok->captain ?? 'N/A',
                     'contact' => $purok->contact ?? 'N/A',
-                    'household_count' => $purok->households_count,
-                    'resident_count' => $purok->residents_count,
+                    'household_count' => $householdCount,
+                    'resident_count' => $residentCount,
                     'male_count' => $residents->where('sex', 'Male')->count(),
                     'female_count' => $residents->where('sex', 'Female')->count(),
                     'senior_count' => $residents->filter(function ($resident) {
@@ -351,6 +402,267 @@ class PdfExportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate PDF'
+            ], 500);
+        }
+    }
+
+    /**
+     * Export vaccinations list as PDF
+     */
+    public function exportVaccinations(Request $request)
+    {
+        // Authorization check
+        $user = Auth::user();
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'staff' && $user->role !== 'purok_leader')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        try {
+            // Get vaccinations data (reuse VaccinationController query logic)
+            $query = \App\Models\Vaccination::query();
+
+            // Role-based filtering for purok leaders
+            if ($user->role === 'purok_leader' && $user->assigned_purok_id) {
+                $query->byPurok($user->assigned_purok_id);
+            }
+
+            // Apply filters from request
+            if ($request->has('purok_id') && $request->purok_id) {
+                $query->byPurok($request->purok_id);
+            }
+
+            if ($request->has('status') && $request->status) {
+                $query->byStatus($request->status);
+            }
+
+            if ($request->has('vaccine_name') && $request->vaccine_name) {
+                $query->byVaccine($request->vaccine_name);
+            }
+
+            if ($request->has('date_from') && $request->date_from && $request->has('date_to') && $request->date_to) {
+                $query->byDateRange($request->date_from, $request->date_to);
+            }
+
+            if ($request->has('age_group') && $request->age_group) {
+                switch ($request->age_group) {
+                    case 'children':
+                        $query->byAgeGroup(0, 17);
+                        break;
+                    case 'adults':
+                        $query->byAgeGroup(18, 59);
+                        break;
+                    case 'seniors':
+                        $query->byAgeGroup(60);
+                        break;
+                }
+            }
+
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('vaccine_name', 'like', "%{$search}%")
+                        ->orWhere('dose_number', 'like', "%{$search}%")
+                        ->orWhere('administered_by', 'like', "%{$search}%")
+                        ->orWhereHas('resident', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Sort by date administered (most recent first) and eager load relationships
+            $vaccinations = $query->with(['resident.household.purok'])->orderBy('date_administered', 'desc')->get();
+
+            // Prepare data
+            $data = [
+                'title' => 'Vaccination Records',
+                'document_title' => 'VACCINATION RECORDS',
+                'vaccinations' => $vaccinations,
+                'filters' => [
+                    'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
+                    'status' => $request->status ?? 'All',
+                    'vaccine' => $request->vaccine_name ?? 'All',
+                    'date_range' => ($request->date_from && $request->date_to)
+                        ? $request->date_from . ' to ' . $request->date_to
+                        : 'All dates',
+                ],
+            ];
+
+            $filename = 'vaccination-records-' . date('Y-m-d') . '.pdf';
+            return $this->pdfService->generateReport('pdf.reports.vaccinations', $data, $filename);
+        } catch (\Exception $e) {
+            Log::error('Vaccinations PDF export failed: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'exception' => $e
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate PDF'
+            ], 500);
+        }
+    }
+
+    /**
+     * Export vaccinations list as Excel
+     */
+    public function exportVaccinationsExcel(Request $request)
+    {
+        // Authorization check
+        $user = Auth::user();
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'staff' && $user->role !== 'purok_leader')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        try {
+            // Build query (reuse same logic as PDF export)
+            // Start with query() to avoid issues when applying scopes
+            $query = \App\Models\Vaccination::query();
+
+            // Role-based filtering for purok leaders
+            if ($user->role === 'purok_leader' && $user->assigned_purok_id) {
+                $query->byPurok($user->assigned_purok_id);
+            }
+
+            // Apply filters from request
+            if ($request->has('purok_id') && $request->purok_id) {
+                $query->byPurok($request->purok_id);
+            }
+
+            if ($request->has('status') && $request->status) {
+                $query->byStatus($request->status);
+            }
+
+            if ($request->has('vaccine_name') && $request->vaccine_name) {
+                $query->byVaccine($request->vaccine_name);
+            }
+
+            if ($request->has('date_from') && $request->date_from && $request->has('date_to') && $request->date_to) {
+                $query->byDateRange($request->date_from, $request->date_to);
+            }
+
+            if ($request->has('age_group') && $request->age_group) {
+                switch ($request->age_group) {
+                    case 'children':
+                        $query->byAgeGroup(0, 17);
+                        break;
+                    case 'adults':
+                        $query->byAgeGroup(18, 59);
+                        break;
+                    case 'seniors':
+                        $query->byAgeGroup(60);
+                        break;
+                }
+            }
+
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('vaccine_name', 'like', "%{$search}%")
+                        ->orWhere('dose_number', 'like', "%{$search}%")
+                        ->orWhere('administered_by', 'like', "%{$search}%")
+                        ->orWhereHas('resident', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Sort by date administered (most recent first)
+            // Note: NULL dates will appear at the end
+            // Relationships will be eager loaded in the export class
+            $query->orderBy('date_administered', 'desc');
+
+            // Generate filename
+            $filename = 'vaccination-records-' . date('Y-m-d') . '.xlsx';
+
+            // Export to Excel - pass the query builder
+            // The export class will handle eager loading relationships
+            return Excel::download(new VaccinationExport($query), $filename);
+        } catch (\Exception $e) {
+            Log::error('Vaccinations Excel export failed: ' . $e->getMessage(), [
+                'user_id' => $user->id ?? null,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate Excel: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export blotters list as Excel
+     */
+    public function exportBlottersExcel(Request $request)
+    {
+        // Authorization check
+        $user = Auth::user();
+        if (!$user || ($user->role !== 'admin' && $user->role !== 'staff')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        try {
+            // Build query (reuse same logic as PDF export)
+            $query = \App\Models\Blotter::query()->withoutTrashed();
+
+            // Apply filters
+            if ($request->has('status') && $request->status) {
+                $query->byStatus($request->status);
+            }
+
+            if ($request->has('start_date') && $request->start_date) {
+                $endDate = $request->end_date ?? date('Y-m-d');
+                $query->byDateRange($request->start_date, $endDate);
+            }
+
+            if ($request->has('search') && $request->search) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('case_number', 'like', "%{$search}%")
+                        ->orWhere('incident_location', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('complainant_full_name', 'like', "%{$search}%")
+                        ->orWhere('respondent_full_name', 'like', "%{$search}%")
+                        ->orWhereHas('complainant', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('respondent', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // Sort by incident date (most recent first)
+            // Relationships will be eager loaded in the export class
+            $query->orderBy('incident_date', 'desc');
+
+            // Generate filename
+            $filename = 'blotter-records-' . date('Y-m-d') . '.xlsx';
+
+            // Export to Excel - pass the query builder
+            // The export class will handle eager loading relationships
+            return Excel::download(new BlotterExport($query), $filename);
+        } catch (\Exception $e) {
+            Log::error('Blotters Excel export failed: ' . $e->getMessage(), [
+                'user_id' => $user->id ?? null,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate Excel: ' . $e->getMessage()
             ], 500);
         }
     }

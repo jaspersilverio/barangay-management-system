@@ -19,6 +19,7 @@ import {
   Baby,
   Heart,
   Gift,
+  CheckSquare,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -100,6 +101,12 @@ export const sidebarMenu: MenuItem[] = [
     ],
   },
   {
+    label: 'Approval Center',
+    to: '/approval-center',
+    icon: CheckSquare,
+    roles: ['captain', 'admin'],
+  },
+  {
     label: 'Officials & Beneficiaries',
     icon: UserCog,
     children: [
@@ -116,6 +123,21 @@ export const sidebarMenu: MenuItem[] = [
           {
             label: 'SK Officials',
             to: '/officials/sk',
+            icon: Users,
+          },
+          {
+            label: 'Barangay Tanod',
+            to: '/officials/tanod',
+            icon: ShieldCheck,
+          },
+          {
+            label: 'Barangay Health Workers',
+            to: '/officials/bhw',
+            icon: Heart,
+          },
+          {
+            label: 'Barangay Staff',
+            to: '/officials/staff',
             icon: Users,
           },
         ],

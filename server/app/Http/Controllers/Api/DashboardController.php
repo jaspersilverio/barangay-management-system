@@ -651,7 +651,8 @@ class DashboardController extends Controller
                 }
 
                 $birthdate = Carbon::parse($resident->birthdate);
-                $age = $now->diffInYears($birthdate);
+                // Use Carbon's age property which accurately calculates age based on birthdate
+                $age = $birthdate->age;
 
                 // Handle boundary cases: assign to defined bracket
                 if ($age == 0) {

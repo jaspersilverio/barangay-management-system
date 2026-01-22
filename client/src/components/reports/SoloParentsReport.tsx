@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter } from 'lucide-react'
 import { listSoloParents, type SoloParent } from '../../services/solo-parents.service'
+import { exportSoloParentsCsv } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
@@ -36,7 +37,7 @@ export default function SoloParentsReport() {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await listSoloParents({
         search: filters.search || undefined,
         purok_id: effectivePurokId || undefined,
@@ -44,7 +45,7 @@ export default function SoloParentsReport() {
         page: currentPage,
         per_page: filters.per_page || 15
       })
-      
+
       if (response.success) {
         setSoloParents(response.data.data || [])
         setTotalPages(response.data.last_page || 1)
@@ -64,17 +65,26 @@ export default function SoloParentsReport() {
     setCurrentPage(1)
   }
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
-      
-      if (type === 'pdf') {
+      setError(null)
+
+      if (type === 'csv') {
+        // CSV export - use dedicated CSV export function
+        await exportSoloParentsCsv({
+          search: filters.search || undefined,
+          purok_id: effectivePurokId || undefined,
+          status: filters.status || undefined
+        })
+        setError(null)
+      } else if (type === 'pdf') {
         // Build query parameters
         const params = new URLSearchParams()
         if (filters.search) params.append('search', filters.search)
         if (filters.purok_id) params.append('purok_id', filters.purok_id)
         if (filters.status) params.append('status', filters.status)
-        
+
         // Call PDF export API
         const response = await api.get(`/pdf/export/solo-parents?${params.toString()}`, {
           responseType: 'blob',
@@ -90,11 +100,8 @@ export default function SoloParentsReport() {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-        
+
         setError(null)
-      } else {
-        // Excel export - TODO: Implement when backend is ready
-        alert('Excel export functionality will be implemented soon')
       }
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
@@ -168,31 +175,9 @@ export default function SoloParentsReport() {
       {/* Filters */}
       <Card className="mb-4">
         <Card.Header>
-          <div className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center gap-2">
-              <Filter className="h-4 w-4 text-brand-primary" />
-              <span className="text-brand-primary">Filters</span>
-            </div>
-            <div className="d-flex gap-2">
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={() => handleExport('pdf')}
-                disabled={exporting}
-              >
-                <Download className="h-4 w-4 me-1" />
-                Export PDF
-              </Button>
-              <Button
-                variant="outline-success"
-                size="sm"
-                onClick={() => handleExport('excel')}
-                disabled={exporting}
-              >
-                <Download className="h-4 w-4 me-1" />
-                Export Excel
-              </Button>
-            </div>
+          <div className="d-flex align-items-center gap-2">
+            <Filter className="h-4 w-4 text-brand-primary" />
+            <span className="text-brand-primary">Filters</span>
           </div>
         </Card.Header>
         <Card.Body>
@@ -301,6 +286,32 @@ export default function SoloParentsReport() {
           </Row>
         </Card.Body>
       </Card>
+
+      {/* Export Buttons */}
+      <Row className="mb-4">
+        <Col>
+          <div className="d-flex gap-2">
+            <Button
+              variant="outline-primary"
+              onClick={() => handleExport('pdf')}
+              disabled={exporting}
+              className="d-flex align-items-center gap-2 btn-brand-primary"
+            >
+              <Download className="h-4 w-4" />
+              Export PDF
+            </Button>
+            <Button
+              variant="outline-success"
+              onClick={() => handleExport('csv')}
+              disabled={exporting}
+              className="d-flex align-items-center gap-2 btn-success"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </Button>
+          </div>
+        </Col>
+      </Row>
 
       {/* Report Table */}
       <Card>

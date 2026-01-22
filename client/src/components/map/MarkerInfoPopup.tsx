@@ -5,9 +5,10 @@ interface MarkerInfoPopupProps {
   marker: MapMarker
   onClose: () => void
   isAdmin: boolean
+  onDelete?: (markerId: number) => void
 }
 
-export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfoPopupProps) {
+export default function MarkerInfoPopup({ marker, onClose, isAdmin, onDelete }: MarkerInfoPopupProps) {
   const getMarkerTypeLabel = (type: string) => {
     const typeLabels: { [key: string]: string } = {
       household: 'Household',
@@ -28,7 +29,7 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
   }
 
   return (
-    <div 
+    <div
       className="position-absolute bg-white rounded-lg shadow-lg border border-gray-200 p-4 z-50"
       style={{
         minWidth: '280px',
@@ -118,16 +119,30 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
             <button
               className="btn btn-sm btn-outline-primary"
               onClick={() => {
-                // TODO: Implement edit functionality
+                // Edit functionality - navigate to marker edit page or open edit modal
+                // Implementation depends on marker management requirements
               }}
             >
               ✏️ Edit
             </button>
             <button
               className="btn btn-sm btn-outline-danger"
-              onClick={() => {
+              onClick={async () => {
                 if (window.confirm(`Are you sure you want to delete "${marker.name}"?`)) {
-                  // TODO: Implement delete functionality
+                  try {
+                    const success = await MapService.deleteMarker(marker.id)
+                    if (success) {
+                      if (onDelete) {
+                        onDelete(marker.id)
+                      }
+                      onClose()
+                    } else {
+                      alert('Failed to delete marker. Please try again.')
+                    }
+                  } catch (error) {
+                    console.error('Error deleting marker:', error)
+                    alert('Failed to delete marker. Please try again.')
+                  }
                 }
               }}
             >
@@ -138,7 +153,7 @@ export default function MarkerInfoPopup({ marker, onClose, isAdmin }: MarkerInfo
       )}
 
       {/* Arrow pointing to marker */}
-      <div 
+      <div
         className="position-absolute"
         style={{
           bottom: '-8px',

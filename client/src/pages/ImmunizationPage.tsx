@@ -18,6 +18,10 @@ export default function ImmunizationPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
 
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  
   // Filters
   const [filters, setFilters] = useState<VaccinationFilters>({
     search: '',
@@ -38,10 +42,20 @@ export default function ImmunizationPage() {
     total: 0
   })
 
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setFilters(prev => ({ ...prev, search: searchInput, page: 1 }))
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
   useEffect(() => {
     loadVaccinations()
     loadStatistics()
-  }, [filters])
+  }, [debouncedSearch, filters.status, filters.vaccine_name, filters.purok_id, filters.age_group, filters.date_from, filters.date_to, filters.per_page, filters.page])
 
   const loadVaccinations = async () => {
     try {
@@ -207,8 +221,8 @@ export default function ImmunizationPage() {
                 <Form.Control
                   type="text"
                   placeholder="Search by name..."
-                  value={filters.search}
-                  onChange={(e) => handleFilterChange('search', e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                 />
               </Form.Group>
             </Col>

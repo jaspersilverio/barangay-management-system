@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter, Home } from 'lucide-react'
-import { getHouseholdsReport, exportReport, type HouseholdReport, type ReportFilters } from '../../services/reports.service'
+import { getHouseholdsReport, exportHouseholdsCsv, type HouseholdReport, type ReportFilters } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 import api from '../../services/api'
 
@@ -29,12 +29,12 @@ export default function HouseholdsReport() {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await getHouseholdsReport({
         ...filters,
         per_page: filters.per_page || 15
       })
-      
+
       if (response.success) {
         setHouseholds(response.data.data)
         setTotalPages(response.data.last_page)
@@ -54,17 +54,22 @@ export default function HouseholdsReport() {
     setCurrentPage(1)
   }
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
-      
-      if (type === 'pdf') {
+      setError(null)
+
+      if (type === 'csv') {
+        // CSV export - use dedicated CSV export function
+        await exportHouseholdsCsv(filters)
+        setError(null)
+      } else if (type === 'pdf') {
         // Build query parameters
         const params = new URLSearchParams()
         if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
         if (filters.date_from) params.append('start_date', filters.date_from)
         if (filters.date_to) params.append('end_date', filters.date_to)
-        
+
         // Call PDF export API
         const response = await api.get(`/pdf/export/households?${params.toString()}`, {
           responseType: 'blob',
@@ -80,22 +85,8 @@ export default function HouseholdsReport() {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-        
+
         setError(null)
-      } else {
-        // Excel export - use existing exportReport function
-        const response = await exportReport({
-          type,
-          reportType: 'households',
-          filters
-        })
-        
-        if (response.success) {
-          // TODO: Handle actual file download when backend is implemented
-          alert(`${type.toUpperCase()} export started: ${response.data.message}`)
-        } else {
-          setError(response.message || `Failed to export ${type}`)
-        }
       }
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
@@ -227,13 +218,13 @@ export default function HouseholdsReport() {
               Export PDF
             </Button>
             <Button
-              variant="outline-success"
-              onClick={() => handleExport('excel')}
+              variant="outline-info"
+              onClick={() => handleExport('csv')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2 btn-success"
+              className="d-flex align-items-center gap-2"
             >
               <Download className="h-4 w-4" />
-              Export Excel
+              Export CSV
             </Button>
           </div>
         </Col>
@@ -315,15 +306,15 @@ export default function HouseholdsReport() {
           <Col>
             <div className="d-flex justify-content-center">
               <Pagination>
-                <Pagination.First 
+                <Pagination.First
                   onClick={() => handlePageChange(1)}
                   disabled={currentPage === 1}
                 />
-                <Pagination.Prev 
+                <Pagination.Prev
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
                 />
-                
+
                 {Array.from({ length: totalPages }, (_, i) => i + 1)
                   .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 2)
                   .map((page, index, array) => (
@@ -339,12 +330,12 @@ export default function HouseholdsReport() {
                       </Pagination.Item>
                     </React.Fragment>
                   ))}
-                
-                <Pagination.Next 
+
+                <Pagination.Next
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
                 />
-                <Pagination.Last 
+                <Pagination.Last
                   onClick={() => handlePageChange(totalPages)}
                   disabled={currentPage === totalPages}
                 />

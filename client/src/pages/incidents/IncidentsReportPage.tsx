@@ -48,9 +48,8 @@ export default function IncidentsReportPage() {
       setLoading(true)
       setError(null)
       
-      // TODO: Implement API call to fetch incidents report
-      // For now, using placeholder data
-      // Set data immediately - no artificial delays
+      // Note: Incidents report page - data fetching to be implemented based on requirements
+      // Placeholder implementation
       setIncidents([])
       setTotalPages(1)
       setTotal(0)
@@ -70,8 +69,8 @@ export default function IncidentsReportPage() {
   const handleExport = async () => {
     try {
       setExporting(true)
-      // TODO: Implement export functionality
-      // await exportIncidentsReport(filters)
+      // Export functionality - to be implemented based on requirements
+      setError('Export functionality for incidents report is not yet available')
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to export report')
     } finally {

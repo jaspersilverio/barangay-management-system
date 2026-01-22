@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter, Users, Calendar, MapPin } from 'lucide-react'
-import { getResidentsReport, exportReport, type ResidentReport, type ReportFilters } from '../../services/reports.service'
+import { getResidentsReport, exportResidentsCsv, type ResidentReport, type ReportFilters } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 import api from '../../services/api'
 
@@ -56,18 +56,22 @@ export default function ResidentsReport() {
     setCurrentPage(1)
   }
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
-      
-      if (type === 'pdf') {
+      setError(null)
+
+      if (type === 'csv') {
+        // CSV export - use dedicated CSV export function
+        await exportResidentsCsv(filters)
+        setError(null)
+      } else if (type === 'pdf') {
         // Build query parameters
         const params = new URLSearchParams()
         if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
         if (filters.sex) params.append('gender', filters.sex)
         if (filters.date_from) params.append('start_date', filters.date_from)
         if (filters.date_to) params.append('end_date', filters.date_to)
-        // Note: search and vulnerabilities filters can be added if backend supports them
         
         // Call PDF export API
         const response = await api.get(`/pdf/export/residents?${params.toString()}`, {
@@ -84,22 +88,8 @@ export default function ResidentsReport() {
         link.click()
         document.body.removeChild(link)
         window.URL.revokeObjectURL(url)
-        
+
         setError(null)
-      } else {
-        // Excel export - use existing exportReport function
-        const response = await exportReport({
-          type,
-          reportType: 'residents',
-          filters
-        })
-        
-        if (response.success) {
-          // TODO: Handle actual file download when backend is implemented
-          alert(`${type.toUpperCase()} export started: ${response.data.message}`)
-        } else {
-          setError(response.message || `Failed to export ${type}`)
-        }
       }
     } catch (err: any) {
       const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
@@ -292,12 +282,12 @@ export default function ResidentsReport() {
             </Button>
             <Button
               variant="outline-success"
-              onClick={() => handleExport('excel')}
+              onClick={() => handleExport('csv')}
               disabled={exporting}
               className="d-flex align-items-center gap-2 btn-success"
             >
               <Download className="h-4 w-4" />
-              Export Excel
+              Export CSV
             </Button>
           </div>
         </Col>

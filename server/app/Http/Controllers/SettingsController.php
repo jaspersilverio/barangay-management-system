@@ -17,65 +17,23 @@ class SettingsController extends Controller
         try {
             $settings = Setting::all()->keyBy('key');
 
+            // Get active officials for dropdowns
+            $officials = \App\Models\Official::where('category', 'official')
+                ->where('active', true)
+                ->orderBy('position')
+                ->orderBy('name')
+                ->get(['id', 'name', 'position']);
+
             $formattedSettings = [
                 'barangay_info' => $settings->get('barangay_info')?->value ?? [],
                 'system_preferences' => $settings->get('system_preferences')?->value ?? [],
                 'emergency' => $settings->get('emergency')?->value ?? [],
+                'officials_options' => $officials, // Provide officials for dropdown
             ];
 
-            return response()->json([
-                'success' => true,
-                'data' => $formattedSettings,
-                'message' => null,
-                'errors' => null,
-            ]);
+            return $this->respondSuccess($formattedSettings);
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Failed to fetch settings: ' . $e->getMessage(),
-                'errors' => null,
-            ], 500);
-        }
-    }
-
-    /**
-     * Update barangay information
-     */
-    public function updateBarangayInfo(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'name' => 'required|string|max:255',
-                'address' => 'required|string|max:500',
-                'contact' => 'required|string|max:50',
-                'logo_path' => 'nullable|string',
-            ]);
-
-            DB::beginTransaction();
-
-            Setting::updateOrCreate(
-                ['key' => 'barangay_info'],
-                ['value' => $request->only(['name', 'address', 'contact', 'logo_path'])]
-            );
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'data' => Setting::where('key', 'barangay_info')->first()->value,
-                'message' => 'Barangay information updated successfully',
-                'errors' => null,
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Failed to update barangay information: ' . $e->getMessage(),
-                'errors' => null,
-            ], 500);
+            return $this->respondError('Failed to fetch settings: ' . $e->getMessage(), null, 500);
         }
     }
 
@@ -100,21 +58,13 @@ class SettingsController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'data' => Setting::where('key', 'system_preferences')->first()->value,
-                'message' => 'System preferences updated successfully',
-                'errors' => null,
-            ]);
+            return $this->respondSuccess(
+                Setting::where('key', 'system_preferences')->first()->value,
+                'System preferences updated successfully'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Failed to update system preferences: ' . $e->getMessage(),
-                'errors' => null,
-            ], 500);
+            return $this->respondError('Failed to update system preferences: ' . $e->getMessage(), null, 500);
         }
     }
 
@@ -143,21 +93,13 @@ class SettingsController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'data' => Setting::where('key', 'emergency')->first()->value,
-                'message' => 'Emergency settings updated successfully',
-                'errors' => null,
-            ]);
+            return $this->respondSuccess(
+                Setting::where('key', 'emergency')->first()->value,
+                'Emergency settings updated successfully'
+            );
         } catch (\Exception $e) {
             DB::rollBack();
-
-            return response()->json([
-                'success' => false,
-                'data' => null,
-                'message' => 'Failed to update emergency settings: ' . $e->getMessage(),
-                'errors' => null,
-            ], 500);
+            return $this->respondError('Failed to update emergency settings: ' . $e->getMessage(), null, 500);
         }
     }
 }

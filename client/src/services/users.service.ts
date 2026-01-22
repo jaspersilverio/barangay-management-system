@@ -4,7 +4,7 @@ export type User = {
   id: number
   name: string
   email: string
-  role: 'admin' | 'purok_leader' | 'staff'
+  role: 'admin' | 'purok_leader' | 'staff' | 'captain' | 'viewer'
   assigned_purok_id?: number
   created_at: string
   updated_at: string
@@ -19,7 +19,7 @@ export type CreateUserPayload = {
   name: string
   email: string
   password: string
-  role: 'admin' | 'purok_leader' | 'staff'
+  role: 'admin' | 'purok_leader' | 'staff' | 'captain' | 'viewer'
   assigned_purok_id?: number
 }
 
@@ -27,7 +27,7 @@ export type UpdateUserPayload = {
   name: string
   email: string
   password?: string
-  role: 'admin' | 'purok_leader' | 'staff'
+  role: 'admin' | 'purok_leader' | 'staff' | 'captain' | 'viewer'
   assigned_purok_id?: number
 }
 
@@ -50,7 +50,7 @@ export type PurokOption = {
 
 export async function getUsers(filters: UserFilters = {}) {
   const params = new URLSearchParams()
-  
+
   if (filters.search) params.append('search', filters.search)
   if (filters.role) params.append('role', filters.role)
   if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
@@ -93,4 +93,26 @@ export async function getRoles() {
 export async function getPuroks() {
   const res = await api.get('/users/puroks')
   return res.data as { success: boolean; data: PurokOption[]; message: string | null; errors: any }
+}
+
+export type CaptainSignature = {
+  has_signature: boolean
+  signature_url: string | null
+  signature_path: string | null
+}
+
+export async function getCaptainSignature() {
+  const res = await api.get('/users/captain/signature')
+  return res.data as { success: boolean; data: CaptainSignature; message: string | null; errors: any }
+}
+
+export async function uploadCaptainSignature(signatureFile: File) {
+  const formData = new FormData()
+  formData.append('signature', signatureFile)
+  const res = await api.post('/users/captain/signature', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+  return res.data as { success: boolean; data: { signature_url: string; signature_path: string }; message: string | null; errors: any }
 }

@@ -38,6 +38,17 @@ export default function NotificationBell() {
       case 'household': return '🏠'
       case 'resident': return '🧑'
       case 'system': return '⚙️'
+      case 'certificate_request': return '📋'
+      case 'certificate_approved': return '✅'
+      case 'certificate_rejected': return '❌'
+      case 'blotter': return '📝'
+      case 'blotter_pending': return '⏳'
+      case 'blotter_approved': return '✅'
+      case 'blotter_rejected': return '❌'
+      case 'incident_pending': return '⏳'
+      case 'incident_approved': return '✅'
+      case 'incident_rejected': return '❌'
+      case 'approval_required': return '🔔'
       default: return 'ℹ️'
     }
   }
@@ -48,6 +59,10 @@ export default function NotificationBell() {
       case 'household': return 'bg-green-100 text-green-800'
       case 'resident': return 'bg-purple-100 text-purple-800'
       case 'system': return 'bg-gray-100 text-gray-800'
+      case 'certificate_request': return 'bg-yellow-100 text-yellow-800'
+      case 'blotter_pending': return 'bg-orange-100 text-orange-800'
+      case 'incident_pending': return 'bg-orange-100 text-orange-800'
+      case 'approval_required': return 'bg-red-100 text-red-800'
       default: return 'bg-blue-100 text-blue-800'
     }
   }

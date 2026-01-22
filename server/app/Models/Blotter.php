@@ -34,6 +34,11 @@ class Blotter extends Model
         'attachments',
         'created_by',
         'updated_by',
+        'approved_by',
+        'rejected_by',
+        'approved_at',
+        'rejected_at',
+        'rejection_remarks',
     ];
 
     protected $casts = [
@@ -44,6 +49,8 @@ class Blotter extends Model
         'respondent_is_resident' => 'boolean',
         'complainant_age' => 'integer',
         'respondent_age' => 'integer',
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     /**
@@ -87,6 +94,22 @@ class Blotter extends Model
     }
 
     /**
+     * Get the user who approved this blotter
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Get the user who rejected this blotter
+     */
+    public function rejector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
+    }
+
+    /**
      * Generate case number automatically
      */
     public static function generateCaseNumber(): string
@@ -112,6 +135,30 @@ class Blotter extends Model
     public function scopeByStatus($query, $status)
     {
         return $query->where('status', $status);
+    }
+
+    /**
+     * Scope for pending blotters (awaiting approval)
+     */
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope for approved blotters
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    /**
+     * Scope for rejected blotters
+     */
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
     }
 
     /**
@@ -160,5 +207,58 @@ class Blotter extends Model
     public function getRespondentTypeAttribute(): string
     {
         return $this->respondent_is_resident ? 'Resident' : 'Non-Resident';
+    }
+
+    /**
+     * Check if blotter can be approved
+     */
+    public function canBeApproved(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Check if blotter can be rejected
+     */
+    public function canBeRejected(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Approve the blotter
+     */
+    public function approve(User $user): bool
+    {
+        if (!$this->canBeApproved()) {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Reject the blotter
+     */
+    public function reject(User $user, string $remarks): bool
+    {
+        if (!$this->canBeRejected()) {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'rejected',
+            'rejected_by' => $user->id,
+            'rejected_at' => now(),
+            'rejection_remarks' => $remarks,
+        ]);
+
+        return true;
     }
 }

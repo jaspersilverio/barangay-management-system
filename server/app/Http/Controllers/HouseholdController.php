@@ -154,13 +154,18 @@ class HouseholdController extends Controller
                 'id' => $household->purok->id,
                 'name' => $household->purok->name,
             ] : null,
-            'residents' => $household->residents->map(function ($resident) {
+            'residents' => $household->residents->filter(function ($resident) use ($household) {
+                // Filter out the head of household from members list
+                return $resident->id !== $household->head_resident_id;
+            })->map(function ($resident) {
                 return [
                     'id' => $resident->id,
                     'first_name' => $resident->first_name,
                     'middle_name' => $resident->middle_name,
                     'last_name' => $resident->last_name,
                     'full_name' => $resident->full_name,
+                    'sex' => $resident->sex,
+                    'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
                     'relationship_to_head' => $resident->relationship_to_head,
                 ];
             }),
@@ -247,8 +252,12 @@ class HouseholdController extends Controller
 
         $residents = $household->residents()->get();
 
+        // Filter out the head of household from members list
         // Transform the response for the frontend
-        $formattedResidents = $residents->map(function ($resident) {
+        $formattedResidents = $residents->filter(function ($resident) use ($household) {
+            // Exclude the head of household from the members list
+            return $resident->id !== $household->head_resident_id;
+        })->map(function ($resident) {
             return [
                 'id' => $resident->id,
                 'first_name' => $resident->first_name,

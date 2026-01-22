@@ -49,6 +49,51 @@ export async function exportResidentsToPdf(options: PdfExportOptions = {}) {
 }
 
 /**
+ * Export vaccinations list as PDF
+ */
+export async function exportVaccinationsToPdf(options: {
+  purok_id?: number
+  status?: string
+  vaccine_name?: string
+  date_from?: string
+  date_to?: string
+  age_group?: string
+  search?: string
+} = {}) {
+  try {
+    const params = new URLSearchParams()
+    
+    if (options.purok_id) params.append('purok_id', options.purok_id.toString())
+    if (options.status) params.append('status', options.status)
+    if (options.vaccine_name) params.append('vaccine_name', options.vaccine_name)
+    if (options.date_from) params.append('date_from', options.date_from)
+    if (options.date_to) params.append('date_to', options.date_to)
+    if (options.age_group) params.append('age_group', options.age_group)
+    if (options.search) params.append('search', options.search)
+    
+    const response = await api.get(`/pdf/export/vaccinations?${params.toString()}`, {
+      responseType: 'blob',
+    })
+
+    // Create blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `vaccination-records-${new Date().toISOString().split('T')[0]}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('PDF export failed:', error)
+    throw new Error(error?.response?.data?.message || 'Failed to export PDF')
+  }
+}
+
+/**
  * Export households list as PDF
  */
 export async function exportHouseholdsToPdf(options: PdfExportOptions = {}) {
@@ -83,13 +128,19 @@ export async function exportHouseholdsToPdf(options: PdfExportOptions = {}) {
 /**
  * Export blotters list as PDF
  */
-export async function exportBlottersToPdf(options: PdfExportOptions = {}) {
+export async function exportBlottersToPdf(options: {
+  status?: string
+  start_date?: string
+  end_date?: string
+  search?: string
+} = {}) {
   try {
     const params = new URLSearchParams()
     
     if (options.status) params.append('status', options.status)
     if (options.start_date) params.append('start_date', options.start_date)
     if (options.end_date) params.append('end_date', options.end_date)
+    if (options.search) params.append('search', options.search)
     
     const response = await api.get(`/pdf/export/blotters?${params.toString()}`, {
       responseType: 'blob',
@@ -100,7 +151,7 @@ export async function exportBlottersToPdf(options: PdfExportOptions = {}) {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `blotter-entries-${new Date().toISOString().split('T')[0]}.pdf`
+    link.download = `blotter-records-${new Date().toISOString().split('T')[0]}.pdf`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)

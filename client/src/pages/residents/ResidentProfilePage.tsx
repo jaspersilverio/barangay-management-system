@@ -332,7 +332,7 @@ export default function ResidentProfilePage() {
         <Col lg={8}>
           <Tab.Container defaultActiveKey="personal">
             <Card className="shadow-sm">
-              <Card.Header className="bg-white border-bottom">
+              <Card.Header className="border-bottom">
                 <Nav variant="tabs" className="border-0">
                   <Nav.Item>
                     <Nav.Link eventKey="personal" className="text-brand-primary">

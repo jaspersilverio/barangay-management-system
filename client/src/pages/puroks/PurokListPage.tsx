@@ -1,20 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
 import { getPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
 import PurokFormModal from '../../components/puroks/PurokFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
-// import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
 export default function PurokListPage() {
-  // const { user } = useAuth()
-  // const role = user?.role
-  // const isAdmin = role === 'admin'
   const isAdmin = true // Allow all users to perform CRUD operations for demo
   const navigate = useNavigate()
 
   const [items, setItems] = useState<any[]>([])
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true) // Start with true for immediate skeleton display
@@ -23,23 +21,35 @@ export default function PurokListPage() {
   const [editingId, setEditingId] = useState<null | number>(null)
   const [deletingId, setDeletingId] = useState<null | number>(null)
 
-  const load = async () => {
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(1) // Reset to first page when search changes
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
+  const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await getPuroks({ search, page, per_page: 15 })
+      const res = await getPuroks({ search: debouncedSearch, page, per_page: 15 })
       // Set data immediately - no delays
       const list = res.data.data
       setItems(list)
       setTotalPages(res.data.last_page)
+    } catch (err) {
+      console.error('Failed to load puroks:', err)
     } finally {
       // Clear loading state immediately when data is ready
       setLoading(false)
     }
-  }
+  }, [debouncedSearch, page])
 
   useEffect(() => { 
-    load().catch(() => null) 
-  }, [search, page]) // These dependencies are fine as they're primitive values
+    load()
+  }, [load])
 
   return (
     <div className="page-container">
@@ -74,8 +84,8 @@ export default function PurokListPage() {
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control 
                   placeholder="Purok name, leader, or contact" 
-                  value={search} 
-                  onChange={(e) => setSearch(e.target.value)}
+                  value={searchInput} 
+                  onChange={(e) => setSearchInput(e.target.value)}
                   disabled={loading}
                   className="form-control-custom"
                 />

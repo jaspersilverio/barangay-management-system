@@ -9,7 +9,20 @@ export interface IncidentReport {
   location: string;
   persons_involved?: string[] | string | null;
   reporting_officer_id: number;
-  status: 'Recorded' | 'Monitoring' | 'Resolved';
+  status: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
+  approved_by?: number;
+  rejected_by?: number;
+  approved_at?: string;
+  rejected_at?: string;
+  rejection_remarks?: string;
+  approver?: {
+    id: number;
+    name: string;
+  };
+  rejector?: {
+    id: number;
+    name: string;
+  };
   notes?: string | null;
   created_by: number;
   updated_by?: number;
@@ -39,7 +52,7 @@ export interface CreateIncidentReportData {
   location: string;
   persons_involved?: string;
   reporting_officer_id: number;
-  status?: 'Recorded' | 'Monitoring' | 'Resolved';
+  status?: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
   notes?: string;
 }
 
@@ -51,7 +64,7 @@ export interface UpdateIncidentReportData {
   location?: string;
   persons_involved?: string;
   reporting_officer_id?: number;
-  status?: 'Recorded' | 'Monitoring' | 'Resolved';
+  status?: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
   notes?: string;
 }
 
@@ -192,6 +205,27 @@ export const deleteIncidentReport = async (
   id: number
 ): Promise<{ success: boolean; message: string }> => {
   const response = await api.delete(`/incident-reports/${id}`);
+  return response.data;
+};
+
+/**
+ * Approve an incident report (captain only)
+ */
+export const approveIncidentReport = async (
+  id: number
+): Promise<IncidentReportResponse> => {
+  const response = await api.post(`/incident-reports/${id}/approve`);
+  return response.data;
+};
+
+/**
+ * Reject an incident report (captain only)
+ */
+export const rejectIncidentReport = async (
+  id: number,
+  remarks: string
+): Promise<IncidentReportResponse> => {
+  const response = await api.post(`/incident-reports/${id}/reject`, { remarks });
   return response.data;
 };
 

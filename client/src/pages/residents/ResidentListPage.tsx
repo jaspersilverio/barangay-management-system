@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast, Badge } from 'react-bootstrap'
 import { listResidents, deleteResident, createResident, updateResident } from '../../services/residents.service'
+import { createHousehold } from '../../services/households.service'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
 import type { ResidentFormValues } from '../../components/residents/ResidentFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
@@ -24,7 +25,7 @@ const ResidentListPage = React.memo(() => {
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
   const [editingId, setEditingId] = useState<null | number>(null)
-  
+
   // Manual state management
   const [residentsData, setResidentsData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
@@ -34,8 +35,9 @@ const ResidentListPage = React.memo(() => {
   // Track newly added resident for highlighting
   const [newlyAddedResidentId, setNewlyAddedResidentId] = useState<number | null>(null)
 
-  // Ref to maintain input focus
+  // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimeoutRef = useRef<number | null>(null)
 
   const canManage = role === 'admin' || role === 'purok_leader' || role === 'staff'
 
@@ -47,13 +49,24 @@ const ResidentListPage = React.memo(() => {
 
   // Debounce input value to search query (300ms delay)
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+    }
+
+    const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(inputValue)
       // Reset to first page when search changes
       setPage(1)
     }, 300)
 
-    return () => clearTimeout(timeoutId)
+    debounceTimeoutRef.current = timeoutId
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
   }, [inputValue])
 
   // Manual data fetching - depends on debouncedSearch, not inputValue
@@ -62,10 +75,10 @@ const ResidentListPage = React.memo(() => {
     setIsError(false)
     setError(null)
     try {
-      const data = await listResidents({ 
-        search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
-        page: overridePage !== undefined ? overridePage : page, 
-        purok_id: effectivePurokId || undefined 
+      const data = await listResidents({
+        search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
+        page: overridePage !== undefined ? overridePage : page,
+        purok_id: effectivePurokId || undefined
       })
       // Set data immediately - no delays
       setResidentsData(data)
@@ -109,7 +122,7 @@ const ResidentListPage = React.memo(() => {
     const firstName = resident.first_name || ''
     const middleName = resident.middle_name || ''
     const suffix = resident.suffix || ''
-    
+
     let name = lastName
     if (firstName || middleName || suffix) {
       name += ','
@@ -136,7 +149,7 @@ const ResidentListPage = React.memo(() => {
       const bLastName = (b.last_name || '').toLowerCase()
       const aFirstName = (a.first_name || '').toLowerCase()
       const bFirstName = (b.first_name || '').toLowerCase()
-      
+
       // Primary sort by last name
       if (aLastName !== bLastName) {
         return aLastName.localeCompare(bLastName)
@@ -175,6 +188,36 @@ const ResidentListPage = React.memo(() => {
     setPurokId(e.target.value)
     setPage(1) // Reset to first page when changing purok
   }, [])
+
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+      debounceTimeoutRef.current = null
+    }
+
+    const searchTerm = inputValue
+    setDebouncedSearch(searchTerm)
+    setPage(1)
+    // Trigger an immediate search using the latest input value
+    loadResidents(searchTerm, 1)
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [inputValue, loadResidents])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearchSubmit()
+      }
+    },
+    [handleSearchSubmit]
+  )
 
   const handlePageChange = useCallback((pageNumber: number) => {
     setPage(pageNumber)
@@ -225,10 +268,10 @@ const ResidentListPage = React.memo(() => {
         </div>
         <div className="page-actions">
           {canManage && (
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               size="lg"
-              onClick={handleShowForm} 
+              onClick={handleShowForm}
               disabled={isLoading}
               className="btn-brand-primary"
             >
@@ -251,19 +294,30 @@ const ResidentListPage = React.memo(() => {
                   placeholder="Search by name, purok, household/head name, or occupation"
                   value={inputValue}
                   onChange={handleSearchChange}
-                  disabled={isLoading}
+                  onKeyDown={handleSearchKeyDown}
                   className="form-control-custom"
                   autoComplete="off"
                 />
               </Form.Group>
             </Col>
+            <Col md="auto">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={isLoading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
+            </Col>
             {role === 'admin' && (
               <Col md={4}>
                 <Form.Group className="mb-0">
                   <Form.Label className="form-label-custom">Purok</Form.Label>
-                  <Form.Select 
-                    value={purokId} 
-                    onChange={handlePurokChange} 
+                  <Form.Select
+                    value={purokId}
+                    onChange={handlePurokChange}
                     disabled={isLoading}
                     className="form-select-custom"
                   >
@@ -386,9 +440,9 @@ const ResidentListPage = React.memo(() => {
                     const isInactive = resident.resident_status === 'deceased' || resident.resident_status === 'transferred' || resident.resident_status === 'inactive'
                     const householdRole = getHouseholdRole(resident)
                     const fullName = formatFullName(resident)
-                    
+
                     return (
-                      <tr 
+                      <tr
                         key={resident.id}
                         data-resident-id={resident.id}
                         className={`table-row ${newlyAddedResidentId === resident.id ? 'newly-added-highlight' : ''} ${isInactive ? 'text-muted' : ''}`}
@@ -456,7 +510,7 @@ const ResidentListPage = React.memo(() => {
                             )}
                           </div>
                         </td>
-                        
+
                         {/* Full Name (Last, First Middle Suffix) */}
                         <td className="fw-medium">
                           <div className="d-flex align-items-center gap-2">
@@ -468,22 +522,22 @@ const ResidentListPage = React.memo(() => {
                             )}
                           </div>
                         </td>
-                        
+
                         {/* Sex */}
                         <td>
                           <span className="text-capitalize">{resident.sex === 'male' ? 'M' : resident.sex === 'female' ? 'F' : 'O'}</span>
                         </td>
-                        
+
                         {/* Age */}
                         <td>{resident.age !== null && resident.age !== undefined ? `${resident.age}` : '-'}</td>
-                        
+
                         {/* Civil Status */}
                         <td>
                           <span className="text-capitalize small">
                             {resident.civil_status || '-'}
                           </span>
                         </td>
-                        
+
                         {/* Purok */}
                         <td>
                           {resident.household?.purok?.name ? (
@@ -494,7 +548,7 @@ const ResidentListPage = React.memo(() => {
                             <span className="text-muted">-</span>
                           )}
                         </td>
-                        
+
                         {/* Household Role */}
                         <td>
                           {householdRole === 'Head' && (
@@ -507,7 +561,7 @@ const ResidentListPage = React.memo(() => {
                             <Badge bg="warning" text="dark" className="rounded-pill">Unassigned</Badge>
                           )}
                         </td>
-                        
+
                         {/* Household / Head Name */}
                         <td>
                           {resident.household ? (
@@ -523,14 +577,14 @@ const ResidentListPage = React.memo(() => {
                             <span className="text-muted">-</span>
                           )}
                         </td>
-                        
+
                         {/* Occupation */}
                         <td>
                           <span className="text-capitalize small">
                             {resident.occupation_status || '-'}
                           </span>
                         </td>
-                        
+
                         {/* Classifications */}
                         <td>
                           <div className="d-flex flex-wrap gap-1">
@@ -554,7 +608,7 @@ const ResidentListPage = React.memo(() => {
                             )}
                           </div>
                         </td>
-                        
+
                         {/* Resident Status */}
                         <td>
                           {resident.resident_status === 'active' && (
@@ -573,7 +627,7 @@ const ResidentListPage = React.memo(() => {
                             <Badge bg="success" className="rounded-pill">Active</Badge>
                           )}
                         </td>
-                        
+
                         {/* Actions */}
                         <td>
                           <div className="action-buttons">
@@ -642,17 +696,17 @@ const ResidentListPage = React.memo(() => {
                   const maxVisiblePages = 5
                   let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2))
                   let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1)
-                  
+
                   // Adjust start page if we're near the end
                   if (endPage - startPage + 1 < maxVisiblePages) {
                     startPage = Math.max(1, endPage - maxVisiblePages + 1)
                   }
-                  
+
                   // Show first page and ellipsis if needed
                   if (startPage > 1) {
                     pages.push(
-                      <Pagination.Item 
-                        key={1} 
+                      <Pagination.Item
+                        key={1}
                         active={page === 1}
                         onClick={() => handlePageChange(1)}
                         className="pagination-item"
@@ -664,12 +718,12 @@ const ResidentListPage = React.memo(() => {
                       pages.push(<Pagination.Ellipsis key="ellipsis-start" />)
                     }
                   }
-                  
+
                   // Show visible page range
                   for (let i = startPage; i <= endPage; i++) {
                     pages.push(
-                      <Pagination.Item 
-                        key={i} 
+                      <Pagination.Item
+                        key={i}
                         active={page === i}
                         onClick={() => handlePageChange(i)}
                         className="pagination-item"
@@ -678,15 +732,15 @@ const ResidentListPage = React.memo(() => {
                       </Pagination.Item>
                     )
                   }
-                  
+
                   // Show ellipsis and last page if needed
                   if (endPage < totalPages) {
                     if (endPage < totalPages - 1) {
                       pages.push(<Pagination.Ellipsis key="ellipsis-end" />)
                     }
                     pages.push(
-                      <Pagination.Item 
-                        key={totalPages} 
+                      <Pagination.Item
+                        key={totalPages}
                         active={page === totalPages}
                         onClick={() => handlePageChange(totalPages)}
                         className="pagination-item"
@@ -695,7 +749,7 @@ const ResidentListPage = React.memo(() => {
                       </Pagination.Item>
                     )
                   }
-                  
+
                   return pages
                 })()}
                 <Pagination.Next
@@ -757,58 +811,98 @@ const ResidentListPage = React.memo(() => {
             const payload: any = {
               household_id: values.household_id ? Number(values.household_id) : null,
               first_name: values.first_name,
-              middle_name: values.middle_name || undefined,
+              middle_name: values.middle_name ?? null,
               last_name: values.last_name,
-              suffix: values.suffix || undefined,
+              suffix: values.suffix ?? null,
               sex: values.sex,
               birthdate: values.birthdate,
-              place_of_birth: values.place_of_birth || undefined,
-              nationality: values.nationality || undefined,
-              religion: values.religion || undefined,
-              contact_number: values.contact_number || undefined,
-              email: values.email || undefined,
-              valid_id_type: values.valid_id_type || undefined,
-              valid_id_number: values.valid_id_number || undefined,
+              place_of_birth: values.place_of_birth ?? null,
+              nationality: values.nationality ?? null,
+              religion: values.religion ?? null,
+              contact_number: values.contact_number ?? null,
+              email: values.email ?? null,
+              valid_id_type: values.valid_id_type ?? null,
+              valid_id_number: values.valid_id_number ?? null,
               civil_status: values.civil_status,
-              relationship_to_head: values.relationship_to_head || undefined,
+              relationship_to_head: values.relationship_to_head ?? null,
               occupation_status: values.occupation_status,
-              employer_workplace: values.employer_workplace || undefined,
-              educational_attainment: values.educational_attainment || undefined,
+              employer_workplace: values.employer_workplace ?? null,
+              educational_attainment: values.educational_attainment ?? null,
               is_pwd: !!values.is_pwd,
               is_pregnant: !!values.is_pregnant,
               resident_status: values.resident_status || 'active',
-              remarks: values.remarks || undefined,
-              photo: values.photo || undefined,
+              remarks: values.remarks ?? null,
+              photo: values.photo ?? undefined,
               // purok_id is handled by backend based on household
             }
 
             if (editingId) {
-              await updateResident(editingId, payload)
+              const response = await updateResident(editingId, payload)
+              if (!response.success) {
+                throw new Error(response.message || 'Update failed')
+              }
               setToast({ show: true, message: 'Resident updated', variant: 'success' })
               setShowForm(false)
               setEditingId(null)
               // Reload data after successful update
-              loadResidents()
+              await loadResidents()
             } else {
               // Create new resident
               const response = await createResident(payload)
               if (response.success && response.data?.id) {
                 const newResidentId = response.data.id
+
+                // Step 2: If creating new household, create it with this resident as head
+                if (values.assignment_mode === 'new_household') {
+                  try {
+                    const householdPayload = {
+                      address: values.new_household_address!,
+                      property_type: values.new_household_property_type || 'Residential',
+                      head_resident_id: newResidentId,
+                      contact: values.new_household_contact || '',
+                      purok_id: typeof values.new_household_purok_id === 'string'
+                        ? parseInt(values.new_household_purok_id)
+                        : values.new_household_purok_id!,
+                    }
+                    const householdResponse = await createHousehold(householdPayload)
+
+                    if (!householdResponse.success) {
+                      throw new Error(householdResponse.message || 'Failed to create household')
+                    }
+                  } catch (householdError: any) {
+                    // If household creation fails, show error but resident is already created
+                    setToast({
+                      show: true,
+                      message: `Resident created but household creation failed: ${householdError?.response?.data?.message || householdError?.message || 'Unknown error'}`,
+                      variant: 'danger'
+                    })
+                    // Still reload to show the resident (even if unassigned)
+                    setShowForm(false)
+                    setEditingId(null)
+                    setInputValue('')
+                    setDebouncedSearch('')
+                    setPage(1)
+                    await new Promise(resolve => setTimeout(resolve, 300))
+                    await loadResidents('', 1)
+                    return
+                  }
+                }
+
                 setToast({ show: true, message: 'Resident created', variant: 'success' })
                 setShowForm(false)
                 setEditingId(null)
-                
+
                 // Clear search and reset to page 1 to ensure new resident is visible
                 setInputValue('')
                 setDebouncedSearch('')
                 setPage(1)
-                
-                // Small delay to ensure backend has processed household creation
+
+                // Small delay to ensure backend has processed household creation/linking
                 await new Promise(resolve => setTimeout(resolve, 300))
-                
+
                 // Reload data with empty search and page 1 to show the new resident
                 await loadResidents('', 1)
-                
+
                 // Set highlight after DOM is updated
                 setTimeout(() => {
                   setNewlyAddedResidentId(newResidentId)

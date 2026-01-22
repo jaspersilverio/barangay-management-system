@@ -69,6 +69,11 @@ class CertificateRequest extends Model
         return $query->where('status', 'approved');
     }
 
+    public function scopeIssued($query)
+    {
+        return $query->where('status', 'issued');
+    }
+
     public function scopeReleased($query)
     {
         return $query->where('status', 'released');
@@ -101,6 +106,7 @@ class CertificateRequest extends Model
         return match ($this->status) {
             'pending' => 'warning',
             'approved' => 'success',
+            'issued' => 'success',
             'released' => 'info',
             'rejected' => 'danger',
             default => 'secondary'
@@ -109,7 +115,13 @@ class CertificateRequest extends Model
 
     public function canBeApproved(): bool
     {
-        return $this->status === 'pending';
+        // Cannot approve if already approved or if an issued certificate already exists
+        if ($this->status !== 'pending') {
+            return false;
+        }
+
+        // Check if an issued certificate already exists for this request
+        return !$this->issuedCertificate()->exists();
     }
 
     public function canBeReleased(): bool

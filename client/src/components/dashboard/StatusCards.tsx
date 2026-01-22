@@ -7,32 +7,28 @@ export default function StatusCards() {
       status: 'operational',
       icon: <Server className="h-5 w-5" />,
       description: 'All systems running normally',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-green-600 dark:text-green-400',
     },
     {
       title: 'Emergency Status',
       status: 'clear',
       icon: <Shield className="h-5 w-5" />,
       description: 'No active emergencies',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-green-600 dark:text-green-400',
     },
     {
       title: 'Data Quality',
       status: 'good',
       icon: <Database className="h-5 w-5" />,
       description: '98% data completeness',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-green-600 dark:text-green-400',
     },
     {
       title: 'Network Status',
       status: 'connected',
       icon: <Wifi className="h-5 w-5" />,
       description: 'Stable connection',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50',
+      color: 'text-green-600 dark:text-green-400',
     },
   ]
 
@@ -56,7 +52,14 @@ export default function StatusCards() {
     <div className="col-span-12">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statusItems.map((item, index) => (
-          <div key={index} className={`${item.bgColor} p-4 rounded-xl border border-gray-200`}>
+          <div 
+            key={index} 
+            className="p-4 rounded-xl border card-modern"
+            style={{
+              borderColor: 'var(--color-border)',
+              backgroundColor: 'var(--color-surface)',
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 {item.icon}

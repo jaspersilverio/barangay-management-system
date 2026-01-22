@@ -22,12 +22,19 @@ class IncidentReport extends Model
         'notes',
         'created_by',
         'updated_by',
+        'approved_by',
+        'rejected_by',
+        'approved_at',
+        'rejected_at',
+        'rejection_remarks',
     ];
 
     protected $casts = [
         'incident_date' => 'date',
         'incident_time' => 'string', // TIME column stores as HH:MM:SS string
         'persons_involved' => 'array', // JSON field for persons involved
+        'approved_at' => 'datetime',
+        'rejected_at' => 'datetime',
     ];
 
     /**
@@ -52,6 +59,22 @@ class IncidentReport extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
+     * Get the user who approved this incident report
+     */
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    /**
+     * Get the user who rejected this incident report
+     */
+    public function rejector(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rejected_by');
     }
 
     /**
@@ -80,5 +103,82 @@ class IncidentReport extends Model
                 ->orWhere('description', 'like', "%{$search}%")
                 ->orWhere('location', 'like', "%{$search}%");
         });
+    }
+
+    /**
+     * Scope for pending incident reports (awaiting approval)
+     */
+    public function scopePending($query)
+    {
+        return $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope for approved incident reports
+     */
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    /**
+     * Scope for rejected incident reports
+     */
+    public function scopeRejected($query)
+    {
+        return $query->where('status', 'rejected');
+    }
+
+    /**
+     * Check if incident report can be approved
+     */
+    public function canBeApproved(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Check if incident report can be rejected
+     */
+    public function canBeRejected(): bool
+    {
+        return $this->status === 'pending';
+    }
+
+    /**
+     * Approve the incident report
+     */
+    public function approve(User $user): bool
+    {
+        if (!$this->canBeApproved()) {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'approved',
+            'approved_by' => $user->id,
+            'approved_at' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Reject the incident report
+     */
+    public function reject(User $user, string $remarks): bool
+    {
+        if (!$this->canBeRejected()) {
+            return false;
+        }
+
+        $this->update([
+            'status' => 'rejected',
+            'rejected_by' => $user->id,
+            'rejected_at' => now(),
+            'rejection_remarks' => $remarks,
+        ]);
+
+        return true;
     }
 }

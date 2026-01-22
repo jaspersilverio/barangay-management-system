@@ -106,8 +106,8 @@ export default function Notifications() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-neutral-800 mb-2">Notifications</h1>
-          <p className="text-neutral-600">Manage your system notifications</p>
+          <h1 className="text-2xl font-bold text-brand-primary mb-2">Notifications</h1>
+          <p className="text-brand-muted">Manage your system notifications</p>
         </div>
         
         <div className="space-y-4">
@@ -136,8 +136,8 @@ export default function Notifications() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-neutral-800 mb-2">Notifications</h1>
-            <p className="text-neutral-600">Manage your system notifications</p>
+            <h1 className="text-2xl font-bold text-brand-primary mb-2">Notifications</h1>
+            <p className="text-brand-muted">Manage your system notifications</p>
           </div>
           
           <div className="flex items-center gap-3">
@@ -167,8 +167,8 @@ export default function Notifications() {
         {/* Filters */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-neutral-500" />
-            <span className="text-sm font-medium text-neutral-700">Filter:</span>
+            <Filter className="w-4 h-4 text-brand-muted" />
+            <span className="text-sm font-medium text-brand-primary">Filter:</span>
           </div>
           
           <div className="flex gap-2">
@@ -176,11 +176,28 @@ export default function Notifications() {
               <button
                 key={filterType}
                 onClick={() => setFilter(filterType)}
-                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
-                  filter === filterType
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'
-                }`}
+                className="px-3 py-1 rounded-lg text-sm font-medium transition-colors border"
+                style={{
+                  backgroundColor: filter === filterType 
+                    ? 'var(--color-primary)' 
+                    : 'var(--color-border-light)',
+                  color: filter === filterType 
+                    ? 'white' 
+                    : 'var(--color-text-primary)',
+                  borderColor: filter === filterType 
+                    ? 'var(--color-primary)' 
+                    : 'var(--color-border)'
+                }}
+                onMouseEnter={(e) => {
+                  if (filter !== filterType) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-surface)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (filter !== filterType) {
+                    e.currentTarget.style.backgroundColor = 'var(--color-border-light)'
+                  }
+                }}
               >
                 {filterType.charAt(0).toUpperCase() + filterType.slice(1)}
                 {filterType === 'unread' && unreadCount > 0 && (
@@ -207,9 +224,9 @@ export default function Notifications() {
         ) : notifications.length === 0 ? (
           <Card>
             <div className="text-center py-8">
-              <div className="text-neutral-400 text-4xl mb-4">🔔</div>
-              <p className="text-neutral-600 mb-2">No notifications found</p>
-              <p className="text-sm text-neutral-500">
+              <div className="text-4xl mb-4" style={{ color: 'var(--color-text-muted)' }}>🔔</div>
+              <p className="text-brand-primary mb-2">No notifications found</p>
+              <p className="text-sm text-brand-muted">
                 {filter === 'all' 
                   ? 'You have no notifications yet.'
                   : `No ${filter} notifications found.`
@@ -225,7 +242,7 @@ export default function Notifications() {
                 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-neutral-800">
+                    <h3 className="font-semibold text-brand-primary">
                       {notification.title}
                     </h3>
                     <Badge variant={getTypeColor(notification.type)} size="sm">
@@ -236,12 +253,12 @@ export default function Notifications() {
                     )}
                   </div>
                   
-                  <p className="text-neutral-600 mb-3">
+                  <p className="text-brand-muted mb-3">
                     {notification.message}
                   </p>
                   
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-neutral-400">
+                    <p className="text-sm text-brand-muted">
                       {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                     </p>
                     
@@ -275,7 +292,7 @@ export default function Notifications() {
             Previous
           </Button>
           
-          <span className="text-sm text-neutral-600">
+          <span className="text-sm text-brand-primary">
             Page {pagination.current_page} of {pagination.last_page}
           </span>
           

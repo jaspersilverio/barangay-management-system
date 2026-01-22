@@ -8,6 +8,7 @@ use App\Models\Official;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class OfficialController extends Controller
 {
@@ -17,6 +18,14 @@ class OfficialController extends Controller
     public function index(Request $request)
     {
         $query = Official::with('user');
+
+        // Filter by category if specified (default to 'official' if not specified for backward compatibility)
+        if ($request->filled('category')) {
+            $query->byCategory($request->category);
+        } else {
+            // Default to 'official' category for backward compatibility
+            $query->byCategory('official');
+        }
 
         // Filter by active status if specified
         if ($request->has('active')) {
@@ -35,9 +44,10 @@ class OfficialController extends Controller
 
         $officials = $query->orderBy('position')->orderBy('name')->paginate(15);
 
-        // Ensure photo_url is included in response
+        // Ensure photo_url and term_period are included in response
         $officials->getCollection()->transform(function ($official) {
             $official->photo_url = $official->photo_url;
+            $official->term_period = $official->term_period; // Ensure accessor is computed
             // Log for debugging
             if ($official->photo_path) {
                 Log::debug('Official photo URL', [
@@ -58,7 +68,75 @@ class OfficialController extends Controller
      */
     public function store(StoreOfficialRequest $request)
     {
+        // Authorization: Only admin can create officials
+        $user = Auth::user();
+        if (!$user || $user->role !== 'admin') {
+            return $this->respondError('Unauthorized. Only administrators can create officials.', null, 403);
+        }
+
         $data = $request->validated();
+
+        // Ensure category is set (default to 'official' if not provided for backward compatibility)
+        if (!isset($data['category']) || empty($data['category'])) {
+            $data['category'] = 'official';
+        }
+
+        // For official and SK categories, compose name from first/middle/last/suffix if provided
+        if (in_array($data['category'], ['official', 'sk']) && isset($data['first_name']) && isset($data['last_name'])) {
+            $nameParts = array_filter([
+                $data['first_name'] ?? '',
+                $data['middle_name'] ?? '',
+                $data['last_name'] ?? '',
+                $data['suffix'] ?? ''
+            ]);
+            if (!empty($nameParts)) {
+                $data['name'] = implode(' ', $nameParts);
+            }
+        }
+
+        // Validate SK age requirement (15-30 years old)
+        if ($data['category'] === 'sk' && isset($data['birthdate'])) {
+            $birthdate = \Carbon\Carbon::parse($data['birthdate']);
+            $age = $birthdate->age;
+            if ($age < 15 || $age > 30) {
+                return $this->respondError('SK members must be between 15 and 30 years old. Current age: ' . $age, null, 422);
+            }
+        }
+
+        // Validate unique SK Chairperson
+        if (
+            $data['category'] === 'sk' &&
+            isset($data['position']) &&
+            str_contains($data['position'], 'SK Chairperson') &&
+            isset($data['active']) && $data['active']
+        ) {
+            $existingChairperson = Official::where('category', 'sk')
+                ->where('position', 'like', '%SK Chairperson%')
+                ->where('active', true)
+                ->first();
+
+            if ($existingChairperson) {
+                return $this->respondError('Only one active SK Chairperson is allowed at a time. Please deactivate the current Chairperson first.', null, 422);
+            }
+        }
+
+        // Validate unique Barangay Captain for official category
+        if (
+            $data['category'] === 'official' &&
+            isset($data['position']) &&
+            str_contains($data['position'], 'Barangay Captain') &&
+            isset($data['active']) && $data['active']
+        ) {
+
+            $existingCaptain = Official::where('category', 'official')
+                ->where('position', 'like', '%Barangay Captain%')
+                ->where('active', true)
+                ->first();
+
+            if ($existingCaptain) {
+                return $this->respondError('Only one active Barangay Captain is allowed at a time. Please deactivate the current Captain first.', null, 422);
+            }
+        }
 
         // Debug: Log the received data
         Log::info('Creating official with data:', $data);
@@ -82,8 +160,9 @@ class OfficialController extends Controller
 
         $official = Official::create($data);
         $official->load('user');
-        // Ensure photo_url is included
+        // Ensure photo_url and term_period are included
         $official->photo_url = $official->photo_url;
+        $official->term_period = $official->term_period;
 
         // Log photo URL for debugging
         if ($official->photo_path) {
@@ -102,8 +181,9 @@ class OfficialController extends Controller
     public function show(Official $official)
     {
         $official->load('user');
-        // Ensure photo_url is included
+        // Ensure photo_url and term_period are included
         $official->photo_url = $official->photo_url;
+        $official->term_period = $official->term_period;
         return $this->respondSuccess($official);
     }
 
@@ -112,7 +192,72 @@ class OfficialController extends Controller
      */
     public function update(UpdateOfficialRequest $request, Official $official)
     {
+        // Authorization: Only admin can update officials
+        $user = Auth::user();
+        if (!$user || $user->role !== 'admin') {
+            return $this->respondError('Unauthorized. Only administrators can update officials.', null, 403);
+        }
+
         $data = $request->validated();
+
+        // For official and SK categories, compose name from first/middle/last/suffix if provided
+        if (in_array($official->category, ['official', 'sk']) && isset($data['first_name']) && isset($data['last_name'])) {
+            $nameParts = array_filter([
+                $data['first_name'] ?? $official->first_name ?? '',
+                $data['middle_name'] ?? $official->middle_name ?? '',
+                $data['last_name'] ?? $official->last_name ?? '',
+                $data['suffix'] ?? $official->suffix ?? ''
+            ]);
+            if (!empty($nameParts)) {
+                $data['name'] = implode(' ', $nameParts);
+            }
+        }
+
+        // Validate SK age requirement (15-30 years old)
+        if ($official->category === 'sk' && isset($data['birthdate'])) {
+            $birthdate = \Carbon\Carbon::parse($data['birthdate']);
+            $age = $birthdate->age;
+            if ($age < 15 || $age > 30) {
+                return $this->respondError('SK members must be between 15 and 30 years old. Current age: ' . $age, null, 422);
+            }
+        }
+
+        // Validate unique SK Chairperson (exclude current record)
+        if (
+            $official->category === 'sk' &&
+            isset($data['position']) &&
+            str_contains($data['position'], 'SK Chairperson') &&
+            isset($data['active']) && $data['active']
+        ) {
+            $existingChairperson = Official::where('category', 'sk')
+                ->where('position', 'like', '%SK Chairperson%')
+                ->where('active', true)
+                ->where('id', '!=', $official->id)
+                ->first();
+
+            if ($existingChairperson) {
+                return $this->respondError('Only one active SK Chairperson is allowed at a time. Please deactivate the current Chairperson first.', null, 422);
+            }
+        }
+
+        // Validate unique Barangay Captain for official category (exclude current record)
+        if (
+            $official->category === 'official' &&
+            isset($data['position']) &&
+            str_contains($data['position'], 'Barangay Captain') &&
+            isset($data['active']) && $data['active']
+        ) {
+
+            $existingCaptain = Official::where('category', 'official')
+                ->where('position', 'like', '%Barangay Captain%')
+                ->where('active', true)
+                ->where('id', '!=', $official->id)
+                ->first();
+
+            if ($existingCaptain) {
+                return $this->respondError('Only one active Barangay Captain is allowed at a time. Please deactivate the current Captain first.', null, 422);
+            }
+        }
 
         // Handle photo upload with auto-generated filename
         if ($request->hasFile('photo')) {
@@ -135,8 +280,9 @@ class OfficialController extends Controller
 
         $official->update($data);
         $official->load('user');
-        // Ensure photo_url is included
+        // Ensure photo_url and term_period are included
         $official->photo_url = $official->photo_url;
+        $official->term_period = $official->term_period;
 
         // Log for debugging
         if ($request->hasFile('photo')) {
@@ -155,6 +301,12 @@ class OfficialController extends Controller
      */
     public function destroy(Official $official)
     {
+        // Authorization: Only admin can delete officials
+        $user = Auth::user();
+        if (!$user || $user->role !== 'admin') {
+            return $this->respondError('Unauthorized. Only administrators can delete officials.', null, 403);
+        }
+
         // Delete photo if exists
         if ($official->photo_path) {
             try {
@@ -180,9 +332,10 @@ class OfficialController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Ensure photo_url is included for all officials
+        // Ensure photo_url and term_period are included for all officials
         $officials->transform(function ($official) {
             $official->photo_url = $official->photo_url;
+            $official->term_period = $official->term_period;
             return $official;
         });
 
@@ -194,10 +347,17 @@ class OfficialController extends Controller
      */
     public function toggleActive(Official $official)
     {
+        // Authorization: Only admin can toggle official status
+        $user = Auth::user();
+        if (!$user || $user->role !== 'admin') {
+            return $this->respondError('Unauthorized. Only administrators can change official status.', null, 403);
+        }
+
         $official->update(['active' => !$official->active]);
         $official->load('user');
-        // Ensure photo_url is included
+        // Ensure photo_url and term_period are included
         $official->photo_url = $official->photo_url;
+        $official->term_period = $official->term_period;
 
         return $this->respondSuccess($official, 'Official status updated successfully');
     }

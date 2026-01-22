@@ -27,6 +27,7 @@ import {
   type CertificateRequestForm
 } from '../../services/certificate.service'
 import { listResidents } from '../../services/residents.service'
+import { useAuth } from '../../context/AuthContext'
 import LoadingSkeleton from '../ui/LoadingSkeleton'
 import BadgeComponent from '../ui/Badge'
 import ButtonComponent from '../ui/Button'
@@ -36,6 +37,8 @@ interface CertificateRequestsProps {
 }
 
 export default function CertificateRequests({ certificateType }: CertificateRequestsProps = {}) {
+  const { user } = useAuth()
+  const canApprove = user?.role === 'captain' || user?.role === 'admin'
   const [requests, setRequests] = useState<CertificateRequestType[]>([])
   const [residents, setResidents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,7 +47,9 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
   const [selectedRequest, setSelectedRequest] = useState<CertificateRequestType | null>(null)
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'release' | 'delete'>('approve')
   const [remarks, setRemarks] = useState('')
-  const [searchTerm, setSearchTerm] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState(certificateType || 'all')
   const [currentPage, setCurrentPage] = useState(1)
@@ -58,10 +63,20 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
   const [residentSearchTerm, setResidentSearchTerm] = useState('')
   const [filteredResidents, setFilteredResidents] = useState<any[]>([])
 
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setCurrentPage(1) // Reset to first page when search changes
+    }, 300)
+
+    return () => clearTimeout(timeoutId)
+  }, [searchInput])
+
   useEffect(() => {
     fetchRequests()
     fetchResidents()
-  }, [currentPage, searchTerm, statusFilter, typeFilter])
+  }, [currentPage, debouncedSearch, statusFilter, typeFilter])
 
   useEffect(() => {
     if (residents.length > 0) {
@@ -79,7 +94,7 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
       setLoading(true)
       const response = await getCertificateRequests({
         page: currentPage,
-        search: searchTerm || undefined,
+        search: debouncedSearch || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         certificate_type: typeFilter !== 'all' ? typeFilter : undefined,
         per_page: 10
@@ -104,6 +119,16 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
   }
 
   const handleCreateRequest = async () => {
+    // Frontend validation
+    if (!formData.resident_id || formData.resident_id === 0) {
+      alert('Please select a resident')
+      return
+    }
+    if (!formData.purpose.trim()) {
+      alert('Please enter a purpose')
+      return
+    }
+
     try {
       await createCertificateRequest(formData)
       setShowCreateModal(false)
@@ -115,8 +140,16 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
       })
       setResidentSearchTerm('')
       fetchRequests()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create certificate request:', error)
+      // Show validation errors if available
+      if (error.response?.data?.errors) {
+        const errors = error.response.data.errors
+        const errorMessages = Object.values(errors).flat().join('\n')
+        alert(`Validation errors:\n${errorMessages}`)
+      } else {
+        alert(error.response?.data?.message || 'Failed to create certificate request')
+      }
     }
   }
 
@@ -196,8 +229,8 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
               </InputGroup.Text>
               <Form.Control
                 placeholder="Search by resident name..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </InputGroup>
           </div>
@@ -271,44 +304,48 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
                     </div>
                   </td>
                   <td>
-                    <div className="d-flex gap-1">
-                      <ButtonComponent
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedRequest(request)
-                          setActionType('approve')
-                          setShowActionModal(true)
-                        }}
-                        disabled={request.status !== 'pending'}
-                      >
-                        <CheckCircle size={14} />
-                      </ButtonComponent>
-                      <ButtonComponent
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedRequest(request)
-                          setActionType('reject')
-                          setShowActionModal(true)
-                        }}
-                        disabled={!['pending', 'approved'].includes(request.status)}
-                      >
-                        <XCircle size={14} />
-                      </ButtonComponent>
-                      <ButtonComponent
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedRequest(request)
-                          setActionType('release')
-                          setShowActionModal(true)
-                        }}
-                        disabled={request.status !== 'approved'}
-                      >
-                        <Clock size={14} />
-                      </ButtonComponent>
-                    </div>
+                    {canApprove ? (
+                      <div className="d-flex gap-1">
+                        <ButtonComponent
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedRequest(request)
+                            setActionType('approve')
+                            setShowActionModal(true)
+                          }}
+                          disabled={request.status !== 'pending'}
+                        >
+                          <CheckCircle size={14} />
+                        </ButtonComponent>
+                        <ButtonComponent
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedRequest(request)
+                            setActionType('reject')
+                            setShowActionModal(true)
+                          }}
+                          disabled={!['pending', 'approved'].includes(request.status)}
+                        >
+                          <XCircle size={14} />
+                        </ButtonComponent>
+                        <ButtonComponent
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedRequest(request)
+                            setActionType('release')
+                            setShowActionModal(true)
+                          }}
+                          disabled={request.status !== 'approved'}
+                        >
+                          <Clock size={14} />
+                        </ButtonComponent>
+                      </div>
+                    ) : (
+                      <span className="text-muted small">Awaiting approval</span>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -369,31 +406,55 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
                   placeholder="Search for a resident..."
                   value={residentSearchTerm}
                   onChange={(e) => setResidentSearchTerm(e.target.value)}
-                  onFocus={() => setResidentSearchTerm('')}
                 />
                 {residentSearchTerm && (
-                  <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                  <div 
+                    className="position-absolute w-100 border rounded-bottom" 
+                    style={{ 
+                      zIndex: 1000, 
+                      maxHeight: '200px', 
+                      overflowY: 'auto',
+                      backgroundColor: '#FFFFFF',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
                     {filteredResidents.length > 0 ? (
                       filteredResidents.map((resident) => (
                         <div
                           key={resident.id}
                           className="px-3 py-2"
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = '#F1F5F9'
+                            e.currentTarget.style.color = '#0F172A'
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = '#FFFFFF'
+                            e.currentTarget.style.color = '#0F172A'
+                          }}
+                          style={{ 
+                            cursor: 'pointer',
+                            backgroundColor: '#FFFFFF',
+                            color: '#0F172A'
+                          }}
+                          onMouseDown={(e) => {
+                            e.preventDefault() // Prevent input from getting focus
                             setFormData({ ...formData, resident_id: resident.id })
-                            setResidentSearchTerm(resident.full_name)
+                            setResidentSearchTerm('') // Clear search term after selection
+                            // Blur the input field
+                            const input = document.getElementById('resident-search') as HTMLInputElement
+                            if (input) {
+                              input.blur()
+                            }
                           }}
                         >
-                          <div className="fw-medium">{resident.full_name}</div>
-                          <small className="text-muted">
+                          <div className="fw-medium" style={{ color: '#0F172A' }}>{resident.full_name}</div>
+                          <small style={{ color: '#6B7280' }}>
                             {resident.household?.address} • {resident.relationship_to_head}
                           </small>
                         </div>
                       ))
                     ) : (
-                      <div className="px-3 py-2 text-muted">No residents found</div>
+                      <div className="px-3 py-2" style={{ color: '#6B7280' }}>No residents found</div>
                     )}
                   </div>
                 )}

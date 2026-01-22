@@ -4,6 +4,7 @@ export interface Official {
   id: number
   user_id?: number
   name: string
+  category?: string
   position: string
   term_start?: string
   term_end?: string
@@ -24,11 +25,21 @@ export interface Official {
 
 export interface CreateOfficialData {
   user_id?: number
-  name: string
+  name?: string // Optional for official category (composed from first/middle/last/suffix)
+  category?: string
+  first_name?: string
+  middle_name?: string
+  last_name?: string
+  suffix?: string
+  sex?: string
+  birthdate?: string
   position: string
   term_start?: string
   term_end?: string
   contact?: string
+  email?: string
+  address?: string
+  purok_id?: number
   photo?: File
   active?: boolean
 }
@@ -50,11 +61,35 @@ export const POSITION_OPTIONS = [
   'Other'
 ]
 
+export const OFFICIAL_POSITION_OPTIONS = [
+  'Barangay Captain (Punong Barangay)',
+  'Barangay Kagawad – Committee on Peace & Order',
+  'Barangay Kagawad – Committee on Health',
+  'Barangay Kagawad – Committee on Education',
+  'Barangay Kagawad – Committee on Environment',
+  'Barangay Kagawad – Committee on Infrastructure',
+  'Barangay Kagawad – Committee on Women & Family',
+  'Barangay Kagawad – Committee on Youth & Sports',
+  'Barangay Secretary',
+  'Barangay Treasurer',
+  'Barangay Administrator',
+  'Barangay Clerk'
+]
+
+export const SK_POSITION_OPTIONS = [
+  'SK Chairperson',
+  'SK Secretary',
+  'SK Treasurer',
+  'SK Councilor',
+  'SK Federation Representative'
+]
+
 export async function getOfficials(params?: {
   page?: number
   search?: string
   position?: string
   active?: boolean
+  category?: string
 }) {
   const res = await api.get('/officials', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
@@ -75,7 +110,19 @@ export async function createOfficial(data: CreateOfficialData) {
   
   // Add text fields
   if (data.user_id) formData.append('user_id', data.user_id.toString())
-  formData.append('name', data.name)
+  if (data.name) formData.append('name', data.name)
+  if (data.category) formData.append('category', data.category)
+  
+  // Add personal information fields (for official and SK categories)
+  if (data.first_name) formData.append('first_name', data.first_name)
+  if (data.middle_name) formData.append('middle_name', data.middle_name)
+  if (data.last_name) formData.append('last_name', data.last_name)
+  if (data.suffix) formData.append('suffix', data.suffix)
+  if (data.sex) formData.append('sex', data.sex)
+  if (data.birthdate) formData.append('birthdate', data.birthdate)
+  if (data.email) formData.append('email', data.email)
+  if (data.address) formData.append('address', data.address)
+  if (data.purok_id) formData.append('purok_id', data.purok_id.toString())
   formData.append('position', data.position)
   if (data.term_start) formData.append('term_start', data.term_start)
   if (data.term_end) formData.append('term_end', data.term_end)
@@ -108,6 +155,7 @@ export async function updateOfficial(id: number, data: Partial<CreateOfficialDat
   }
   // Always send name and position if they exist (required fields)
   if (data.name !== undefined) formData.append('name', data.name)
+  if (data.category !== undefined) formData.append('category', data.category)
   if (data.position !== undefined) formData.append('position', data.position)
   if (data.term_start !== undefined) formData.append('term_start', data.term_start || '')
   if (data.term_end !== undefined) formData.append('term_end', data.term_end || '')
@@ -118,16 +166,9 @@ export async function updateOfficial(id: number, data: Partial<CreateOfficialDat
   if (data.photo) {
     if (data.photo instanceof File) {
       formData.append('photo', data.photo)
-      console.log('Photo included in update:', {
-        name: data.photo.name,
-        size: data.photo.size,
-        type: data.photo.type
-      })
     } else {
       console.warn('Photo is not a File object:', typeof data.photo, data.photo)
     }
-  } else {
-    console.log('No photo provided in update data')
   }
 
   const res = await api.put(`/officials/${id}`, formData, {

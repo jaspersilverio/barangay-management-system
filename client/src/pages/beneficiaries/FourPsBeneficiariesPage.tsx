@@ -1,13 +1,13 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react'
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Badge, ToastContainer, Toast } from 'react-bootstrap'
 import { Plus } from 'lucide-react'
-import { 
-  listFourPsBeneficiaries, 
-  createFourPsBeneficiary, 
-  updateFourPsBeneficiary, 
+import {
+  listFourPsBeneficiaries,
+  createFourPsBeneficiary,
+  updateFourPsBeneficiary,
   deleteFourPsBeneficiary,
   type FourPsBeneficiary,
-  type FourPsPayload 
+  type FourPsPayload
 } from '../../services/fourps.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
@@ -21,7 +21,9 @@ export default function FourPsBeneficiariesPage() {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  const [search, setSearch] = useState('')
+  // Separate input value from search query for smooth typing
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
@@ -30,11 +32,15 @@ export default function FourPsBeneficiariesPage() {
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
   const [editingId, setEditingId] = useState<null | number>(null)
-  const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ 
-    show: false, 
-    message: '', 
-    variant: 'success' 
+  const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({
+    show: false,
+    message: '',
+    variant: 'success'
   })
+
+  // Ref to maintain input focus and manage debounce timer
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimeoutRef = useRef<number | null>(null)
 
   const canManage = role === 'admin' || role === 'staff'
 
@@ -44,26 +50,50 @@ export default function FourPsBeneficiariesPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  const loadBeneficiaries = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const data = await listFourPsBeneficiaries({ 
-        search, 
-        page, 
-        purok_id: effectivePurokId || undefined,
-        status: statusFilter || undefined,
-        per_page: 15 
-      })
-      // Set data immediately - no delays
-      setBeneficiariesData(data)
-    } catch (err) {
-      console.error('Error loading 4Ps beneficiaries:', err)
-      setToast({ show: true, message: 'Failed to load 4Ps beneficiaries', variant: 'danger' })
-    } finally {
-      // Clear loading state immediately when data is ready
-      setIsLoading(false)
+  // Debounce input value to search query (300ms delay)
+  useEffect(() => {
+    // Clear any pending debounce when input changes
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
     }
-  }, [search, page, effectivePurokId, statusFilter])
+
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(1) // Reset to first page when search changes
+    }, 300)
+
+    debounceTimeoutRef.current = timeoutId
+
+    return () => {
+      if (debounceTimeoutRef.current) {
+        window.clearTimeout(debounceTimeoutRef.current)
+      }
+    }
+  }, [searchInput])
+
+  const loadBeneficiaries = useCallback(
+    async (overrideSearch?: string, overridePage?: number) => {
+      setIsLoading(true)
+      try {
+        const data = await listFourPsBeneficiaries({
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
+          page: overridePage !== undefined ? overridePage : page,
+          purok_id: effectivePurokId || undefined,
+          status: statusFilter || undefined,
+          per_page: 15
+        })
+        // Set data immediately - no delays
+        setBeneficiariesData(data)
+      } catch (err) {
+        console.error('Error loading 4Ps beneficiaries:', err)
+        setToast({ show: true, message: 'Failed to load 4Ps beneficiaries', variant: 'danger' })
+      } finally {
+        // Clear loading state immediately when data is ready
+        setIsLoading(false)
+      }
+    },
+    [debouncedSearch, page, effectivePurokId, statusFilter]
+  )
 
   useEffect(() => {
     loadBeneficiaries()
@@ -98,7 +128,7 @@ export default function FourPsBeneficiariesPage() {
         await createFourPsBeneficiary(payload)
         setToast({ show: true, message: '4Ps beneficiary registered successfully', variant: 'success' })
       }
-      
+
       setShowForm(false)
       setEditingId(null)
       loadBeneficiaries()
@@ -122,6 +152,43 @@ export default function FourPsBeneficiariesPage() {
       setShowDelete(null)
     }
   }, [showDelete, loadBeneficiaries])
+
+  // Handle search input change - only updates input value, not search query
+  // Search query is updated via debounce effect above
+  const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value)
+    // Page reset is handled in debounce effect
+  }, [])
+
+  // Manual search trigger for Enter key or Search button
+  const handleSearchSubmit = useCallback(() => {
+    // Cancel any pending debounced search to avoid duplicate requests
+    if (debounceTimeoutRef.current) {
+      window.clearTimeout(debounceTimeoutRef.current)
+      debounceTimeoutRef.current = null
+    }
+
+    const searchTerm = searchInput
+    setDebouncedSearch(searchTerm)
+    setPage(1)
+    // Trigger an immediate search using the latest input value
+    loadBeneficiaries(searchTerm, 1)
+
+    // Ensure the input keeps focus after triggering search
+    if (searchInputRef.current) {
+      searchInputRef.current.focus()
+    }
+  }, [searchInput, loadBeneficiaries])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        handleSearchSubmit()
+      }
+    },
+    [handleSearchSubmit]
+  )
 
   const handleEdit = useCallback((beneficiary: FourPsBeneficiary) => {
     setEditingId(beneficiary.id)
@@ -177,23 +244,33 @@ export default function FourPsBeneficiariesPage() {
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Search</Form.Label>
                 <Form.Control
+                  ref={searchInputRef}
                   placeholder="4Ps number, household name, or address"
-                  value={search}
-                  onChange={(e) => {
-                    setSearch(e.target.value)
-                    setPage(1)
-                  }}
-                  disabled={isLoading}
+                  value={searchInput}
+                  onChange={handleSearchChange}
+                  onKeyDown={handleSearchKeyDown}
                   className="form-control-custom"
+                  autoComplete="off"
                 />
               </Form.Group>
+            </Col>
+            <Col md="auto">
+              <Button
+                variant="outline-primary"
+                className="btn-outline-brand"
+                onClick={handleSearchSubmit}
+                disabled={isLoading}
+              >
+                <i className="fas fa-search me-2" />
+                Search
+              </Button>
             </Col>
             {role === 'admin' && (
               <Col md={3}>
                 <Form.Group className="mb-0">
                   <Form.Label className="form-label-custom">Purok</Form.Label>
-                  <Form.Select 
-                    value={purokId} 
+                  <Form.Select
+                    value={purokId}
                     onChange={(e) => {
                       setPurokId(e.target.value)
                       setPage(1)
@@ -214,8 +291,8 @@ export default function FourPsBeneficiariesPage() {
             <Col md={role === 'admin' ? 3 : 4}>
               <Form.Group className="mb-0">
                 <Form.Label className="form-label-custom">Status</Form.Label>
-                <Form.Select 
-                  value={statusFilter} 
+                <Form.Select
+                  value={statusFilter}
                   onChange={(e) => {
                     setStatusFilter(e.target.value)
                     setPage(1)
