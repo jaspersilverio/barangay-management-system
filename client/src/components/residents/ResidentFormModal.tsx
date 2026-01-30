@@ -76,18 +76,14 @@ const createSchema = () => z.object({
   message: 'Relationship to head is required when assigning to a household',
   path: ['relationship_to_head']
 }).refine((data) => {
-  // If creating new household, household fields are required
-  if (data.assignment_mode === 'new_household') {
-    return data.new_household_address && data.new_household_address.trim() !== '' &&
-           data.new_household_property_type && data.new_household_property_type.trim() !== '' &&
-           data.new_household_contact && data.new_household_contact.trim() !== '' &&
-           data.new_household_purok_id && data.new_household_purok_id !== ''
-  }
-  return true
+  // If creating new household, each household field is required (validated separately so the right field shows the error)
+  if (data.assignment_mode !== 'new_household') return true
+  return data.new_household_address != null && String(data.new_household_address).trim() !== ''
 }, {
-  message: 'All household fields are required when creating a new household',
+  message: 'Full address / sitio / street is required',
   path: ['new_household_address']
 }).refine((data) => {
+<<<<<<< HEAD
   // If unassigned, purok_id is required
   if (data.assignment_mode === 'unassigned') {
     return data.purok_id && data.purok_id !== '' && data.purok_id !== null
@@ -96,6 +92,26 @@ const createSchema = () => z.object({
 }, {
   message: 'Purok is required when registering a resident without a household',
   path: ['purok_id']
+=======
+  if (data.assignment_mode !== 'new_household') return true
+  return data.new_household_property_type != null && String(data.new_household_property_type).trim() !== ''
+}, {
+  message: 'Property type is required',
+  path: ['new_household_property_type']
+}).refine((data) => {
+  if (data.assignment_mode !== 'new_household') return true
+  return data.new_household_contact != null && String(data.new_household_contact).trim() !== ''
+}, {
+  message: 'Contact number is required',
+  path: ['new_household_contact']
+}).refine((data) => {
+  if (data.assignment_mode !== 'new_household') return true
+  const pid = data.new_household_purok_id
+  return pid != null && pid !== '' && String(pid).trim() !== ''
+}, {
+  message: 'Purok is required',
+  path: ['new_household_purok_id']
+>>>>>>> 8f292bde1f8efdaf11f1461f77e583ccc69feb7a
 })
 
 export type ResidentFormValues = z.infer<ReturnType<typeof createSchema>>

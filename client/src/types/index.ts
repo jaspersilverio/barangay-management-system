@@ -103,22 +103,37 @@ export type Landmark = {
   deleted_at?: string | null
 }
 
+/** Time-aware status from API (computed on server). Use this for display and filtering. */
+export type VaccinationComputedStatus = 'completed' | 'scheduled' | 'pending' | 'overdue'
+
+export type VaccinationType = 'fixed_dose' | 'booster' | 'annual' | 'as_needed'
+
 export type Vaccination = {
   id: number
   resident_id: number
-  vaccine_name: string
-  dose_number: string
-  date_administered: string
+  vaccination_type: VaccinationType
+  required_doses: number | null
+  completed_doses: number
+  schedule_date: string | null
+  completed_at?: string | null
   next_due_date?: string | null
-  status: 'Completed' | 'Pending' | 'Scheduled'
+  vaccine_name?: string | null
+  dose_number?: string | null
+  date_administered?: string | null
+  status?: string
+  /** Server-computed status; use this for display (completed | scheduled | pending | overdue). */
+  computed_status: VaccinationComputedStatus
+  /** True when user can mark this vaccination complete (pending or overdue). */
+  can_complete: boolean
   administered_by?: string | null
   created_at: string
   updated_at: string
   resident?: {
     id: number
     first_name: string
+    middle_name?: string | null
     last_name: string
-    full_name: string
+    full_name?: string
     household?: {
       id: number
       address: string
@@ -132,11 +147,10 @@ export type Vaccination = {
 
 export type VaccinationPayload = {
   resident_id: number
-  vaccine_name: string
-  dose_number: string
-  date_administered: string
-  next_due_date?: string | null
-  status: 'Completed' | 'Pending' | 'Scheduled'
+  vaccination_type: VaccinationType
+  required_doses?: number | null
+  schedule_date?: string | null
+  vaccine_name?: string | null
   administered_by?: string | null
 }
 
@@ -155,6 +169,7 @@ export type VaccinationFilters = {
 
 export type VaccinationStatistics = {
   total_vaccinations: number
+  /** Counts by computed status: completed, scheduled, pending, overdue */
   by_status: Record<string, number>
   by_vaccine: Record<string, number>
   by_purok: Record<string, number>

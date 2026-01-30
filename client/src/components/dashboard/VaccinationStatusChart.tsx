@@ -4,9 +4,10 @@ import { getVaccinationSummary } from '../../services/dashboard.service'
 import { Syringe } from 'lucide-react'
 
 const COLORS = {
-  completed: 'var(--color-accent)', // green-500
-  pending: 'var(--color-warning)',   // amber-500
-  scheduled: 'var(--color-primary)'  // blue-500
+  completed: 'var(--color-accent)',   // green
+  scheduled: 'var(--color-primary)',  // blue
+  pending: 'var(--color-warning)',    // yellow/amber
+  overdue: '#dc3545',                 // red (warning emphasis)
 }
 
 const VaccinationStatusChart = React.memo(() => {
@@ -41,18 +42,17 @@ const VaccinationStatusChart = React.memo(() => {
   const chartData = useMemo(() => {
     if (!data) return []
     return [
-      { name: 'Completed', value: data.completed, color: COLORS.completed },
-      { name: 'Pending', value: data.pending, color: COLORS.pending },
-      { name: 'Scheduled', value: data.scheduled, color: COLORS.scheduled },
+      { name: 'Completed', value: data.completed ?? 0, color: COLORS.completed },
+      { name: 'Scheduled', value: data.scheduled ?? 0, color: COLORS.scheduled },
+      { name: 'Pending', value: data.pending ?? 0, color: COLORS.pending },
+      { name: 'Overdue', value: data.overdue ?? 0, color: COLORS.overdue },
     ].filter(item => item.value > 0)
   }, [data])
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]
-      const total = data.payload.value + 
-        (payload[1]?.payload?.value || 0) + 
-        (payload[2]?.payload?.value || 0)
+      const total = payload.reduce((sum: number, p: any) => sum + (p.payload?.value ?? 0), 0)
       const percentage = total > 0 ? Math.round((data.payload.value / total) * 100) : 0
       
       return (
@@ -163,18 +163,22 @@ const VaccinationStatusChart = React.memo(() => {
       
       {/* Summary Stats */}
       <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-4 gap-4 text-center">
           <div>
-            <div className="text-2xl font-bold text-green-600">{data.completed}</div>
+            <div className="text-2xl font-bold text-green-600">{data.completed ?? 0}</div>
             <div className="text-xs text-gray-500">Completed</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-amber-600">{data.pending}</div>
+            <div className="text-2xl font-bold text-blue-600">{data.scheduled ?? 0}</div>
+            <div className="text-xs text-gray-500">Scheduled</div>
+          </div>
+          <div>
+            <div className="text-2xl font-bold text-amber-600">{data.pending ?? 0}</div>
             <div className="text-xs text-gray-500">Pending</div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">{data.scheduled}</div>
-            <div className="text-xs text-gray-500">Scheduled</div>
+            <div className="text-2xl font-bold text-red-600">{data.overdue ?? 0}</div>
+            <div className="text-xs text-gray-500">Overdue</div>
           </div>
         </div>
       </div>

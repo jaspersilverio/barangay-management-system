@@ -50,4 +50,3 @@ return new class extends Migration
         Schema::dropIfExists('four_ps_beneficiaries');
     }
 };
-

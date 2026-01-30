@@ -3,29 +3,23 @@ import { Modal, Form, Button, Row, Col, Alert, ListGroup } from 'react-bootstrap
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { createVaccination, updateVaccination, COMMON_VACCINES, COMMON_DOSE_NUMBERS, VACCINATION_STATUSES } from '../../services/vaccination.service'
+import { createVaccination, updateVaccination, COMMON_VACCINES, VACCINATION_TYPES } from '../../services/vaccination.service'
 import { listResidents } from '../../services/residents.service'
 import type { Vaccination, VaccinationPayload, Resident } from '../../types'
 
 const vaccinationSchema = z.object({
   resident_id: z.number().min(1, 'Resident is required'),
-  vaccine_name: z.string().min(1, 'Vaccine name is required').max(255, 'Vaccine name must not exceed 255 characters'),
-  dose_number: z.string().min(1, 'Dose number is required').max(50, 'Dose number must not exceed 50 characters'),
-  date_administered: z.string().min(1, 'Date administered is required'),
-  next_due_date: z.string().optional(),
-  status: z.enum(['Completed', 'Pending', 'Scheduled'], {
-    required_error: 'Status is required'
-  }),
+  vaccination_type: z.enum(['fixed_dose', 'booster', 'annual', 'as_needed'], { required_error: 'Vaccination type is required' }),
+  required_doses: z.number().int().min(1).optional().nullable(),
+  schedule_date: z.string().optional().nullable(),
+  vaccine_name: z.string().max(255, 'Vaccine name must not exceed 255 characters').optional(),
   administered_by: z.string().max(255, 'Administered by must not exceed 255 characters').optional()
 }).refine((data) => {
-  if (data.next_due_date && data.date_administered) {
-    return new Date(data.next_due_date) > new Date(data.date_administered)
+  if (data.vaccination_type === 'fixed_dose') {
+    return data.required_doses != null && data.required_doses >= 1
   }
   return true
-}, {
-  message: 'Next due date must be after the date administered',
-  path: ['next_due_date']
-})
+}, { message: 'Required doses is required for Fixed Dose (min 1)', path: ['required_doses'] })
 
 type VaccinationFormData = z.infer<typeof vaccinationSchema>
 
@@ -70,19 +64,16 @@ export default function AddVaccinationModal({
     resolver: zodResolver(vaccinationSchema),
     defaultValues: {
       resident_id: residentId || 0,
+      vaccination_type: 'fixed_dose',
+      required_doses: 2,
+      schedule_date: '',
       vaccine_name: '',
-      dose_number: '',
-      date_administered: '',
-      next_due_date: '',
-      status: 'Completed',
       administered_by: ''
     }
   })
 
-  // Manually register the vaccine_name field
-  useEffect(() => {
-    register('vaccine_name', { required: 'Vaccine name is required' })
-  }, [register])
+  const watchedVaccinationType = watch('vaccination_type')
+  const watchedVaccineName = watch('vaccine_name')
 
   // Load residents if no specific resident is provided
   useEffect(() => {
@@ -147,8 +138,6 @@ export default function AddVaccinationModal({
     setShowResidentDropdown(true)
   }
 
-  const watchedDateAdministered = watch('date_administered')
-  const watchedVaccineName = watch('vaccine_name')
 
   // Filter vaccines based on input
   useEffect(() => {
@@ -202,20 +191,18 @@ export default function AddVaccinationModal({
   useEffect(() => {
     if (vaccination) {
       setValue('resident_id', vaccination.resident_id)
-      setValue('vaccine_name', vaccination.vaccine_name)
-      setValue('dose_number', vaccination.dose_number)
-      setValue('date_administered', vaccination.date_administered)
-      setValue('next_due_date', vaccination.next_due_date || '')
-      setValue('status', vaccination.status)
+      setValue('vaccination_type', vaccination.vaccination_type)
+      setValue('required_doses', vaccination.required_doses ?? null)
+      setValue('schedule_date', vaccination.schedule_date || '')
+      setValue('vaccine_name', vaccination.vaccine_name || '')
       setValue('administered_by', vaccination.administered_by || '')
     } else {
       reset({
         resident_id: residentId || 0,
+        vaccination_type: 'fixed_dose',
+        required_doses: 2,
+        schedule_date: '',
         vaccine_name: '',
-        dose_number: '',
-        date_administered: '',
-        next_due_date: '',
-        status: 'Completed',
         administered_by: ''
       })
     }
@@ -227,8 +214,11 @@ export default function AddVaccinationModal({
 
     try {
       const payload: VaccinationPayload = {
-        ...data,
-        next_due_date: data.next_due_date || null,
+        resident_id: data.resident_id,
+        vaccination_type: data.vaccination_type,
+        required_doses: data.vaccination_type === 'fixed_dose' ? (data.required_doses ?? null) : null,
+        schedule_date: data.schedule_date || null,
+        vaccine_name: data.vaccine_name || null,
         administered_by: data.administered_by || null
       }
 
@@ -341,17 +331,72 @@ export default function AddVaccinationModal({
           <Row>
             <Col md={6}>
               <Form.Group className="mb-3">
-                <Form.Label>Vaccine Name *</Form.Label>
+                <Form.Label>Vaccination Type *</Form.Label>
+                <Form.Select
+                  {...register('vaccination_type')}
+                  isInvalid={!!errors.vaccination_type}
+                >
+                  {VACCINATION_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </Form.Select>
+                <Form.Control.Feedback type="invalid">
+                  {errors.vaccination_type?.message}
+                </Form.Control.Feedback>
+              </Form.Group>
+            </Col>
+
+            {watchedVaccinationType === 'fixed_dose' && (
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>Required Doses *</Form.Label>
+                  <Form.Control
+                    type="number"
+                    min={1}
+                    {...register('required_doses', { valueAsNumber: true })}
+                    isInvalid={!!errors.required_doses}
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {errors.required_doses?.message}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+            )}
+          </Row>
+
+          <Row>
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Schedule Date</Form.Label>
+                <Form.Control
+                  type="date"
+                  min={today}
+                  {...register('schedule_date')}
+                  isInvalid={!!errors.schedule_date}
+                />
+                <Form.Control.Feedback type="invalid">
+                  {errors.schedule_date?.message}
+                </Form.Control.Feedback>
+                <Form.Text className="text-muted">Future dates allowed. Status will auto-update (scheduled → pending → overdue).</Form.Text>
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group className="mb-3">
+                <Form.Label>Vaccine Name (optional)</Form.Label>
                 <div ref={vaccineInputRef} className="position-relative">
                   <Form.Control
                     type="text"
-                    placeholder="Type or select a vaccine"
-                    name="vaccine_name"
-                    value={watchedVaccineName || ''}
-                    onChange={handleVaccineInputChange}
+                    placeholder="e.g. COVID-19, Influenza"
+                    {...register('vaccine_name')}
+                    value={watchedVaccineName ?? ''}
                     onFocus={handleVaccineInputFocus}
                     isInvalid={!!errors.vaccine_name}
                     autoComplete="off"
+                    onChange={(e) => {
+                      setValue('vaccine_name', e.target.value)
+                      setShowVaccineDropdown(true)
+                    }}
                   />
                   {showVaccineDropdown && filteredVaccines.length > 0 && (
                     <div className="position-absolute w-100" style={{ zIndex: 1050, top: '100%' }}>
@@ -376,88 +421,15 @@ export default function AddVaccinationModal({
                 </Form.Control.Feedback>
               </Form.Group>
             </Col>
-
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Dose Number *</Form.Label>
-                <Form.Control
-                  as="select"
-                  {...register('dose_number')}
-                  isInvalid={!!errors.dose_number}
-                >
-                  <option value="">Select dose number</option>
-                  {COMMON_DOSE_NUMBERS.map((dose) => (
-                    <option key={dose} value={dose}>
-                      {dose}
-                    </option>
-                  ))}
-                </Form.Control>
-                <Form.Control.Feedback type="invalid">
-                  {errors.dose_number?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
           </Row>
 
           <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Date Administered *</Form.Label>
-                <Form.Control
-                  type="date"
-                  max={today}
-                  {...register('date_administered')}
-                  isInvalid={!!errors.date_administered}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {errors.date_administered?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Next Due Date</Form.Label>
-                <Form.Control
-                  type="date"
-                  min={watchedDateAdministered}
-                  {...register('next_due_date')}
-                  isInvalid={!!errors.next_due_date}
-                />
-                <Form.Control.Feedback type="invalid">
-                  {errors.next_due_date?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-          </Row>
-
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Status *</Form.Label>
-                <Form.Control
-                  as="select"
-                  {...register('status')}
-                  isInvalid={!!errors.status}
-                >
-                  {VACCINATION_STATUSES.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </Form.Control>
-                <Form.Control.Feedback type="invalid">
-                  {errors.status?.message}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
+            <Col md={12}>
               <Form.Group className="mb-3">
                 <Form.Label>Administered By</Form.Label>
                 <Form.Control
                   type="text"
-                  placeholder="Name of healthcare provider"
+                  placeholder="Name of healthcare provider (optional)"
                   {...register('administered_by')}
                   isInvalid={!!errors.administered_by}
                 />
@@ -467,6 +439,9 @@ export default function AddVaccinationModal({
               </Form.Group>
             </Col>
           </Row>
+          <p className="text-brand-muted small mb-0">
+            Status is automatic: scheduled (future date), pending (today), overdue (past date), or completed when you mark it done from the list.
+          </p>
         </Modal.Body>
 
         <Modal.Footer className="modal-footer-custom">

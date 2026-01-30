@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Table, Button, Badge, Dropdown, Modal, Alert } from 'react-bootstrap'
-import { MoreVertical, Edit, Trash2, Calendar, User } from 'lucide-react'
+import { Table, Button, Badge, Dropdown, Modal, Alert, Form } from 'react-bootstrap'
+import { MoreVertical, Edit, Trash2, Calendar, User, Check } from 'lucide-react'
 import { format } from 'date-fns'
-import { deleteVaccination } from '../../services/vaccination.service'
+import { deleteVaccination, completeVaccination } from '../../services/vaccination.service'
 import type { Vaccination } from '../../types'
 
 interface VaccinationTableProps {
@@ -18,6 +18,7 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
     vaccination: null
   })
   const [deleting, setDeleting] = useState(false)
+  const [completingId, setCompletingId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const handleDelete = (vaccination: Vaccination) => {
@@ -42,16 +43,33 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const variants = {
-      'Completed': 'success',
-      'Pending': 'warning',
-      'Scheduled': 'info'
-    } as const
+  const handleMarkComplete = async (vaccination: Vaccination) => {
+    if (!vaccination.can_complete) return
+    setCompletingId(vaccination.id)
+    setError(null)
+    try {
+      await completeVaccination(vaccination.id)
+      onRefresh()
+    } catch (err: any) {
+      console.error('Error completing vaccination:', err)
+      setError(err?.response?.data?.message || 'Failed to mark vaccination as completed.')
+    } finally {
+      setCompletingId(null)
+    }
+  }
+
+  const getStatusBadge = (computedStatus: string) => {
+    const config: Record<string, { bg: string; label: string }> = {
+      completed: { bg: 'success', label: 'Completed' },
+      scheduled: { bg: 'info', label: 'Scheduled' },
+      pending: { bg: 'warning', label: 'Pending' },
+      overdue: { bg: 'danger', label: 'Overdue' },
+    }
+    const { bg, label } = config[computedStatus] ?? { bg: 'secondary', label: computedStatus }
 
     return (
-      <Badge bg={variants[status as keyof typeof variants] || 'secondary'}>
-        {status}
+      <Badge bg={bg as any}>
+        {label}
       </Badge>
     )
   }
@@ -64,6 +82,14 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
     }
   }
 
+  const getResidentName = (vaccination: Vaccination) => {
+    const r = vaccination.resident
+    if (!r) return '—'
+    if (r.full_name) return r.full_name
+    const parts = [r.first_name, r.middle_name, r.last_name].filter(Boolean)
+    return parts.join(' ') || '—'
+  }
+
   if (loading) {
     return (
       <div className="table-responsive">
@@ -71,7 +97,9 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
           <thead>
             <tr>
               <th>Resident</th>
+              <th>Type</th>
               <th>Vaccine</th>
+              <th>Doses</th>
               <th>Date</th>
               <th>Status</th>
               <th>Actions</th>
@@ -84,7 +112,13 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
                   <div className="skeleton-line" style={{ width: '150px', height: '16px' }}></div>
                 </td>
                 <td>
+                  <div className="skeleton-line" style={{ width: '80px', height: '16px' }}></div>
+                </td>
+                <td>
                   <div className="skeleton-line" style={{ width: '120px', height: '16px' }}></div>
+                </td>
+                <td>
+                  <div className="skeleton-line" style={{ width: '60px', height: '16px' }}></div>
                 </td>
                 <td>
                   <div className="skeleton-line" style={{ width: '100px', height: '16px' }}></div>
@@ -121,11 +155,14 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
         <Table striped hover>
           <thead>
             <tr>
-              <th>Vaccine Name</th>
-              <th>Dose</th>
-              <th>Date Administered</th>
-              <th>Next Due Date</th>
+              <th>Resident</th>
+              <th>Type</th>
+              <th>Vaccine</th>
+              <th>Doses</th>
+              <th>Schedule Date</th>
+              <th>Next Due</th>
               <th>Status</th>
+              <th style={{ width: '100px' }}>Complete</th>
               <th>Administered By</th>
               <th style={{ width: '100px' }}>Actions</th>
             </tr>
@@ -134,7 +171,15 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
             {vaccinations.map((vaccination) => (
               <tr key={vaccination.id}>
                 <td>
-                  <div className="fw-medium">{vaccination.vaccine_name}</div>
+                  <div className="fw-medium">{getResidentName(vaccination)}</div>
+                </td>
+                <td>
+                  <span className="text-capitalize">
+                    {(vaccination.vaccination_type ?? '').replace('_', ' ')}
+                  </span>
+                </td>
+                <td>
+                  <div className="fw-medium">{vaccination.vaccine_name || '—'}</div>
                 </td>
                 <td>
                   <span
@@ -147,14 +192,19 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
                       fontWeight: '500'
                     }}
                   >
-                    {vaccination.dose_number}
+                    {vaccination.completed_doses ?? 0}
+                    {vaccination.required_doses != null ? ` / ${vaccination.required_doses}` : ''}
                   </span>
                 </td>
                 <td>
-                  <div className="d-flex align-items-center">
-                    <Calendar size={16} className="me-2 text-brand-muted" />
-                    {formatDate(vaccination.date_administered)}
-                  </div>
+                  {vaccination.schedule_date ? (
+                    <div className="d-flex align-items-center">
+                      <Calendar size={16} className="me-2 text-brand-muted" />
+                      {formatDate(vaccination.schedule_date)}
+                    </div>
+                  ) : (
+                    <span className="text-brand-muted">—</span>
+                  )}
                 </td>
                 <td>
                   {vaccination.next_due_date ? (
@@ -163,10 +213,28 @@ export default function VaccinationTable({ vaccinations, onEdit, onRefresh, load
                       {formatDate(vaccination.next_due_date)}
                     </div>
                   ) : (
-                    <span className="text-brand-muted">-</span>
+                    <span className="text-brand-muted">—</span>
                   )}
                 </td>
-                <td>{getStatusBadge(vaccination.status)}</td>
+                <td>{getStatusBadge(vaccination.computed_status ?? vaccination.status?.toLowerCase())}</td>
+                <td>
+                  {vaccination.computed_status === 'completed' ? (
+                    <span className="text-success d-flex align-items-center">
+                      <Check size={18} className="me-1" />
+                      Done
+                    </span>
+                  ) : vaccination.can_complete ? (
+                    <Form.Check
+                      type="checkbox"
+                      id={`complete-${vaccination.id}`}
+                      label={completingId === vaccination.id ? 'Marking...' : 'Mark complete'}
+                      disabled={completingId === vaccination.id}
+                      onChange={() => handleMarkComplete(vaccination)}
+                    />
+                  ) : (
+                    <span className="text-brand-muted">—</span>
+                  )}
+                </td>
                 <td>
                   {vaccination.administered_by ? (
                     <div className="d-flex align-items-center">

@@ -340,6 +340,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/vaccinations/statistics', [VaccinationController::class, 'statistics']);
         Route::get('/vaccinations/{vaccination}', [VaccinationController::class, 'show']);
         Route::put('/vaccinations/{vaccination}', [VaccinationController::class, 'update']);
+        Route::post('/vaccinations/{vaccination}/complete', [VaccinationController::class, 'complete']);
         Route::delete('/vaccinations/{vaccination}', [VaccinationController::class, 'destroy']);
     });
 
