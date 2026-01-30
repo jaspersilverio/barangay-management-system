@@ -6,6 +6,7 @@ use App\Http\Requests\Vaccination\StoreVaccinationRequest;
 use App\Http\Requests\Vaccination\UpdateVaccinationRequest;
 use App\Models\Vaccination;
 use App\Models\Resident;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -44,9 +45,9 @@ class VaccinationController extends Controller
                 $query->where('resident_id', $request->resident_id);
             }
 
-            // Apply filters
+            // Apply filters (by computed status: completed, scheduled, pending, overdue)
             if ($request->filled('status')) {
-                $query->byStatus($request->status);
+                $query->computedStatus($request->status);
             }
 
             if ($request->filled('vaccine_name')) {
@@ -91,7 +92,7 @@ class VaccinationController extends Controller
             }
 
             $perPage = $request->get('per_page', 15);
-            $vaccinations = $query->orderBy('date_administered', 'desc')->paginate($perPage);
+            $vaccinations = $query->orderByRaw('COALESCE(schedule_date, date_administered, completed_at) DESC')->paginate($perPage);
 
             return response()->json([
                 'success' => true,
@@ -115,26 +116,16 @@ class VaccinationController extends Controller
         try {
             $data = $request->validated();
 
-            // Check for duplicate vaccination (same resident, same vaccine, same date)
-            $existingVaccination = Vaccination::where('resident_id', $data['resident_id'])
-                ->where('vaccine_name', $data['vaccine_name'])
-                ->where('date_administered', $data['date_administered'])
-                ->first();
-
-            if ($existingVaccination) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'A vaccination record for this resident with the same vaccine and date already exists.',
-                    'errors' => [
-                        'duplicate' => ['This vaccination record already exists for this resident on this date.']
-                    ]
-                ], 422);
+            $data['completed_doses'] = 0;
+            $data['completed_at'] = null;
+            $data['next_due_date'] = null;
+            if ($data['vaccination_type'] !== 'fixed_dose') {
+                $data['required_doses'] = null;
             }
 
             $vaccination = Vaccination::create($data);
             $vaccination->load(['resident.household.purok']);
 
-            // Invalidate dashboard cache to reflect new vaccination data
             $this->invalidateDashboardCache();
 
             return response()->json([
@@ -181,27 +172,14 @@ class VaccinationController extends Controller
         try {
             $data = $request->validated();
 
-            // Check for duplicate vaccination (excluding current record)
-            $existingVaccination = Vaccination::where('resident_id', $data['resident_id'])
-                ->where('vaccine_name', $data['vaccine_name'])
-                ->where('date_administered', $data['date_administered'])
-                ->where('id', '!=', $vaccination->id)
-                ->first();
-
-            if ($existingVaccination) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'A vaccination record for this resident with the same vaccine and date already exists.',
-                    'errors' => [
-                        'duplicate' => ['This vaccination record already exists for this resident on this date.']
-                    ]
-                ], 422);
+            unset($data['completed_at'], $data['completed_doses'], $data['next_due_date']);
+            if ($data['vaccination_type'] !== 'fixed_dose') {
+                $data['required_doses'] = null;
             }
 
             $vaccination->update($data);
             $vaccination->load(['resident.household.purok']);
 
-            // Invalidate dashboard cache to reflect updated vaccination data
             $this->invalidateDashboardCache();
 
             return response()->json([
@@ -214,6 +192,68 @@ class VaccinationController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update vaccination record'
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark one dose as completed (user-confirmed via checkbox).
+     * Increments completed_doses, sets completed_at; computes next_due_date if more doses required.
+     */
+    public function complete(Vaccination $vaccination): JsonResponse
+    {
+        try {
+            if (!$vaccination->can_complete) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This vaccination cannot be marked complete at this time (only pending or overdue can be completed).',
+                ], 422);
+            }
+
+            $today = Carbon::today();
+            $vaccination->completed_doses = (int) $vaccination->completed_doses + 1;
+            $vaccination->date_administered = $today; // record when this dose was given
+
+            $isFixedDose = $vaccination->vaccination_type === 'fixed_dose';
+            $required = (int) ($vaccination->required_doses ?? 0);
+
+            if ($isFixedDose && $required > 0 && $vaccination->completed_doses < $required) {
+                // More doses needed: set schedule_date to next due (4 weeks)
+                $vaccination->schedule_date = $today->copy()->addWeeks(4);
+                $vaccination->next_due_date = $vaccination->schedule_date;
+                $vaccination->completed_at = null; // not fully completed until all doses
+            } elseif ($isFixedDose && $required > 0 && $vaccination->completed_doses >= $required) {
+                // All doses done
+                $vaccination->completed_at = $today;
+                $vaccination->schedule_date = null;
+                $vaccination->next_due_date = null;
+            } elseif ($vaccination->vaccination_type === 'annual') {
+                // One dose done; next in 1 year
+                $vaccination->completed_at = $today;
+                $vaccination->schedule_date = $today->copy()->addYear();
+                $vaccination->next_due_date = $vaccination->schedule_date;
+            } else {
+                // booster / as_needed: one dose done
+                $vaccination->completed_at = $today;
+                $vaccination->schedule_date = null;
+                $vaccination->next_due_date = null;
+            }
+
+            $vaccination->save();
+            $vaccination->load(['resident.household.purok']);
+
+            $this->invalidateDashboardCache();
+
+            return response()->json([
+                'success' => true,
+                'data' => $vaccination,
+                'message' => 'Vaccination dose marked as completed',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error completing vaccination: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark vaccination as completed',
             ], 500);
         }
     }
@@ -283,11 +323,16 @@ class VaccinationController extends Controller
                 $query->byDateRange($request->date_from, $request->date_to);
             }
 
+            $baseQuery = clone $query;
+            $today = Carbon::today()->toDateString();
             $stats = [
-                'total_vaccinations' => $query->count(),
-                'by_status' => $query->selectRaw('status, COUNT(*) as count')
-                    ->groupBy('status')
-                    ->pluck('count', 'status'),
+                'total_vaccinations' => $baseQuery->count(),
+                'by_status' => [
+                    'completed' => (clone $query)->whereNotNull('completed_at')->count(),
+                    'scheduled' => (clone $query)->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '>', $today)->count(),
+                    'pending' => (clone $query)->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', $today)->count(),
+                    'overdue' => (clone $query)->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '<', $today)->count(),
+                ],
                 'by_vaccine' => $query->selectRaw('vaccine_name, COUNT(*) as count')
                     ->groupBy('vaccine_name')
                     ->orderBy('count', 'desc')

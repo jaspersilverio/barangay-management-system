@@ -173,10 +173,12 @@ class DashboardController extends Controller
                 });
             }
 
+            $today = \Carbon\Carbon::today()->toDateString();
             $vaccinationSummary = [
-                'completed' => $vaccinationQuery->clone()->where('status', 'Completed')->count(),
-                'pending' => $vaccinationQuery->clone()->where('status', 'Pending')->count(),
-                'scheduled' => $vaccinationQuery->clone()->where('status', 'Scheduled')->count(),
+                'completed' => $vaccinationQuery->clone()->whereNotNull('completed_at')->count(),
+                'scheduled' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '>', $today)->count(),
+                'pending' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', $today)->count(),
+                'overdue' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '<', $today)->count(),
                 'total' => $vaccinationQuery->clone()->count(),
             ];
 
@@ -512,10 +514,12 @@ class DashboardController extends Controller
                 });
             }
 
+            $today = \Carbon\Carbon::today()->toDateString();
             $data = [
-                'completed' => $vaccinationQuery->clone()->where('status', 'Completed')->count(),
-                'pending' => $vaccinationQuery->clone()->where('status', 'Pending')->count(),
-                'scheduled' => $vaccinationQuery->clone()->where('status', 'Scheduled')->count(),
+                'completed' => $vaccinationQuery->clone()->whereNotNull('completed_at')->count(),
+                'scheduled' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '>', $today)->count(),
+                'pending' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', $today)->count(),
+                'overdue' => $vaccinationQuery->clone()->whereNull('completed_at')->whereNotNull('schedule_date')->whereDate('schedule_date', '<', $today)->count(),
                 'total' => $vaccinationQuery->clone()->count(),
             ];
 

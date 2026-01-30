@@ -14,8 +14,9 @@ export type DashboardSummary = {
   households_by_purok: Array<{ purok: string; count: number }>
   vaccination_summary: {
     completed: number
-    pending: number
     scheduled: number
+    pending: number
+    overdue: number
     total: number
   }
   blotter_summary: {

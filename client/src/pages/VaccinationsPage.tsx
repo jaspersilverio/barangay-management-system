@@ -226,38 +226,46 @@ export default function VaccinationsPage() {
         </Button>
       </div>
 
-      {/* Statistics Cards */}
+      {/* Statistics Cards (by_status uses computed status: completed, scheduled, pending, overdue) */}
       {statistics && (
         <Row className="mb-4">
-          <Col md={3}>
+          <Col md={2}>
             <Card className="text-center">
               <Card.Body>
                 <h3 className="text-brand-primary mb-1">{statistics.total_vaccinations}</h3>
-                <p className="text-brand-muted mb-0">Total Vaccinations</p>
+                <p className="text-brand-muted mb-0">Total</p>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-success mb-1">{statistics.by_status.Completed || 0}</h3>
+                <h3 className="text-success mb-1">{statistics.by_status?.completed ?? 0}</h3>
                 <p className="text-brand-muted mb-0">Completed</p>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-warning mb-1">{statistics.by_status.Pending || 0}</h3>
+                <h3 className="text-info mb-1">{statistics.by_status?.scheduled ?? 0}</h3>
+                <p className="text-brand-muted mb-0">Scheduled</p>
+              </Card.Body>
+            </Card>
+          </Col>
+          <Col md={2}>
+            <Card className="text-center">
+              <Card.Body>
+                <h3 className="text-warning mb-1">{statistics.by_status?.pending ?? 0}</h3>
                 <p className="text-brand-muted mb-0">Pending</p>
               </Card.Body>
             </Card>
           </Col>
-          <Col md={3}>
+          <Col md={2}>
             <Card className="text-center">
               <Card.Body>
-                <h3 className="text-info mb-1">{statistics.by_status.Scheduled || 0}</h3>
-                <p className="text-brand-muted mb-0">Scheduled</p>
+                <h3 className="text-danger mb-1">{statistics.by_status?.overdue ?? 0}</h3>
+                <p className="text-brand-muted mb-0">Overdue</p>
               </Card.Body>
             </Card>
           </Col>

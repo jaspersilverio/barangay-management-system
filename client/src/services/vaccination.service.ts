@@ -32,6 +32,11 @@ export async function deleteVaccination(id: number) {
   return res.data as ApiEnvelope<null>
 }
 
+export async function completeVaccination(id: number) {
+  const res = await api.post(`/vaccinations/${id}/complete`)
+  return res.data as ApiEnvelope<Vaccination>
+}
+
 export async function getResidentVaccinations(residentId: number) {
   const res = await api.get(`/residents/${residentId}/vaccinations`)
   return res.data as ApiEnvelope<Vaccination[]>
@@ -69,23 +74,20 @@ export const COMMON_VACCINES = [
   'Other'
 ]
 
-// Common dose numbers
-export const COMMON_DOSE_NUMBERS = [
-  '1st Dose',
-  '2nd Dose',
-  '3rd Dose',
-  '4th Dose',
-  '5th Dose',
-  'Booster',
-  'Annual',
-  'As Needed'
-]
+// Vaccination type options (dose logic is backend-driven)
+export const VACCINATION_TYPES = [
+  { value: 'fixed_dose', label: 'Fixed Dose' },
+  { value: 'booster', label: 'Booster' },
+  { value: 'annual', label: 'Annual' },
+  { value: 'as_needed', label: 'As Needed' },
+] as const
 
-// Status options
+// Status options for filter (values match API computed_status: completed, scheduled, pending, overdue)
 export const VACCINATION_STATUSES = [
-  { value: 'Completed', label: 'Completed' },
-  { value: 'Pending', label: 'Pending' },
-  { value: 'Scheduled', label: 'Scheduled' }
+  { value: 'completed', label: 'Completed' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'overdue', label: 'Overdue' },
 ] as const
 
 // Age group options
@@ -100,11 +102,12 @@ export const vaccinationService = {
   getVaccination,
   createVaccination,
   updateVaccination,
+  completeVaccination,
   deleteVaccination,
   getResidentVaccinations,
   getVaccinationStatistics,
   COMMON_VACCINES,
-  COMMON_DOSE_NUMBERS,
+  VACCINATION_TYPES,
   VACCINATION_STATUSES,
   AGE_GROUPS
 }

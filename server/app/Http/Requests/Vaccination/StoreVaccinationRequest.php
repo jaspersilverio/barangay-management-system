@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Vaccination;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreVaccinationRequest extends FormRequest
 {
@@ -24,11 +23,10 @@ class StoreVaccinationRequest extends FormRequest
     {
         return [
             'resident_id' => 'required|exists:residents,id',
-            'vaccine_name' => 'required|string|max:255',
-            'dose_number' => 'required|string|max:50',
-            'date_administered' => 'required|date|before_or_equal:today',
-            'next_due_date' => 'nullable|date|after:date_administered',
-            'status' => ['required', Rule::in(['Completed', 'Pending', 'Scheduled'])],
+            'vaccination_type' => 'required|in:fixed_dose,booster,annual,as_needed',
+            'required_doses' => 'required_if:vaccination_type,fixed_dose|nullable|integer|min:1',
+            'schedule_date' => 'nullable|date|after_or_equal:today',
+            'vaccine_name' => 'nullable|string|max:255',
             'administered_by' => 'nullable|string|max:255',
         ];
     }
@@ -41,17 +39,12 @@ class StoreVaccinationRequest extends FormRequest
         return [
             'resident_id.required' => 'Resident is required.',
             'resident_id.exists' => 'Selected resident does not exist.',
-            'vaccine_name.required' => 'Vaccine name is required.',
-            'vaccine_name.max' => 'Vaccine name must not exceed 255 characters.',
-            'dose_number.required' => 'Dose number is required.',
-            'dose_number.max' => 'Dose number must not exceed 50 characters.',
-            'date_administered.required' => 'Date administered is required.',
-            'date_administered.date' => 'Date administered must be a valid date.',
-            'date_administered.before_or_equal' => 'Date administered cannot be in the future.',
-            'next_due_date.date' => 'Next due date must be a valid date.',
-            'next_due_date.after' => 'Next due date must be after the date administered.',
-            'status.required' => 'Status is required.',
-            'status.in' => 'Status must be one of: Completed, Pending, Scheduled.',
+            'vaccination_type.required' => 'Vaccination type is required.',
+            'vaccination_type.in' => 'Vaccination type must be one of: Fixed Dose, Booster, Annual, As Needed.',
+            'required_doses.required_if' => 'Required doses is required for Fixed Dose vaccinations.',
+            'required_doses.min' => 'Required doses must be at least 1.',
+            'schedule_date.date' => 'Schedule date must be a valid date.',
+            'schedule_date.after_or_equal' => 'Schedule date must be today or a future date.',
             'administered_by.max' => 'Administered by must not exceed 255 characters.',
         ];
     }
