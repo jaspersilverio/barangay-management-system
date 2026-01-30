@@ -234,3 +234,79 @@ export async function exportHouseholdsCsv(filters: ReportFilters = {}) {
   
   throw new Error('Failed to download CSV export')
 }
+
+export type VaccinationReportFilters = {
+  purok_id?: number | string
+  status?: string
+  vaccine_name?: string
+  date_from?: string
+  date_to?: string
+  age_group?: string
+  search?: string
+}
+
+export async function exportVaccinationsCsv(filters: VaccinationReportFilters = {}) {
+  const params = new URLSearchParams()
+  
+  if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
+  if (filters.status) params.append('status', filters.status)
+  if (filters.vaccine_name) params.append('vaccine_name', filters.vaccine_name)
+  if (filters.date_from) params.append('date_from', filters.date_from)
+  if (filters.date_to) params.append('date_to', filters.date_to)
+  if (filters.age_group) params.append('age_group', filters.age_group)
+  if (filters.search) params.append('search', filters.search)
+
+  const res = await api.get(`/reports/vaccinations/export/csv?${params.toString()}`, {
+    responseType: 'blob',
+  })
+  
+  // Handle blob response (file download)
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], { 
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `vaccination_records_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+  
+  throw new Error('Failed to download CSV export')
+}
+
+export async function exportBlottersCsv(filters: { status?: string; start_date?: string; end_date?: string; search?: string } = {}) {
+  const params = new URLSearchParams()
+
+  if (filters.status) params.append('status', filters.status)
+  if (filters.start_date) params.append('start_date', filters.start_date)
+  if (filters.end_date) params.append('end_date', filters.end_date)
+  if (filters.search) params.append('search', filters.search)
+
+  const res = await api.get(`/reports/blotters/export/csv?${params.toString()}`, {
+    responseType: 'blob',
+  })
+
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], {
+      type: 'text/csv; charset=UTF-8'
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `blotter_records_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true, message: 'CSV export downloaded successfully' }
+  }
+
+  throw new Error('Failed to download CSV export')
+}

@@ -3,7 +3,7 @@ import { Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { Syringe, Filter, Download, Plus } from 'lucide-react'
 import { getVaccinations, getVaccinationStatistics, COMMON_VACCINES, VACCINATION_STATUSES, AGE_GROUPS } from '../services/vaccination.service'
 import { exportVaccinationsToPdf } from '../services/pdf.service'
-import api from '../services/api'
+import { exportVaccinationsCsv } from '../services/reports.service'
 import { usePuroks } from '../context/PurokContext'
 import { useDashboard } from '../context/DashboardContext'
 import VaccinationTable from '../components/vaccinations/VaccinationTable'
@@ -20,7 +20,7 @@ export default function VaccinationsPage() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
   const [exporting, setExporting] = useState(false)
-  const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null)
+  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
 
   // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
@@ -154,51 +154,27 @@ export default function VaccinationsPage() {
     })
   }
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
       setExportType(type)
       setError(null)
 
-      if (type === 'pdf') {
-        // Build query parameters for PDF export
-        const params: any = {}
-        if (filters.purok_id) params.purok_id = filters.purok_id
-        if (filters.status) params.status = filters.status
-        if (filters.vaccine_name) params.vaccine_name = filters.vaccine_name
-        if (filters.date_from) params.date_from = filters.date_from
-        if (filters.date_to) params.date_to = filters.date_to
-        if (filters.age_group) params.age_group = filters.age_group
-        if (debouncedSearch) params.search = debouncedSearch
+      // Build filter params
+      const params: any = {}
+      if (filters.purok_id) params.purok_id = filters.purok_id
+      if (filters.status) params.status = filters.status
+      if (filters.vaccine_name) params.vaccine_name = filters.vaccine_name
+      if (filters.date_from) params.date_from = filters.date_from
+      if (filters.date_to) params.date_to = filters.date_to
+      if (filters.age_group) params.age_group = filters.age_group
+      if (debouncedSearch) params.search = debouncedSearch
 
+      if (type === 'pdf') {
         await exportVaccinationsToPdf(params)
       } else {
-        // Excel export
-        const params = new URLSearchParams()
-        if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
-        if (filters.status) params.append('status', filters.status)
-        if (filters.vaccine_name) params.append('vaccine_name', filters.vaccine_name)
-        if (filters.date_from) params.append('date_from', filters.date_from)
-        if (filters.date_to) params.append('date_to', filters.date_to)
-        if (filters.age_group) params.append('age_group', filters.age_group)
-        if (debouncedSearch) params.append('search', debouncedSearch)
-
-        const response = await api.get(`/excel/export/vaccinations?${params.toString()}`, {
-          responseType: 'blob',
-        })
-
-        // Create blob URL and trigger download
-        const blob = new Blob([response.data], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        })
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `vaccination-records-${new Date().toISOString().split('T')[0]}.xlsx`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
+        // CSV export
+        await exportVaccinationsCsv(params)
       }
     } catch (err: any) {
       console.error('Export error:', err)
@@ -386,11 +362,11 @@ export default function VaccinationsPage() {
                 </Button>
                 <Button
                   variant="outline-success"
-                  onClick={() => handleExport('excel')}
+                  onClick={() => handleExport('csv')}
                   disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'excel' ? 'Exporting Excel...' : 'Export Excel'}
+                  {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
                 </Button>
               </div>
             </Col>

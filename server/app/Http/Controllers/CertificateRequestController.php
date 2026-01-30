@@ -290,7 +290,7 @@ class CertificateRequestController extends Controller
             'valid_until' => $validityDates['valid_until'],
             'is_valid' => true,
             'signed_by' => $captainUser->name,
-            'signature_position' => 'Barangay Captain',
+            'signature_position' => 'Punong Barangay',
             'signed_at' => now()
         ]);
 

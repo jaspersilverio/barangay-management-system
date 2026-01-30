@@ -120,7 +120,8 @@ class IssuedCertificateController extends Controller
         $certificate->save();
 
         // Generate PDF
-        $pdfController = new CertificatePdfController();
+        $pdfService = app(\App\Services\PdfService::class);
+        $pdfController = new CertificatePdfController($pdfService);
         $pdfPath = $pdfController->generateCertificatePdf($certificate);
 
         if ($pdfPath) {
@@ -219,30 +220,6 @@ class IssuedCertificateController extends Controller
                 'filename' => basename($issuedCertificate->pdf_path)
             ]
         ]);
-    }
-
-    public function regeneratePdf(IssuedCertificate $issuedCertificate): JsonResponse
-    {
-        $pdfController = new CertificatePdfController();
-        $pdfPath = $pdfController->generateCertificatePdf($issuedCertificate);
-
-        if ($pdfPath) {
-            $issuedCertificate->pdf_path = $pdfPath;
-            $issuedCertificate->save();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'PDF regenerated successfully',
-                'data' => [
-                    'download_url' => config('app.url') . '/storage/' . $pdfPath
-                ]
-            ]);
-        }
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to regenerate PDF'
-        ], 500);
     }
 
     public function invalidate(IssuedCertificate $issuedCertificate): JsonResponse

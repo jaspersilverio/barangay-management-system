@@ -40,11 +40,14 @@ export default function ViewResidentsModal({ show, onHide, household }: ViewResi
     try {
       const response = await getHouseholdResidents(household.id)
       if (response.success) {
-        setResidents(response.data)
+        setResidents(Array.isArray(response.data) ? response.data : [])
+      } else {
+        setResidents([])
       }
     } catch (error) {
       console.error('Error loading residents:', error)
       setToast({ show: true, message: 'Failed to load residents', variant: 'danger' })
+      setResidents([])
     } finally {
       setLoading(false)
     }

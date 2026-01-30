@@ -11,13 +11,16 @@ import {
   Edit,
   Trash2,
   Plus,
-  AlertCircle
+  AlertCircle,
+  Download
 } from 'lucide-react';
 import { 
   type IncidentReport, 
   type IncidentReportListParams,
   listIncidentReports,
-  deleteIncidentReport
+  deleteIncidentReport,
+  exportIncidentReportsToPdf,
+  exportIncidentReportsToCsv
 } from '../../services/incident-reports.service';
 import AddIncidentReportModal from '../../components/incidents/AddIncidentReportModal';
 import EditIncidentReportModal from '../../components/incidents/EditIncidentReportModal';
@@ -29,6 +32,7 @@ const IncidentReportsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const [incidentReports, setIncidentReports] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [selectedIncidentReport, setSelectedIncidentReport] = useState<IncidentReport | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -198,6 +202,38 @@ const IncidentReportsPage: React.FC = () => {
     loadIncidentReports();
   };
 
+  const handleExportPdf = async () => {
+    try {
+      setExporting(true);
+      await exportIncidentReportsToPdf({
+        search: debouncedSearch || undefined,
+        status: statusFilter || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    try {
+      setExporting(true);
+      await exportIncidentReportsToCsv({
+        search: debouncedSearch || undefined,
+        status: statusFilter || undefined,
+        start_date: startDate || undefined,
+        end_date: endDate || undefined,
+      });
+    } catch (error) {
+      console.error('Export CSV error:', error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusConfig = {
       'Recorded': { variant: 'secondary', icon: FileText },
@@ -357,6 +393,26 @@ const IncidentReportsPage: React.FC = () => {
                   className="form-control-custom"
                 />
               </Form.Group>
+            </div>
+          </div>
+          <div className="row g-3 mt-2">
+            <div className="col-md-12 d-flex justify-content-end gap-2">
+              <Button
+                variant="outline-primary"
+                onClick={handleExportPdf}
+                disabled={loading || exporting}
+              >
+                <Download size={16} className="me-2" />
+                {exporting ? 'Exporting PDF...' : 'Export PDF'}
+              </Button>
+              <Button
+                variant="outline-info"
+                onClick={handleExportCsv}
+                disabled={loading || exporting}
+              >
+                <Download size={16} className="me-2" />
+                {exporting ? 'Exporting CSV...' : 'Export CSV'}
+              </Button>
             </div>
           </div>
         </Card.Body>

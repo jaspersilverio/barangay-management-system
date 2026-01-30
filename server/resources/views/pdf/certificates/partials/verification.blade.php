@@ -1,10 +1,26 @@
+{{-- Validity & Verification Section (Compact) --}}
+<div style="margin-top: 10px;">
+    <table style="width: 100%; border: none; margin: 0; font-size: 9pt;">
+        <tr>
+            <td style="border: none; padding: 2px 0; width: 50%;">
+                <strong>Valid From:</strong> {{ $valid_from_formatted ?? \Carbon\Carbon::parse($certificate->valid_from)->format('F d, Y') }}
+            </td>
+            <td style="border: none; padding: 2px 0; width: 50%;">
+                <strong>Valid Until:</strong> {{ $valid_until_formatted ?? \Carbon\Carbon::parse($certificate->valid_until)->format('F d, Y') }}
+            </td>
+        </tr>
+        @if(!empty($certificate->certificate_number))
+        <tr>
+            <td colspan="2" style="border: none; padding: 2px 0;">
+                <strong>Document Control No.:</strong> {{ $certificate->certificate_number }}
+            </td>
+        </tr>
+        @endif
+    </table>
+</div>
+
 @if(!empty($qr_code_data))
-<div class="text-center mt-4" style="margin-top: 30px;">
-    <div style="font-size: 9pt; color: #666;">
-        <strong>Verification Code:</strong> {{ $qr_code_data }}
-    </div>
-    <div style="font-size: 8pt; color: #888; margin-top: 5px;">
-        This document is computer-generated and does not require a wet signature.
-    </div>
+<div style="margin-top: 5px; text-align: center; font-size: 7pt; color: #666;">
+    <strong>Verification:</strong> <span style="font-family: monospace; font-size: 6pt; word-break: break-all;">{{ substr($qr_code_data, 0, 80) }}...</span>
 </div>
 @endif

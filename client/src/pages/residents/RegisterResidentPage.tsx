@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
 import { createResident } from '../../services/residents.service'
 import { createHousehold } from '../../services/households.service'
+import { createSoloParent } from '../../services/solo-parents.service'
 import type { ResidentFormValues } from '../../components/residents/ResidentFormModal'
 
 export default function RegisterResidentPage() {
@@ -44,6 +45,13 @@ export default function RegisterResidentPage() {
       if (values.assignment_mode === 'existing' && values.household_id) {
         residentPayload.household_id = Number(values.household_id)
         residentPayload.relationship_to_head = values.relationship_to_head || null
+        // Include purok_id from household (auto-filled in form)
+        if (values.purok_id) {
+          residentPayload.purok_id = typeof values.purok_id === 'string' ? parseInt(values.purok_id) : values.purok_id
+        }
+      } else if (values.assignment_mode === 'unassigned' && values.purok_id) {
+        // For unassigned residents, purok_id is required
+        residentPayload.purok_id = typeof values.purok_id === 'string' ? parseInt(values.purok_id) : values.purok_id
       }
 
       const residentResponse = await createResident(residentPayload)
@@ -72,7 +80,36 @@ export default function RegisterResidentPage() {
           // Household created successfully, resident is already linked
         }
       }
-      // If unassigned or existing household, we're done!
+
+      // Step 3: If solo parent is checked, create solo parent record
+      if (values.is_solo_parent) {
+        try {
+          const today = new Date()
+          const validUntil = new Date(today)
+          validUntil.setFullYear(validUntil.getFullYear() + 1) // Valid for 1 year
+
+          const soloParentPayload = {
+            resident_id: createdResident.id,
+            eligibility_reason: 'unmarried_parent' as const, // Default eligibility reason
+            date_declared: today.toISOString().split('T')[0],
+            valid_until: validUntil.toISOString().split('T')[0],
+          }
+
+          const soloParentResponse = await createSoloParent(soloParentPayload)
+          
+          if (!soloParentResponse.success) {
+            // Log warning but don't fail the entire registration
+            console.warn('Solo parent record creation returned unsuccessful:', soloParentResponse.message)
+          }
+          // Solo parent record created successfully - it will appear in the Solo Parents list page
+        } catch (error: any) {
+          // Log error but don't fail the entire registration
+          // The resident is already created, so we continue
+          console.error('Failed to create solo parent record:', error)
+          // Note: The error is logged but registration continues successfully
+          // The user can manually create the solo parent record later if needed
+        }
+      }
 
       // Navigate back to residents list
       navigate('/residents')

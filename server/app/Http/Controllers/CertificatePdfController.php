@@ -26,7 +26,9 @@ class CertificatePdfController extends Controller
      */
     protected function getOfficialsForCertificate(): array
     {
+        // Get active barangay officials (category = 'official')
         $officials = Official::active()
+            ->where('category', 'official')
             ->orderBy('position')
             ->get();
 
@@ -37,21 +39,24 @@ class CertificatePdfController extends Controller
             // Map common positions
             if (str_contains($position, 'captain') || str_contains($position, 'punong barangay')) {
                 $organized['captain'] = [
-                    'name' => $official->name,
+                    'name' => strtoupper($official->name),
                     'position' => $official->position
                 ];
             } elseif (str_contains($position, 'secretary')) {
                 $organized['secretary'] = [
-                    'name' => $official->name,
+                    'name' => strtoupper($official->name),
                     'position' => $official->position
                 ];
             } elseif (str_contains($position, 'treasurer')) {
                 $organized['treasurer'] = [
-                    'name' => $official->name,
+                    'name' => strtoupper($official->name),
                     'position' => $official->position
                 ];
             }
         }
+
+        // Log for debugging
+        Log::info('Officials for certificate', ['officials' => $organized]);
 
         return $organized;
     }
@@ -61,28 +66,102 @@ class CertificatePdfController extends Controller
      */
     protected function getCaptainForCertificate(): ?array
     {
-        $captainUser = User::where('role', 'captain')->first();
-        
-        if (!$captainUser) {
+        try {
+            $captainUser = User::where('role', 'captain')->first();
+            
+            if (!$captainUser) {
+                Log::warning('No captain user found for certificate');
+                return null;
+            }
+
+            $signatureBase64 = null;
+            
+            if ($captainUser->signature_path) {
+                try {
+                    if (Storage::disk('public')->exists($captainUser->signature_path)) {
+                        $signaturePath = Storage::disk('public')->path($captainUser->signature_path);
+                        
+                        // Check if file is readable and not too large (max 5MB)
+                        if (file_exists($signaturePath) && is_readable($signaturePath)) {
+                            $fileSize = filesize($signaturePath);
+                            if ($fileSize > 0 && $fileSize < 5 * 1024 * 1024) { // 5MB limit
+                                $imageData = @file_get_contents($signaturePath);
+                                if ($imageData !== false) {
+                                    // Determine MIME type from file extension (works without GD)
+                                    $mimeType = $this->getMimeTypeFromExtension($captainUser->signature_path);
+                                    
+                                    // If GD is available, try to get more accurate MIME type
+                                    if (extension_loaded('gd')) {
+                                        $imageInfo = @getimagesizefromstring($imageData);
+                                        if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                            $mimeType = $imageInfo['mime'];
+                                        }
+                                    }
+                                    
+                                    if ($mimeType) {
+                                        $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                                        Log::info('Signature loaded successfully', [
+                                            'path' => $captainUser->signature_path,
+                                            'mime' => $mimeType,
+                                            'size' => $fileSize
+                                        ]);
+                                    }
+                                }
+                            } else {
+                                Log::warning('Signature file too large or empty', [
+                                    'path' => $signaturePath,
+                                    'size' => $fileSize
+                                ]);
+                            }
+                        }
+                    } else {
+                        Log::warning('Signature file does not exist in storage', [
+                            'signature_path' => $captainUser->signature_path
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to load captain signature', [
+                        'error' => $e->getMessage(),
+                        'signature_path' => $captainUser->signature_path
+                    ]);
+                    // Continue without signature - don't fail the whole PDF generation
+                }
+            } else {
+                Log::info('No signature path set for captain user');
+            }
+
+            return [
+                'name' => $captainUser->name,
+                'position' => 'Punong Barangay',
+                'signature_base64' => $signatureBase64
+            ];
+        } catch (\Exception $e) {
+            Log::error('Failed to get captain for certificate', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return null;
         }
+    }
 
-        $signatureBase64 = null;
-        if ($captainUser->signature_path && Storage::disk('public')->exists($captainUser->signature_path)) {
-            $signaturePath = Storage::disk('public')->path($captainUser->signature_path);
-            $imageData = file_get_contents($signaturePath);
-            $imageInfo = getimagesizefromstring($imageData);
-            if ($imageInfo !== false) {
-                $mimeType = $imageInfo['mime'];
-                $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-            }
-        }
-
-        return [
-            'name' => $captainUser->name,
-            'position' => 'Barangay Captain',
-            'signature_base64' => $signatureBase64
+    /**
+     * Get MIME type from file extension (fallback when GD is not available)
+     */
+    protected function getMimeTypeFromExtension(string $filePath): ?string
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp' => 'image/bmp',
+            'svg' => 'image/svg+xml',
         ];
+        
+        return $mimeTypes[$extension] ?? null;
     }
 
     /**
@@ -105,6 +184,7 @@ class CertificatePdfController extends Controller
 
             // Prepare data for PDF
             $data = [
+                'is_certificate' => true, // Flag for certificate-specific layout
                 'title' => $certificate->certificate_type_label ?? 'Certificate',
                 'document_title' => strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
                 'certificate' => $certificate,
@@ -153,6 +233,8 @@ class CertificatePdfController extends Controller
     public function downloadCertificate($id)
     {
         try {
+            Log::info('Starting PDF download', ['certificate_id' => $id]);
+            
             $certificate = IssuedCertificate::find($id);
 
             if (!$certificate) {
@@ -170,6 +252,8 @@ class CertificatePdfController extends Controller
                 $certificate->certificate_number
             );
 
+            Log::info('Preparing certificate data', ['certificate_id' => $certificate->id]);
+            
             // Prepare data first to catch any errors early
             $data = $this->prepareCertificateData($certificate);
             $view = $this->getViewForCertificate($certificate);
@@ -181,12 +265,16 @@ class CertificatePdfController extends Controller
             ]);
 
             // Use PdfService for download (generates fresh PDF on-demand)
-            return $this->pdfService->download(
+            $response = $this->pdfService->download(
                 $view,
                 $data,
                 $filename,
                 ['paper' => 'A4', 'orientation' => 'portrait']
             );
+            
+            Log::info('PDF download completed successfully', ['certificate_id' => $certificate->id]);
+            
+            return $response;
         } catch (\Exception $e) {
             Log::error('PDF download failed', [
                 'certificate_id' => $id,
@@ -270,6 +358,7 @@ class CertificatePdfController extends Controller
             }
 
             return [
+                'is_certificate' => true, // Flag for certificate-specific layout
                 'title' => $certificate->certificate_type_label ?? 'Certificate',
                 'document_title' => strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
                 'certificate' => $certificate,
@@ -297,6 +386,8 @@ class CertificatePdfController extends Controller
     public function previewCertificate($id)
     {
         try {
+            Log::info('Starting PDF preview', ['certificate_id' => $id]);
+            
             $certificate = IssuedCertificate::find($id);
 
             if (!$certificate) {
@@ -314,6 +405,8 @@ class CertificatePdfController extends Controller
                 $certificate->certificate_number
             );
 
+            Log::info('Preparing certificate data', ['certificate_id' => $certificate->id]);
+
             // Prepare data first to catch any errors early
             $data = $this->prepareCertificateData($certificate);
             $view = $this->getViewForCertificate($certificate);
@@ -325,12 +418,16 @@ class CertificatePdfController extends Controller
             ]);
 
             // Use PdfService for preview (generates fresh PDF on-demand)
-            return $this->pdfService->preview(
+            $response = $this->pdfService->preview(
                 $view,
                 $data,
                 $filename,
                 ['paper' => 'A4', 'orientation' => 'portrait']
             );
+            
+            Log::info('PDF preview completed successfully', ['certificate_id' => $certificate->id]);
+            
+            return $response;
         } catch (\Exception $e) {
             Log::error('PDF preview failed', [
                 'certificate_id' => $id,

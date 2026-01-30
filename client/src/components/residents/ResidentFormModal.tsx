@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useEffect, useState, useMemo } from 'react'
 import Select from 'react-select'
-import { getHouseholdsForResidentForm, type HouseholdOption } from '../../services/households.service'
+import { getHouseholdsForResidentForm, getHousehold, type HouseholdOption } from '../../services/households.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 
@@ -24,6 +24,9 @@ const createSchema = () => z.object({
   new_household_property_type: z.string().optional(),
   new_household_contact: z.string().optional(),
   new_household_purok_id: z.union([z.string(), z.number()]).optional(),
+  
+  // For unassigned residents
+  purok_id: z.union([z.string(), z.number()]).optional().nullable(),
   
   // Resident fields - A. Personal Information
   first_name: z.string().min(1, 'First name is required'),
@@ -50,6 +53,7 @@ const createSchema = () => z.object({
   // E. Special Classifications
   is_pwd: z.boolean().default(false),
   is_pregnant: z.boolean().default(false),
+  is_solo_parent: z.boolean().default(false),
   // F. Resident Status & Notes
   resident_status: z.enum(['active', 'deceased', 'transferred', 'inactive']).default('active'),
   remarks: z.string().optional().nullable(),
@@ -83,6 +87,15 @@ const createSchema = () => z.object({
 }, {
   message: 'All household fields are required when creating a new household',
   path: ['new_household_address']
+}).refine((data) => {
+  // If unassigned, purok_id is required
+  if (data.assignment_mode === 'unassigned') {
+    return data.purok_id && data.purok_id !== '' && data.purok_id !== null
+  }
+  return true
+}, {
+  message: 'Purok is required when registering a resident without a household',
+  path: ['purok_id']
 })
 
 export type ResidentFormValues = z.infer<ReturnType<typeof createSchema>>
@@ -119,6 +132,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       new_household_property_type: '',
       new_household_contact: '',
       new_household_purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : '',
+      purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : null,
       first_name: '',
       middle_name: '',
       last_name: '',
@@ -139,6 +153,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       educational_attainment: null,
       is_pwd: false,
       is_pregnant: false,
+      is_solo_parent: false,
       resident_status: 'active',
       remarks: null,
       ...initial,
@@ -192,6 +207,8 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       setValue('household_id', null)
       setValue('relationship_to_head', null)
       setSelectedHousehold(null)
+      // Reset purok_id to default for purok leaders
+      setValue('purok_id', isPurokLeader && assignedPurokId ? String(assignedPurokId) : null)
     } else if (mode === 'existing') {
       setValue('new_household_address', '')
       setValue('new_household_property_type', '')
@@ -204,12 +221,22 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
   }
 
   // Handle household selection
-  const handleHouseholdChange = (option: HouseholdOption | null) => {
+  const handleHouseholdChange = async (option: HouseholdOption | null) => {
     setSelectedHousehold(option)
     if (option) {
       setValue('household_id', option.id)
+      // Fetch household to get purok_id
+      try {
+        const householdResponse = await getHousehold(option.id)
+        if (householdResponse.success && householdResponse.data?.purok_id) {
+          setValue('purok_id', String(householdResponse.data.purok_id))
+        }
+      } catch (error) {
+        console.error('Error fetching household purok:', error)
+      }
     } else {
       setValue('household_id', null)
+      setValue('purok_id', null)
     }
   }
 
@@ -913,6 +940,72 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                       )}
                     </Form.Group>
                   </Col>
+                  {/* Purok field - auto-filled from household, disabled */}
+                  <Col md={12}>
+                    <Form.Group className="modal-form-group">
+                      <Form.Label className="modal-form-label">Purok</Form.Label>
+                      <Form.Select
+                        {...register('purok_id')}
+                        disabled
+                        className="modal-form-control"
+                        style={{ backgroundColor: '#f8f9fa' }}
+                      >
+                        <option value="">Select purok</option>
+                        {puroks.map((purok) => (
+                          <option key={purok.id} value={purok.id}>
+                            {purok.name}
+                          </option>
+                        ))}
+                      </Form.Select>
+                      <Form.Text className="text-muted">
+                        Automatically set from selected household
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              )}
+
+              {/* Purok Selection for Unassigned Residents */}
+              {assignmentMode === 'unassigned' && (
+                <Row className="g-3">
+                  <Col md={12}>
+                    <Form.Group className="modal-form-group">
+                      <Form.Label className="modal-form-label">Purok *</Form.Label>
+                      {isPurokLeader ? (
+                        <>
+                          <Form.Control
+                            type="text"
+                            value={puroks.find(p => p.id === assignedPurokId)?.name || 'Your Assigned Purok'}
+                            disabled
+                            className="modal-form-control"
+                          />
+                          <Form.Text className="text-muted">
+                            You can only manage residents in your assigned purok.
+                          </Form.Text>
+                          <input type="hidden" {...register('purok_id')} defaultValue={assignedPurokId ? String(assignedPurokId) : ''} />
+                        </>
+                      ) : (
+                        <>
+                          <Form.Select
+                            {...register('purok_id')}
+                            isInvalid={!!errors.purok_id}
+                            className="modal-form-control"
+                          >
+                            <option value="">Select purok</option>
+                            {puroks.map((purok) => (
+                              <option key={purok.id} value={purok.id}>
+                                {purok.name}
+                              </option>
+                            ))}
+                          </Form.Select>
+                          <Form.Control.Feedback type="invalid">{errors.purok_id?.message}</Form.Control.Feedback>
+                          <Form.Text className="text-muted">
+                            Required when registering a resident without a household
+                          </Form.Text>
+                        </>
+                      )}
+                    </Form.Group>
+                  </Col>
                 </Row>
               )}
             </Card.Body>
@@ -1022,7 +1115,13 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                         checked={computedAge !== null && computedAge >= 60}
                         disabled
                         className="form-check-input mt-1"
-                        style={{ backgroundColor: computedAge !== null && computedAge >= 60 ? '#d4edda' : '#f8f9fa', flexShrink: 0 }}
+                        style={{ 
+                          flexShrink: 0,
+                          backgroundColor: computedAge !== null && computedAge >= 60 ? '#0d6efd' : '#f8f9fa',
+                          borderColor: computedAge !== null && computedAge >= 60 ? '#0d6efd' : '#dee2e6',
+                          cursor: 'default',
+                          opacity: computedAge !== null && computedAge >= 60 ? 1 : 0.65
+                        }}
                       />
                       <div className="flex-grow-1">
                         <label className="fw-semibold mb-1 d-block" htmlFor="is_senior">
@@ -1063,16 +1162,16 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                       <input
                         type="checkbox"
                         id="is_solo_parent"
-                        disabled
+                        {...register('is_solo_parent')}
                         className="form-check-input mt-1"
-                        style={{ backgroundColor: '#f8f9fa', flexShrink: 0 }}
+                        style={{ flexShrink: 0, cursor: 'pointer' }}
                       />
                       <div className="flex-grow-1">
-                        <label className="fw-semibold mb-1 d-block" htmlFor="is_solo_parent">
+                        <label className="fw-semibold mb-0" style={{ cursor: 'pointer' }} htmlFor="is_solo_parent">
                           Solo Parent
                         </label>
                         <Form.Text className="text-muted small d-block" style={{ lineHeight: '1.5', wordBreak: 'break-word' }}>
-                          Auto-determined by system based on household structure
+                          Check this if the resident is a solo parent. A solo parent record will be automatically created.
                         </Form.Text>
                       </div>
                     </div>

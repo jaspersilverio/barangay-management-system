@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>{{ $title ?? 'Blotter Records Report' }}</title>
+    <title>{{ $title ?? 'Incident Reports' }}</title>
     <style>
         @page {
             size: A4 landscape;
@@ -201,14 +201,13 @@
 
         /* Column alignments */
         .col-no { width: 4%; text-align: center; }
-        .col-case { width: 10%; text-align: center; }
-        .col-complainant { width: 14%; text-align: left; }
-        .col-respondent { width: 14%; text-align: left; }
-        .col-incident-date { width: 9%; text-align: center; }
+        .col-date { width: 10%; text-align: center; }
+        .col-title { width: 18%; text-align: left; }
         .col-location { width: 12%; text-align: left; }
-        .col-nature { width: 15%; text-align: left; }
+        .col-description { width: 20%; text-align: left; }
+        .col-persons { width: 14%; text-align: left; }
         .col-status { width: 8%; text-align: center; }
-        .col-official { width: 10%; text-align: left; }
+        .col-officer { width: 10%; text-align: left; }
         .col-reported { width: 9%; text-align: center; }
 
         .text-center { text-align: center; }
@@ -216,7 +215,7 @@
         .text-uppercase { text-transform: uppercase; }
         .text-bold { font-weight: bold; }
 
-        .name-format {
+        .title-text {
             font-weight: bold;
         }
 
@@ -227,10 +226,10 @@
         }
 
         /* Status badges */
-        .status-pending { color: #856404; }
-        .status-ongoing { color: #0c5460; }
+        .status-recorded { color: #666; }
+        .status-monitoring { color: #856404; }
         .status-resolved { color: #155724; }
-        .status-rejected { color: #721c24; }
+        .status-pending { color: #0c5460; }
 
         /* ==================== SIGNATURE SECTION ==================== */
         .signature-section {
@@ -351,7 +350,7 @@
 
     {{-- ==================== TITLE SECTION ==================== --}}
     <div class="title-section">
-        <div class="report-title">{{ $document_title ?? 'BLOTTER / CASE RECORDS REPORT' }}</div>
+        <div class="report-title">{{ $document_title ?? 'INCIDENT REPORTS MASTERLIST' }}</div>
         <div class="filter-info">
             <span><strong>Date Range:</strong> {{ $filters['date_range'] ?? 'All Dates' }}</span>
             <span>|</span>
@@ -365,32 +364,32 @@
 
     {{-- ==================== SUMMARY SECTION ==================== --}}
     <div class="summary-section">
-        <div class="summary-title">Case Summary Statistics</div>
+        <div class="summary-title">Incident Reports Summary</div>
         <table class="summary-table">
             <tr>
                 <td>
-                    <span class="summary-label">Total Cases:</span>
-                    <span class="summary-value">{{ number_format($summary['total_cases'] ?? 0) }}</span>
+                    <span class="summary-label">Total Reports:</span>
+                    <span class="summary-value">{{ number_format($summary['total_reports'] ?? 0) }}</span>
                 </td>
                 <td>
-                    <span class="summary-label">Pending:</span>
-                    <span class="summary-value">{{ number_format($summary['pending'] ?? 0) }}</span>
+                    <span class="summary-label">Recorded:</span>
+                    <span class="summary-value">{{ number_format($summary['recorded'] ?? 0) }}</span>
                 </td>
                 <td>
-                    <span class="summary-label">Ongoing/Open:</span>
-                    <span class="summary-value">{{ number_format($summary['ongoing'] ?? 0) }}</span>
+                    <span class="summary-label">Monitoring:</span>
+                    <span class="summary-value">{{ number_format($summary['monitoring'] ?? 0) }}</span>
                 </td>
                 <td>
-                    <span class="summary-label">Resolved/Settled:</span>
+                    <span class="summary-label">Resolved:</span>
                     <span class="summary-value">{{ number_format($summary['resolved'] ?? 0) }}</span>
+                </td>
+                <td>
+                    <span class="summary-label">Pending Approval:</span>
+                    <span class="summary-value">{{ number_format($summary['pending'] ?? 0) }}</span>
                 </td>
                 <td>
                     <span class="summary-label">Approved:</span>
                     <span class="summary-value">{{ number_format($summary['approved'] ?? 0) }}</span>
-                </td>
-                <td>
-                    <span class="summary-label">Rejected:</span>
-                    <span class="summary-value">{{ number_format($summary['rejected'] ?? 0) }}</span>
                 </td>
             </tr>
         </table>
@@ -401,117 +400,87 @@
         <thead>
             <tr>
                 <th class="col-no">No.</th>
-                <th class="col-case">Case No.</th>
-                <th class="col-complainant">Complainant</th>
-                <th class="col-respondent">Respondent</th>
-                <th class="col-incident-date">Incident Date</th>
+                <th class="col-date">Date & Time</th>
+                <th class="col-title">Incident Title</th>
                 <th class="col-location">Location</th>
-                <th class="col-nature">Nature / Description</th>
+                <th class="col-description">Description</th>
+                <th class="col-persons">Persons Involved</th>
                 <th class="col-status">Status</th>
-                <th class="col-official">Assigned To</th>
+                <th class="col-officer">Reporting Officer</th>
                 <th class="col-reported">Date Reported</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($blotters as $index => $blotter)
+            @forelse($incident_reports as $index => $report)
                 @php
-                    // Format complainant name as: LAST NAME, First Name
-                    $complainantName = 'N/A';
-                    $complainantInfo = '';
-                    if ($blotter->complainant) {
-                        $lastName = strtoupper($blotter->complainant->last_name ?? '');
-                        $firstName = ucfirst(strtolower($blotter->complainant->first_name ?? ''));
-                        $middleName = !empty($blotter->complainant->middle_name) 
-                            ? ' ' . ucfirst(strtolower($blotter->complainant->middle_name)) 
-                            : '';
-                        $complainantName = $lastName . ', ' . $firstName . $middleName;
-                        $complainantInfo = ($blotter->complainant->age ?? 'N/A') . ' yrs old';
-                    } elseif ($blotter->complainant_full_name) {
-                        $complainantName = strtoupper($blotter->complainant_full_name);
-                        $complainantInfo = ($blotter->complainant_age ?? 'N/A') . ' yrs old (Non-Resident)';
+                    // Format date and time
+                    $incidentDateTime = 'N/A';
+                    if ($report->incident_date) {
+                        $incidentDateTime = \Carbon\Carbon::parse($report->incident_date)->format('M d, Y');
+                        if ($report->incident_time) {
+                            $incidentDateTime .= ' ' . \Carbon\Carbon::parse($report->incident_time)->format('h:i A');
+                        }
                     }
                     
-                    // Format respondent name as: LAST NAME, First Name
-                    $respondentName = 'N/A';
-                    $respondentInfo = '';
-                    if ($blotter->respondent) {
-                        $lastName = strtoupper($blotter->respondent->last_name ?? '');
-                        $firstName = ucfirst(strtolower($blotter->respondent->first_name ?? ''));
-                        $middleName = !empty($blotter->respondent->middle_name) 
-                            ? ' ' . ucfirst(strtolower($blotter->respondent->middle_name)) 
-                            : '';
-                        $respondentName = $lastName . ', ' . $firstName . $middleName;
-                        $respondentInfo = ($blotter->respondent->age ?? 'N/A') . ' yrs old';
-                    } elseif ($blotter->respondent_full_name) {
-                        $respondentName = strtoupper($blotter->respondent_full_name);
-                        $respondentInfo = ($blotter->respondent_age ?? 'N/A') . ' yrs old (Non-Resident)';
-                    }
-                    
-                    // Get location
-                    $location = $blotter->incident_location ?? 'N/A';
-                    if ($location === 'N/A' && $blotter->complainant && $blotter->complainant->household && $blotter->complainant->household->purok) {
-                        $location = $blotter->complainant->household->purok->name;
-                    }
-                    
-                    // Format dates
-                    $incidentDate = $blotter->incident_date 
-                        ? \Carbon\Carbon::parse($blotter->incident_date)->format('M d, Y')
+                    // Format reported date
+                    $reportedDate = $report->created_at 
+                        ? \Carbon\Carbon::parse($report->created_at)->format('M d, Y')
                         : 'N/A';
                     
-                    $reportedDate = $blotter->created_at 
-                        ? \Carbon\Carbon::parse($blotter->created_at)->format('M d, Y')
-                        : 'N/A';
-                    
-                    // Get nature/description (truncate if too long)
-                    $nature = $blotter->description ?? 'N/A';
-                    if (strlen($nature) > 80) {
-                        $nature = substr($nature, 0, 80) . '...';
+                    // Get description (truncate if too long)
+                    $description = $report->description ?? 'N/A';
+                    if (strlen($description) > 100) {
+                        $description = substr($description, 0, 100) . '...';
                     }
                     
-                    // Get assigned official
-                    $assignedTo = 'N/A';
-                    if ($blotter->official) {
-                        $assignedTo = $blotter->official->name;
+                    // Get persons involved
+                    $personsInvolved = 'N/A';
+                    if ($report->persons_involved) {
+                        if (is_array($report->persons_involved)) {
+                            $personsInvolved = implode(', ', $report->persons_involved);
+                        } else {
+                            $personsInvolved = $report->persons_involved;
+                        }
+                        if (strlen($personsInvolved) > 60) {
+                            $personsInvolved = substr($personsInvolved, 0, 60) . '...';
+                        }
+                    }
+                    
+                    // Get reporting officer
+                    $reportingOfficer = 'N/A';
+                    if ($report->reportingOfficer) {
+                        $reportingOfficer = $report->reportingOfficer->name;
                     }
                     
                     // Status class
-                    $statusClass = 'status-pending';
-                    $status = strtolower($blotter->status ?? 'pending');
-                    if (in_array($status, ['resolved', 'settled', 'closed'])) {
+                    $statusClass = 'status-recorded';
+                    $status = $report->status ?? 'Recorded';
+                    if ($status === 'Monitoring') {
+                        $statusClass = 'status-monitoring';
+                    } elseif ($status === 'Resolved') {
                         $statusClass = 'status-resolved';
-                    } elseif (in_array($status, ['ongoing', 'open', 'under_investigation'])) {
-                        $statusClass = 'status-ongoing';
-                    } elseif ($status === 'rejected') {
-                        $statusClass = 'status-rejected';
+                    } elseif ($status === 'pending') {
+                        $statusClass = 'status-pending';
                     }
                 @endphp
                 <tr>
                     <td class="col-no">{{ $index + 1 }}</td>
-                    <td class="col-case text-bold">{{ $blotter->case_number ?? 'N/A' }}</td>
-                    <td class="col-complainant">
-                        <div class="name-format">{{ $complainantName }}</div>
-                        @if($complainantInfo)
-                            <div class="sub-info">{{ $complainantInfo }}</div>
-                        @endif
+                    <td class="col-date">{{ $incidentDateTime }}</td>
+                    <td class="col-title">
+                        <div class="title-text">{{ $report->incident_title ?? 'N/A' }}</div>
                     </td>
-                    <td class="col-respondent">
-                        <div class="name-format">{{ $respondentName }}</div>
-                        @if($respondentInfo)
-                            <div class="sub-info">{{ $respondentInfo }}</div>
-                        @endif
-                    </td>
-                    <td class="col-incident-date">{{ $incidentDate }}</td>
-                    <td class="col-location">{{ $location }}</td>
-                    <td class="col-nature">{{ $nature }}</td>
+                    <td class="col-location">{{ $report->location ?? 'N/A' }}</td>
+                    <td class="col-description">{{ $description }}</td>
+                    <td class="col-persons">{{ $personsInvolved }}</td>
                     <td class="col-status {{ $statusClass }}">
-                        <strong>{{ ucfirst($blotter->status ?? 'Pending') }}</strong>
+                        <strong>{{ ucfirst($status) }}</strong>
                     </td>
-                    <td class="col-official">{{ $assignedTo }}</td>
+                    <td class="col-officer">{{ $reportingOfficer }}</td>
                     <td class="col-reported">{{ $reportedDate }}</td>
                 </tr>
             @empty
                 <tr class="empty-row">
-                    <td colspan="10">No blotter/case records found matching the specified criteria.</td>
+                    <td colspan="9">No incident reports found matching the specified criteria.</td>
                 </tr>
             @endforelse
         </tbody>
@@ -519,7 +488,7 @@
 
     {{-- Total Records Count --}}
     <div style="text-align: right; font-size: 9pt; margin-top: 10px; font-weight: bold;">
-        Total Records: {{ $blotters->count() }}
+        Total Records: {{ $incident_reports->count() }}
     </div>
 
     {{-- ==================== SIGNATURE SECTION ==================== --}}
@@ -556,7 +525,7 @@
 
     {{-- ==================== FOOTER ==================== --}}
     <div class="page-footer">
-        <div class="footer-text">Official Barangay Blotter/Case Records Report – System Generated</div>
+        <div class="footer-text">Official Barangay Incident Reports – System Generated</div>
         <div>Generated on {{ $generated_date ?? date('F d, Y') }} at {{ $generated_time ?? date('h:i A') }}</div>
     </div>
 </body>

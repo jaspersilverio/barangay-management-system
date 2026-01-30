@@ -75,7 +75,7 @@ class CertificateSeeder extends Seeder
                         'valid_until' => $validUntil,
                         'is_valid' => $validUntil->isFuture(),
                         'signed_by' => $users->random()->name,
-                        'signature_position' => 'Barangay Captain',
+                        'signature_position' => 'Punong Barangay',
                         'signed_at' => $validFrom,
                     ]);
 

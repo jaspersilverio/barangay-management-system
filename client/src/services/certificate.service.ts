@@ -293,11 +293,6 @@ export const printCertificatePdf = async (id: number): Promise<void> => {
   }
 }
 
-export const regenerateCertificatePdf = async (id: number) => {
-  const response = await api.post(`/issued-certificates/${id}/regenerate-pdf`)
-  return response.data
-}
-
 export const invalidateCertificate = async (id: number) => {
   const response = await api.post(`/issued-certificates/${id}/invalidate`)
   return response.data
@@ -311,4 +306,51 @@ export const getIssuedCertificateStatistics = async () => {
 export const verifyCertificate = async (certificateNumber: string) => {
   const response = await api.post('/issued-certificates/verify', { certificate_number: certificateNumber })
   return response.data
+}
+
+/**
+ * Export issued certificates to PDF report
+ */
+export const exportIssuedCertificatesToPdf = async (params: {
+  status?: string
+  certificate_type?: string
+  search?: string
+} = {}): Promise<{ success: boolean; message: string }> => {
+  try {
+    const queryParams = new URLSearchParams()
+    
+    if (params.status) queryParams.append('status', params.status)
+    if (params.certificate_type) queryParams.append('certificate_type', params.certificate_type)
+    if (params.search) queryParams.append('search', params.search)
+
+    const response = await api.get(`/pdf/export/issued-certificates?${queryParams.toString()}`, {
+      responseType: 'blob',
+      timeout: 60000, // 60 second timeout for PDF generation
+    })
+
+    // Check if response is actually a PDF
+    const contentType = response.headers['content-type']
+    if (contentType && contentType.includes('application/json')) {
+      // Error response came back as JSON
+      const text = await response.data.text()
+      const errorData = JSON.parse(text)
+      throw new Error(errorData.message || 'Failed to generate PDF')
+    }
+
+    // Create blob and download
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `issued-certificates-report-${new Date().toISOString().split('T')[0]}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true, message: 'PDF exported successfully' }
+  } catch (error: unknown) {
+    console.error('PDF export failed:', error)
+    throw new Error('Failed to export PDF')
+  }
 }

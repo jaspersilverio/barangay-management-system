@@ -149,7 +149,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/certificate-requests/{certificateRequest}/reject', [CertificateRequestController::class, 'reject']);
         Route::post('/certificate-requests/{certificateRequest}/release', [CertificateRequestController::class, 'release']);
         Route::post('/issued-certificates/{issuedCertificate}/invalidate', [IssuedCertificateController::class, 'invalidate']);
-        Route::post('/issued-certificates/{issuedCertificate}/regenerate-pdf', [IssuedCertificateController::class, 'regeneratePdf']);
     });
 
     // Blotter approval routes (captain and admin only)
@@ -173,7 +172,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pdf/export/residents', [PdfExportController::class, 'exportResidents']);
         Route::get('/pdf/export/households', [PdfExportController::class, 'exportHouseholds']);
         Route::get('/pdf/export/blotters', [PdfExportController::class, 'exportBlotters']);
-        Route::get('/excel/export/blotters', [PdfExportController::class, 'exportBlottersExcel']);
+        Route::get('/pdf/export/incident-reports', [PdfExportController::class, 'exportIncidentReports']);
+        Route::get('/pdf/export/issued-certificates', [PdfExportController::class, 'exportIssuedCertificates']);
         Route::get('/pdf/export/solo-parents', [PdfExportController::class, 'exportSoloParents']);
         Route::get('/pdf/export/puroks', [PdfExportController::class, 'exportPuroks']);
         Route::get('/pdf/export/vaccinations', [PdfExportController::class, 'exportVaccinations']);
@@ -189,6 +189,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/vulnerable-groups', [ReportController::class, 'vulnerableGroups']);
         Route::get('/reports/households/export/csv', [ReportController::class, 'exportHouseholdsCsv']);
         Route::get('/reports/residents/export/csv', [ReportController::class, 'exportResidentsCsv']);
+        Route::get('/reports/blotters/export/csv', [ReportController::class, 'exportBlottersCsv']);
     });
 
     // Puroks report (admin, captain, and purok leaders - purok leaders get filtered data)
@@ -200,6 +201,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // Solo Parents report CSV export (admin, captain, staff, and purok leaders - purok leaders get filtered data)
     Route::middleware('role:admin,captain,staff,purok_leader')->group(function () {
         Route::get('/reports/solo-parents/export/csv', [ReportController::class, 'exportSoloParentsCsv']);
+    });
+
+    // Vaccinations & Incident Reports CSV export (admin, captain, staff, and purok leaders)
+    Route::middleware('role:admin,captain,staff,purok_leader')->group(function () {
+        Route::get('/reports/vaccinations/export/csv', [ReportController::class, 'exportVaccinationsCsv']);
+        Route::get('/reports/incident-reports/export/csv', [ReportController::class, 'exportIncidentReportsCsv']);
     });
 
     // Puroks management (admin and captain)

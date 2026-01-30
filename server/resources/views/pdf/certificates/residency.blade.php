@@ -1,43 +1,46 @@
 @extends('pdf.layouts.base')
 
 @section('content')
-    <div class="text-center mb-4">
-        <div class="document-title">RESIDENCY CERTIFICATE</div>
-        <div style="font-size: 11pt; color: #666; margin-top: 10px;">
-            Certificate Number: <strong>{{ $certificate->certificate_number }}</strong>
-        </div>
-    </div>
+    {{-- Greeting --}}
+    <p class="greeting">TO WHOM IT MAY CONCERN:</p>
 
-    <div class="section">
-        <p style="text-align: justify; margin: 20px 0;">
-            <strong>TO WHOM IT MAY CONCERN:</strong>
-        </p>
+    {{-- Main Certification Body --}}
+    <p class="body-text">
+        This is to certify that <strong>{{ strtoupper($resident->full_name) }}</strong>,
+        @if($resident->age)
+            <strong>{{ $resident->age }}</strong> years of age,
+        @else
+            of legal age,
+        @endif
+        @if($resident->civil_status)
+            {{ $resident->civil_status }},
+        @endif
+        @if($resident->nationality)
+            {{ $resident->nationality }},
+        @else
+            Filipino citizen,
+        @endif
+        is a <strong>BONAFIDE RESIDENT</strong> of Barangay {{ $barangay_info['name'] ?? '' }}
+        @if($resident->household && $resident->household->address)
+            with residential address at <strong>{{ $resident->household->address }}</strong>
+            @if($resident->household->purok)
+                , <strong>{{ $resident->household->purok->name }}</strong>
+            @endif
+        @endif
+        .
+    </p>
 
-        <p style="text-align: justify; margin: 15px 0; text-indent: 30px;">
-            This is to certify that <strong>{{ $resident->full_name }}</strong>,
-            @if($resident->age)
-                {{ $resident->age }} years of age,
-            @else
-                of legal age,
-            @endif
-            @if($resident->nationality)
-                {{ $resident->nationality }},
-            @else
-                Filipino,
-            @endif
-            is a bonafide resident of {{ $barangay_info['name'] ?? 'this barangay' }},
-            @if($resident->household && $resident->household->address)
-                residing at {{ $resident->household->address }},
-            @endif
-            @if($resident->household && $resident->household->purok)
-                Purok {{ $resident->household->purok->name }},
-            @endif
-            and has been residing in this barangay for a considerable period of time.
-        </p>
+    <p class="body-text">
+        Based on our records, the above-named person has been residing in this Barangay 
+        and is known to be a law-abiding citizen of this community.
+    </p>
 
-        @include('pdf.certificates.partials.resident-info')
-        @include('pdf.certificates.partials.certificate-body', ['certificate_type' => 'certificate'])
-        @include('pdf.certificates.partials.signatures')
-        @include('pdf.certificates.partials.verification')
-    </div>
+    {{-- Purpose and Validity --}}
+    @include('pdf.certificates.partials.certificate-body', ['certificate_type' => 'certificate'])
+
+    {{-- Signatures --}}
+    @include('pdf.certificates.partials.signatures')
+
+    {{-- Verification --}}
+    @include('pdf.certificates.partials.verification')
 @endsection

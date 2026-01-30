@@ -43,7 +43,43 @@ class PdfService
                 'email' => '',
                 'captain_name' => '',
                 'logo_path' => null,
+                'logo_base64' => null,
             ];
+        }
+
+        // Convert logo to base64 for PDF generation (DomPDF can't load URLs)
+        $logoBase64 = null;
+        
+        if ($barangayInfo->logo_path) {
+            try {
+                if (Storage::disk('public')->exists($barangayInfo->logo_path)) {
+                    $logoPath = Storage::disk('public')->path($barangayInfo->logo_path);
+                    if (file_exists($logoPath) && is_readable($logoPath)) {
+                        $imageData = @file_get_contents($logoPath);
+                        if ($imageData !== false) {
+                            // Determine MIME type from file extension (works without GD)
+                            $mimeType = $this->getMimeTypeFromExtension($barangayInfo->logo_path);
+                            
+                            // If GD is available, try to get more accurate MIME type
+                            if (extension_loaded('gd')) {
+                                $imageInfo = @getimagesizefromstring($imageData);
+                                if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                    $mimeType = $imageInfo['mime'];
+                                }
+                            }
+                            
+                            if ($mimeType) {
+                                $logoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to load logo for PDF', [
+                    'error' => $e->getMessage(),
+                    'logo_path' => $barangayInfo->logo_path
+                ]);
+            }
         }
 
         // Return both new and legacy field names for backward compatibility with PDF templates
@@ -57,7 +93,10 @@ class PdfService
             'contact_number' => $barangayInfo->contact_number ?? '',
             'email' => $barangayInfo->email ?? '',
             'captain_name' => $barangayInfo->captain_name ?? '',
+            'secretary_name' => $barangayInfo->secretary_name ?? null,
+            'treasurer_name' => $barangayInfo->treasurer_name ?? null,
             'logo_path' => $barangayInfo->logo_path,
+            'logo_base64' => $logoBase64, // Base64 encoded logo for PDF
             // Legacy field names for backward compatibility with existing PDF templates
             'name' => $barangayInfo->barangay_name ?? 'Barangay',
             'contact' => $barangayInfo->contact_number ?? '',
@@ -108,11 +147,20 @@ class PdfService
 
         // Generate PDF with timeout protection
         try {
+            // Increase memory and execution time limits for PDF generation
+            $originalMemoryLimit = ini_get('memory_limit');
+            $originalMaxExecutionTime = ini_get('max_execution_time');
+            
+            ini_set('memory_limit', '256M');
+            set_time_limit(60); // 60 second timeout for PDF generation
+            
+            Log::info('Loading HTML into PDF', ['html_length' => strlen($html)]);
+            
             $pdf = Pdf::loadHTML($html)
                 ->setPaper($mergedOptions['paper'], $mergedOptions['orientation'])
                 ->setOptions([
                     'isHtml5ParserEnabled' => true,
-                    'isRemoteEnabled' => true,
+                    'isRemoteEnabled' => false, // Disable remote URLs to prevent hanging
                     'defaultFont' => 'Arial',
                     'margin-top' => $mergedOptions['margin']['top'] ?? 20,
                     'margin-right' => $mergedOptions['margin']['right'] ?? 15,
@@ -120,13 +168,28 @@ class PdfService
                     'margin-left' => $mergedOptions['margin']['left'] ?? 15,
                     'enable-local-file-access' => true,
                     'enable-javascript' => false,
+                    'chroot' => realpath(base_path()),
+                    'dpi' => 96,
+                    'fontHeightRatio' => 1.1,
                 ]);
+
+            Log::info('PDF object created successfully');
+
+            // Restore original limits
+            if ($originalMemoryLimit) {
+                ini_set('memory_limit', $originalMemoryLimit);
+            }
+            if ($originalMaxExecutionTime) {
+                set_time_limit($originalMaxExecutionTime);
+            }
 
             return $pdf;
         } catch (\Exception $e) {
             Log::error('Failed to generate PDF', [
                 'view' => $view,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
             throw new \Exception('PDF generation failed: ' . $e->getMessage());
@@ -145,18 +208,30 @@ class PdfService
     public function download(string $view, array $data = [], string $filename = 'document.pdf', array $options = [])
     {
         try {
+            Log::info('Starting PDF download generation', ['view' => $view, 'filename' => $filename]);
+            
             $pdf = $this->generateFromView($view, $data, $options);
 
-            return response($pdf->output(), 200)
+            Log::info('PDF generated, outputting...', ['view' => $view]);
+            
+            // Output PDF with error handling
+            $output = $pdf->output();
+            
+            Log::info('PDF output completed', ['view' => $view, 'size' => strlen($output)]);
+
+            return response($output, 200)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
                 ->header('Cache-Control', 'private, max-age=0, must-revalidate')
                 ->header('Pragma', 'public');
         } catch (\Exception $e) {
-            Log::error('PDF download generation failed: ' . $e->getMessage(), [
+            Log::error('PDF download generation failed', [
                 'view' => $view,
                 'filename' => $filename,
-                'exception' => $e
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             throw $e;
@@ -175,18 +250,30 @@ class PdfService
     public function preview(string $view, array $data = [], string $filename = 'document.pdf', array $options = [])
     {
         try {
+            Log::info('Starting PDF preview generation', ['view' => $view, 'filename' => $filename]);
+            
             $pdf = $this->generateFromView($view, $data, $options);
 
-            return response($pdf->output(), 200)
+            Log::info('PDF generated, outputting...', ['view' => $view]);
+            
+            // Output PDF with error handling
+            $output = $pdf->output();
+            
+            Log::info('PDF output completed', ['view' => $view, 'size' => strlen($output)]);
+
+            return response($output, 200)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
                 ->header('Cache-Control', 'private, max-age=0, must-revalidate')
                 ->header('Pragma', 'public');
         } catch (\Exception $e) {
-            Log::error('PDF preview generation failed: ' . $e->getMessage(), [
+            Log::error('PDF preview generation failed', [
                 'view' => $view,
                 'filename' => $filename,
-                'exception' => $e
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             throw $e;
@@ -247,5 +334,25 @@ class PdfService
         $data['report_title'] = $data['report_title'] ?? 'Report';
 
         return $this->download($view, $data, $filename, $options);
+    }
+
+    /**
+     * Get MIME type from file extension (fallback when GD is not available)
+     */
+    protected function getMimeTypeFromExtension(string $filePath): ?string
+    {
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+        
+        $mimeTypes = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'bmp' => 'image/bmp',
+            'svg' => 'image/svg+xml',
+        ];
+        
+        return $mimeTypes[$extension] ?? null;
     }
 }

@@ -139,12 +139,17 @@ class IssuedCertificate extends Model
 
     public function generateQrCode(): string
     {
+        // Load resident if not already loaded
+        if (!$this->relationLoaded('resident')) {
+            $this->load('resident');
+        }
+        
         $data = [
             'certificate_number' => $this->certificate_number,
-            'resident_name' => $this->resident->full_name,
+            'resident_name' => $this->resident?->full_name ?? 'Unknown',
             'certificate_type' => $this->certificate_type,
-            'valid_until' => $this->valid_until->format('Y-m-d'),
-            'issued_at' => $this->created_at->format('Y-m-d H:i:s')
+            'valid_until' => $this->valid_until ? $this->valid_until->format('Y-m-d') : null,
+            'issued_at' => $this->created_at ? $this->created_at->format('Y-m-d H:i:s') : now()->format('Y-m-d H:i:s')
         ];
 
         return base64_encode(json_encode($data));

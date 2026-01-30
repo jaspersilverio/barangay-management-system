@@ -229,3 +229,85 @@ export const rejectIncidentReport = async (
   return response.data;
 };
 
+/**
+ * Export incident reports to PDF
+ */
+export const exportIncidentReportsToPdf = async (
+  params: IncidentReportListParams = {}
+): Promise<{ success: boolean; message: string }> => {
+  try {
+    const queryParams = new URLSearchParams();
+    
+    if (params.search) queryParams.append('search', params.search);
+    if (params.status) queryParams.append('status', params.status);
+    if (params.start_date) queryParams.append('start_date', params.start_date);
+    if (params.end_date) queryParams.append('end_date', params.end_date);
+
+    const response = await api.get(`/pdf/export/incident-reports?${queryParams.toString()}`, {
+      responseType: 'blob',
+      timeout: 60000, // 60 second timeout for PDF generation
+    });
+
+    // Check if response is actually a PDF
+    const contentType = response.headers['content-type'];
+    if (contentType && contentType.includes('application/json')) {
+      // Error response came back as JSON
+      const text = await response.data.text();
+      const errorData = JSON.parse(text);
+      throw new Error(errorData.message || 'Failed to generate PDF');
+    }
+
+    // Create blob and download
+    const blob = new Blob([response.data], { type: 'application/pdf' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `incident-reports-${new Date().toISOString().split('T')[0]}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, message: 'PDF exported successfully' };
+  } catch (error: unknown) {
+    console.error('PDF export failed:', error);
+    throw new Error('Failed to export PDF');
+  }
+};
+
+/**
+ * Export incident reports to CSV
+ */
+export const exportIncidentReportsToCsv = async (
+  params: IncidentReportListParams = {}
+): Promise<{ success: boolean; message: string }> => {
+  const queryParams = new URLSearchParams();
+
+  if (params.search) queryParams.append('search', params.search);
+  if (params.status) queryParams.append('status', params.status);
+  if (params.start_date) queryParams.append('start_date', params.start_date);
+  if (params.end_date) queryParams.append('end_date', params.end_date);
+
+  const response = await api.get(`/reports/incident-reports/export/csv?${queryParams.toString()}`, {
+    responseType: 'blob',
+  });
+
+  if (response.data instanceof Blob) {
+    const blob = new Blob([response.data], {
+      type: 'text/csv; charset=UTF-8',
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `incident-reports-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    return { success: true, message: 'CSV exported successfully' };
+  }
+
+  throw new Error('Failed to export CSV');
+};
+

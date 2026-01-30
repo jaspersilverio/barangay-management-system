@@ -17,7 +17,7 @@ import ViewBlotterModal from '../components/blotter/ViewBlotterModal';
 import DeleteConfirmModal from '../components/blotter/DeleteConfirmModal';
 import { Button, Alert } from 'react-bootstrap';
 import { exportBlottersToPdf } from '../services/pdf.service';
-import api from '../services/api';
+import { exportBlottersCsv } from '../services/reports.service';
 
 const BlotterPage: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -30,7 +30,7 @@ const BlotterPage: React.FC = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBlotter, setDeleteBlotter] = useState<Blotter | null>(null);
   const [exporting, setExporting] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'excel' | null>(null);
+  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   // Separate input value from search query for smooth typing
@@ -171,7 +171,7 @@ const BlotterPage: React.FC = () => {
     loadStatistics();
   };
 
-  const handleExport = async (type: 'pdf' | 'excel') => {
+  const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
       setExportType(type)
@@ -186,30 +186,13 @@ const BlotterPage: React.FC = () => {
         if (debouncedSearch) params.search = debouncedSearch
 
         await exportBlottersToPdf(params)
-      } else {
-        // Excel export
-        const params = new URLSearchParams()
-        if (filters.status) params.append('status', filters.status)
-        if (filters.start_date) params.append('start_date', filters.start_date)
-        if (filters.end_date) params.append('end_date', filters.end_date)
-        if (debouncedSearch) params.append('search', debouncedSearch)
-
-        const response = await api.get(`/excel/export/blotters?${params.toString()}`, {
-          responseType: 'blob',
+      } else if (type === 'csv') {
+        await exportBlottersCsv({
+          status: filters.status,
+          start_date: filters.start_date,
+          end_date: filters.end_date,
+          search: debouncedSearch,
         })
-
-        // Create blob URL and trigger download
-        const blob = new Blob([response.data], {
-          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        })
-        const url = window.URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `blotter-records-${new Date().toISOString().split('T')[0]}.xlsx`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        window.URL.revokeObjectURL(url)
       }
     } catch (err: any) {
       console.error('Export error:', err)
@@ -448,12 +431,12 @@ const BlotterPage: React.FC = () => {
                   {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
                 </Button>
                 <Button
-                  variant="outline-success"
-                  onClick={() => handleExport('excel')}
+                  variant="outline-info"
+                  onClick={() => handleExport('csv')}
                   disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'excel' ? 'Exporting Excel...' : 'Export Excel'}
+                  {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
                 </Button>
               </div>
             </div>

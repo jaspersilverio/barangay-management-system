@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Modal, Form, Button, Row, Col, Alert, Spinner } from 'react-bootstrap'
-import { type ResidentPayload, createResident, updateResident, getResident, searchResidents, linkResidentToHousehold } from '../../services/residents.service'
+import { type ResidentPayload, createResident, updateResident, getResident, listResidents, linkResidentToHousehold } from '../../services/residents.service'
 
 interface ResidentFormModalProps {
   show: boolean
@@ -13,6 +13,8 @@ interface ResidentFormModalProps {
 interface SearchResult {
   id: number
   full_name: string
+  first_name: string
+  last_name: string
   age: number
   sex: string
   household_id: number | null
@@ -52,8 +54,8 @@ export default function ResidentFormModal({
 
   // Search functionality states
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
-  const [isSearching, setIsSearching] = useState(false)
+  const [allResidents, setAllResidents] = useState<SearchResult[]>([])
+  const [isLoadingResidents, setIsLoadingResidents] = useState(false)
   const [showSearchResults, setShowSearchResults] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [isLinking, setIsLinking] = useState(false)
@@ -80,40 +82,60 @@ export default function ResidentFormModal({
       setSuccess(null)
       setShowForm(false) // Start with search for new residents
       setSearchQuery('')
-      setSearchResults([])
+      // Load all residents for client-side filtering
+      loadAllResidents()
     }
   }, [show, editingResidentId, householdId])
 
-  // Search residents when query changes
-  useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const timeoutId = setTimeout(() => {
-        performSearch()
-      }, 300) // Debounce search
-
-      return () => clearTimeout(timeoutId)
-    } else {
-      setSearchResults([])
-      setShowSearchResults(false)
-    }
-  }, [searchQuery])
-
-  const performSearch = async () => {
-    if (searchQuery.length < 2) return
-
-    setIsSearching(true)
+  // Load all residents when modal opens (for client-side filtering)
+  const loadAllResidents = async () => {
+    setIsLoadingResidents(true)
     try {
-      const response = await searchResidents(searchQuery)
-      if (response.success) {
-        setSearchResults(response.data || [])
-        setShowSearchResults(true)
+      const response = await listResidents({ 
+        per_page: 1000 // Load a large batch for client-side filtering
+      })
+      if (response.success && response.data?.data) {
+        const residents = response.data.data.map((resident: any) => ({
+          id: resident.id,
+          full_name: resident.full_name || `${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.trim(),
+          first_name: resident.first_name || '',
+          last_name: resident.last_name || '',
+          age: resident.age || 0,
+          sex: resident.sex || '',
+          household_id: resident.household_id,
+          household: resident.household ? {
+            id: resident.household.id,
+            head_name: resident.household.head_name || '',
+            address: resident.household.address || '',
+            purok: resident.household.purok ? {
+              id: resident.household.purok.id,
+              name: resident.household.purok.name
+            } : undefined
+          } : undefined
+        }))
+        setAllResidents(residents)
       }
     } catch (error: any) {
-      setError(error?.response?.data?.message || 'Failed to search residents')
+      console.error('Error loading residents:', error)
+      setError(error?.response?.data?.message || 'Failed to load residents')
     } finally {
-      setIsSearching(false)
+      setIsLoadingResidents(false)
     }
   }
+
+  // Client-side filtering: match first_name OR last_name (case-insensitive, partial match)
+  const filteredResidents = useMemo(() => {
+    if (!searchQuery.trim()) {
+      return []
+    }
+    
+    const query = searchQuery.toLowerCase().trim()
+    return allResidents.filter(resident => {
+      const firstName = (resident.first_name || '').toLowerCase()
+      const lastName = (resident.last_name || '').toLowerCase()
+      return firstName.includes(query) || lastName.includes(query)
+    })
+  }, [searchQuery, allResidents])
 
   const handleLinkResident = async (resident: SearchResult) => {
     if (resident.household_id) {
@@ -262,10 +284,13 @@ export default function ResidentFormModal({
                       type="text"
                       placeholder="Type resident name to search..."
                       value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        setShowSearchResults(true)
+                      }}
                       onFocus={() => setShowSearchResults(true)}
                     />
-                    {isSearching && (
+                    {isLoadingResidents && (
                       <div className="position-absolute top-50 end-0 translate-middle-y me-2">
                         <Spinner animation="border" size="sm" />
                       </div>
@@ -273,9 +298,9 @@ export default function ResidentFormModal({
                   </Form.Group>
 
                   {/* Search Results Dropdown */}
-                  {showSearchResults && searchResults.length > 0 && (
+                  {showSearchResults && searchQuery.trim() && filteredResidents.length > 0 && (
                     <div className="border rounded p-2 mb-3" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      {searchResults.map((resident) => (
+                      {filteredResidents.map((resident) => (
                         <div
                           key={resident.id}
                           className="d-flex justify-content-between align-items-center p-2 border-bottom"
@@ -313,7 +338,7 @@ export default function ResidentFormModal({
                   )}
 
                   {/* No Results Message */}
-                  {showSearchResults && searchQuery.length >= 2 && searchResults.length === 0 && !isSearching && (
+                  {showSearchResults && searchQuery.trim() && filteredResidents.length === 0 && !isLoadingResidents && (
                     <div className="text-center p-3 border rounded">
                       <p className="text-muted mb-2">No residents found matching your search.</p>
                       <Button variant="primary" size="sm" onClick={handleShowForm}>
@@ -323,7 +348,7 @@ export default function ResidentFormModal({
                   )}
 
                   {/* Add New Resident Button */}
-                  {searchQuery.length < 2 && (
+                  {!searchQuery.trim() && (
                     <div className="text-center">
                       <Button variant="outline-primary" onClick={handleShowForm}>
                         ➕ Add New Resident

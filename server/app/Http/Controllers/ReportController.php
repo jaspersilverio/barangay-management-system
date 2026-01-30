@@ -7,6 +7,8 @@ use App\Models\Resident;
 use App\Models\Household;
 use App\Models\SoloParent;
 use App\Models\FourPsBeneficiary;
+use App\Models\Blotter;
+use App\Models\IncidentReport;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -610,6 +612,207 @@ class ReportController extends Controller
                 'message' => 'Failed to generate CSV: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Export blotter records to CSV
+     * Follows the same CSV pattern as households export
+     *
+     * @param Request $request
+     * @return StreamedResponse|JsonResponse
+     */
+    public function exportBlottersCsv(Request $request)
+    {
+        try {
+            // STEP 1: Build base query (reuse filters from PDF/Excel exports)
+            $query = Blotter::query()->withoutTrashed();
+
+            if ($request->filled('status')) {
+                $query->byStatus($request->status);
+            }
+
+            if ($request->filled('start_date')) {
+                $endDate = $request->end_date ?? date('Y-m-d');
+                $query->byDateRange($request->start_date, $endDate);
+            }
+
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('case_number', 'like', "%{$search}%")
+                        ->orWhere('incident_location', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('complainant_full_name', 'like', "%{$search}%")
+                        ->orWhere('respondent_full_name', 'like', "%{$search}%")
+                        ->orWhereHas('complainant', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        })
+                        ->orWhereHas('respondent', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // STEP 2: Eager load relationships and sort (alphabetically by case number)
+            $blotters = $query
+                ->with(['complainant.household.purok', 'respondent.household.purok', 'official', 'creator'])
+                ->orderBy('case_number', 'asc')
+                ->get();
+
+            Log::info('Blotter CSV export initiated', [
+                'blotter_count' => $blotters->count(),
+                'filters' => $request->all(),
+            ]);
+
+            // STEP 3: Generate filename
+            $filename = 'blotter_records_' . date('Y-m-d') . '.csv';
+
+            // STEP 4: Stream CSV response using shared CSV helpers
+            return response()->streamDownload(function () use ($blotters) {
+                $this->generateBlottersCsvContent($blotters);
+            }, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+                'Pragma' => 'public',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Blotter CSV export failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'filters' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate CSV: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate CSV content for blotter records
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $blotters
+     * @return void
+     */
+    private function generateBlottersCsvContent($blotters): void
+    {
+        $handle = fopen('php://output', 'w');
+
+        if ($handle === false) {
+            throw new \Exception('Failed to open output stream for CSV generation');
+        }
+
+        try {
+            // Add UTF-8 BOM for Excel compatibility
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV headers
+            $headers = [
+                'Case No.',
+                'Complainant',
+                'Respondent',
+                'Incident Title',
+                'Description',
+                'Purok',
+                'Location',
+                'Status',
+                'Date Reported',
+                'Created By',
+            ];
+            $this->writeCsvRow($handle, $headers);
+
+            // Rows
+            foreach ($blotters as $blotter) {
+                $row = $this->buildBlotterRow($blotter);
+                $this->writeCsvRow($handle, $row);
+            }
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Build a CSV row for a blotter record
+     *
+     * @param Blotter $blotter
+     * @return array
+     */
+    private function buildBlotterRow($blotter): array
+    {
+        // Complainant
+        $complainantName = 'N/A';
+        if ($blotter->complainant) {
+            $complainantName = $blotter->complainant->full_name
+                ?? trim(($blotter->complainant->first_name ?? '') . ' ' . ($blotter->complainant->last_name ?? ''));
+        } elseif (!empty($blotter->complainant_full_name)) {
+            $complainantName = $blotter->complainant_full_name;
+        }
+
+        // Respondent
+        $respondentName = 'N/A';
+        if ($blotter->respondent) {
+            $respondentName = $blotter->respondent->full_name
+                ?? trim(($blotter->respondent->first_name ?? '') . ' ' . ($blotter->respondent->last_name ?? ''));
+        } elseif (!empty($blotter->respondent_full_name)) {
+            $respondentName = $blotter->respondent_full_name;
+        }
+
+        // Purok (from complainant household)
+        $purokName = 'N/A';
+        if (
+            $blotter->complainant &&
+            $blotter->complainant->household &&
+            $blotter->complainant->household->purok &&
+            !empty($blotter->complainant->household->purok->name)
+        ) {
+            $purokName = $blotter->complainant->household->purok->name;
+        }
+
+        // Incident title derived from description (short preview)
+        $incidentTitle = 'N/A';
+        if (!empty($blotter->description)) {
+            $incidentTitle = mb_strlen($blotter->description) > 50
+                ? mb_substr($blotter->description, 0, 50) . '...'
+                : $blotter->description;
+        }
+
+        // Description (cap length but keep full text reasonably intact)
+        $description = $blotter->description ?? 'N/A';
+        if (mb_strlen($description) > 200) {
+            $description = mb_substr($description, 0, 200) . '...';
+        }
+
+        // Location and status
+        $location = $blotter->incident_location ?? 'N/A';
+        $status = ucfirst($blotter->status ?? 'Open');
+
+        // Created by
+        $createdBy = 'N/A';
+        if ($blotter->creator && !empty($blotter->creator->name)) {
+            $createdBy = $blotter->creator->name;
+        }
+
+        // Date reported
+        $dateReported = $this->formatDate($blotter->created_at);
+
+        return [
+            $blotter->case_number ?? 'N/A',
+            $complainantName ?: 'N/A',
+            $respondentName ?: 'N/A',
+            $incidentTitle,
+            $description,
+            $purokName,
+            $location,
+            $status,
+            $dateReported,
+            $createdBy,
+        ];
     }
 
     /**
@@ -1586,6 +1789,370 @@ class ReportController extends Controller
             $dependentChildrenCount,
             $createdDate,
             $updatedDate
+        ];
+    }
+
+    /**
+     * Export vaccinations report to CSV
+     * Returns Excel-compatible CSV with UTF-8 encoding
+     *
+     * @param Request $request
+     * @return StreamedResponse|JsonResponse
+     */
+    public function exportVaccinationsCsv(Request $request)
+    {
+        try {
+            // STEP 1: Extract and validate filters
+            $filters = $request->only(['purok_id', 'status', 'vaccine_name', 'date_from', 'date_to', 'age_group', 'search']);
+
+            // STEP 2: Build query with proper eager loading
+            $query = \App\Models\Vaccination::with(['resident.household.purok']);
+
+            // STEP 3: Role-based filtering for purok leaders
+            $user = Auth::user();
+            if ($user && $user->role === 'purok_leader' && $user->assigned_purok_id) {
+                $query->byPurok($user->assigned_purok_id);
+            }
+
+            // STEP 4: Apply filters
+            if (!empty($filters['purok_id'])) {
+                $query->byPurok($filters['purok_id']);
+            }
+
+            if (!empty($filters['status'])) {
+                $query->byStatus($filters['status']);
+            }
+
+            if (!empty($filters['vaccine_name'])) {
+                $query->byVaccine($filters['vaccine_name']);
+            }
+
+            if (!empty($filters['date_from']) && !empty($filters['date_to'])) {
+                $query->byDateRange($filters['date_from'], $filters['date_to']);
+            }
+
+            if (!empty($filters['age_group'])) {
+                switch ($filters['age_group']) {
+                    case 'children':
+                        $query->byAgeGroup(0, 17);
+                        break;
+                    case 'adults':
+                        $query->byAgeGroup(18, 59);
+                        break;
+                    case 'seniors':
+                        $query->byAgeGroup(60);
+                        break;
+                }
+            }
+
+            if (!empty($filters['search'])) {
+                $search = $filters['search'];
+                $query->where(function ($q) use ($search) {
+                    $q->where('vaccine_name', 'like', "%{$search}%")
+                        ->orWhere('dose_number', 'like', "%{$search}%")
+                        ->orWhere('administered_by', 'like', "%{$search}%")
+                        ->orWhereHas('resident', function ($subQ) use ($search) {
+                            $subQ->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                });
+            }
+
+            // STEP 5: Execute query and sort
+            $vaccinations = $query->orderBy('date_administered', 'desc')->get();
+
+            Log::info('Vaccinations CSV export initiated', [
+                'vaccination_count' => $vaccinations->count(),
+                'filters' => $filters
+            ]);
+
+            // STEP 6: Generate filename
+            $filename = 'vaccination_records_' . date('Y-m-d') . '.csv';
+
+            // STEP 7: Stream CSV response
+            return response()->streamDownload(function () use ($vaccinations) {
+                $this->generateVaccinationsCsvContent($vaccinations);
+            }, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+                'Pragma' => 'public'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Vaccinations CSV export failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'filters' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate CSV: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Export incident reports to CSV
+     * Uses the same CSV helpers as other reports for Excel compatibility
+     */
+    public function exportIncidentReportsCsv(Request $request)
+    {
+        try {
+            // STEP 1: Build base query using same filters as PDF export
+            $query = IncidentReport::query()->withoutTrashed();
+
+            if ($request->filled('status')) {
+                $query->byStatus($request->status);
+            }
+
+            if ($request->filled('start_date')) {
+                $endDate = $request->end_date ?? date('Y-m-d');
+                $query->byDateRange($request->start_date, $endDate);
+            }
+
+            if ($request->filled('search')) {
+                $query->search($request->search);
+            }
+
+            // STEP 2: Eager load relationships and sort (most recent incidents first)
+            $incidentReports = $query
+                ->with(['reportingOfficer', 'creator'])
+                ->orderBy('incident_date', 'desc')
+                ->orderBy('incident_time', 'desc')
+                ->get();
+
+            Log::info('Incident reports CSV export initiated', [
+                'incident_count' => $incidentReports->count(),
+                'filters' => $request->all(),
+            ]);
+
+            // STEP 3: Generate filename
+            $filename = 'incident_reports_' . date('Y-m-d') . '.csv';
+
+            // STEP 4: Stream CSV response
+            return response()->streamDownload(function () use ($incidentReports) {
+                $this->generateIncidentReportsCsvContent($incidentReports);
+            }, $filename, [
+                'Content-Type' => 'text/csv; charset=UTF-8',
+                'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+                'Cache-Control' => 'private, max-age=0, must-revalidate',
+                'Pragma' => 'public',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Incident reports CSV export failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'filters' => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate CSV: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Generate CSV content for incident reports
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $incidentReports
+     * @return void
+     */
+    private function generateIncidentReportsCsvContent($incidentReports): void
+    {
+        $handle = fopen('php://output', 'w');
+
+        if ($handle === false) {
+            throw new \Exception('Failed to open output stream for CSV generation');
+        }
+
+        try {
+            // Add UTF-8 BOM for Excel compatibility
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // CSV headers
+            $headers = [
+                'Incident ID',
+                'Incident Title',
+                'Description',
+                'Location',
+                'Incident Date',
+                'Incident Time',
+                'Status',
+                'Persons Involved',
+                'Reporting Officer',
+                'Created By',
+                'Notes',
+            ];
+            $this->writeCsvRow($handle, $headers);
+
+            foreach ($incidentReports as $incident) {
+                $row = $this->buildIncidentReportRow($incident);
+                $this->writeCsvRow($handle, $row);
+            }
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Build a single CSV row for an incident report
+     *
+     * @param IncidentReport $incident
+     * @return array
+     */
+    private function buildIncidentReportRow($incident): array
+    {
+        // Persons involved: may be stored as JSON array or plain string
+        $personsInvolved = 'N/A';
+        if (is_array($incident->persons_involved)) {
+            $flattened = array_filter(array_map('trim', $incident->persons_involved));
+            if (!empty($flattened)) {
+                $personsInvolved = implode('; ', $flattened);
+            }
+        } elseif (is_string($incident->persons_involved) && trim($incident->persons_involved) !== '') {
+            $personsInvolved = $incident->persons_involved;
+        }
+
+        $reportingOfficer = $incident->reportingOfficer && !empty($incident->reportingOfficer->name)
+            ? $incident->reportingOfficer->name
+            : 'N/A';
+
+        $createdBy = $incident->creator && !empty($incident->creator->name)
+            ? $incident->creator->name
+            : 'N/A';
+
+        $incidentDate = $this->formatDate($incident->incident_date);
+        $incidentTime = $incident->incident_time ?? 'N/A';
+
+        $status = $incident->status ? ucfirst($incident->status) : 'N/A';
+
+        return [
+            (string) $incident->id,
+            $incident->incident_title ?? 'N/A',
+            $incident->description ?? 'N/A',
+            $incident->location ?? 'N/A',
+            $incidentDate,
+            $incidentTime,
+            $status,
+            $personsInvolved,
+            $reportingOfficer,
+            $createdBy,
+            $incident->notes ?? 'N/A',
+        ];
+    }
+
+    /**
+     * Generate CSV content from vaccinations collection
+     *
+     * @param \Illuminate\Database\Eloquent\Collection $vaccinations
+     * @return void
+     */
+    private function generateVaccinationsCsvContent($vaccinations): void
+    {
+        $handle = fopen('php://output', 'w');
+
+        if ($handle === false) {
+            throw new \Exception('Failed to open output stream for CSV generation');
+        }
+
+        try {
+            // Add UTF-8 BOM for Excel compatibility
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+
+            // Write CSV headers
+            $headers = [
+                'No',
+                'Resident Name',
+                'Sex',
+                'Age',
+                'Purok',
+                'Address',
+                'Vaccine Name',
+                'Dose Number',
+                'Date Administered',
+                'Next Dose Date',
+                'Status',
+                'Administered By',
+                'Administered At',
+                'Notes'
+            ];
+            $this->writeCsvRow($handle, $headers);
+
+            // Process each vaccination
+            $rowNumber = 1;
+            foreach ($vaccinations as $vaccination) {
+                $row = $this->buildVaccinationRow($vaccination, $rowNumber++);
+                $this->writeCsvRow($handle, $row);
+            }
+        } finally {
+            fclose($handle);
+        }
+    }
+
+    /**
+     * Build a single CSV row for a vaccination
+     *
+     * @param \App\Models\Vaccination $vaccination
+     * @param int $rowNumber
+     * @return array
+     */
+    private function buildVaccinationRow($vaccination, int $rowNumber): array
+    {
+        // Get resident info
+        $residentName = 'N/A';
+        $sex = 'N/A';
+        $age = 'N/A';
+        $purokName = 'N/A';
+        $address = 'N/A';
+
+        if ($vaccination->resident) {
+            $resident = $vaccination->resident;
+            $residentName = trim(($resident->last_name ?? '') . ', ' . ($resident->first_name ?? '') . ' ' . ($resident->middle_name ?? ''));
+            $residentName = trim($residentName) ?: 'N/A';
+            $sex = ucfirst(strtolower($resident->sex ?? 'N/A'));
+
+            if ($resident->birthdate) {
+                try {
+                    $age = (string) Carbon::parse($resident->birthdate)->age;
+                } catch (\Exception $e) {
+                    $age = 'N/A';
+                }
+            }
+
+            if ($resident->household) {
+                $address = $resident->household->address ?? 'N/A';
+                if ($resident->household->purok) {
+                    $purokName = $resident->household->purok->name ?? 'N/A';
+                }
+            }
+        }
+
+        // Format dates
+        $dateAdministered = $this->formatDate($vaccination->date_administered);
+        $nextDoseDate = $this->formatDate($vaccination->next_dose_date);
+
+        // Build row array
+        return [
+            (string) $rowNumber,
+            $residentName,
+            $sex,
+            $age,
+            $purokName,
+            $address,
+            $vaccination->vaccine_name ?? 'N/A',
+            $vaccination->dose_number ?? 'N/A',
+            $dateAdministered,
+            $nextDoseDate,
+            ucfirst(strtolower($vaccination->status ?? 'N/A')),
+            $vaccination->administered_by ?? 'N/A',
+            $vaccination->administered_at ?? 'N/A',
+            $vaccination->notes ?? ''
         ];
     }
 

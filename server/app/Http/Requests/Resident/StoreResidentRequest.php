@@ -148,7 +148,26 @@ class StoreResidentRequest extends BaseFormRequest
             ],
             'purok_id' => [
                 'nullable',
-                'string'
+                function ($attribute, $value, $fail) {
+                    // Only validate if purok_id is provided and not empty
+                    if ($value !== null && $value !== '' && $value !== 0 && $value !== '0') {
+                        // Convert to integer if it's a string
+                        $purokId = is_numeric($value) ? (int)$value : null;
+                        if ($purokId === null || $purokId <= 0) {
+                            $fail('The purok ID must be a valid number.');
+                            return;
+                        }
+                        // Check if purok exists - use try-catch to handle any database issues
+                        try {
+                            if (!\App\Models\Purok::where('id', $purokId)->exists()) {
+                                $fail('The selected purok does not exist.');
+                            }
+                        } catch (\Exception $e) {
+                            // If there's a database error, log it but don't fail validation
+                            \Log::warning('Error checking purok existence: ' . $e->getMessage());
+                        }
+                    }
+                },
             ],
         ];
     }
@@ -240,6 +259,7 @@ class StoreResidentRequest extends BaseFormRequest
             'remarks',
             'relationship_to_head',
             'household_id', // Add household_id to optional fields
+            'purok_id', // Add purok_id to optional fields
         ];
 
         foreach ($optionalFields as $field) {
@@ -323,6 +343,22 @@ class StoreResidentRequest extends BaseFormRequest
                 }
             }
             // If household_id is null, relationship_to_head should already be null from prepareForValidation
+
+            // Additional validation: Either household_id or purok_id must be provided
+            // Only validate this if household_id is not set (for unassigned residents)
+            $householdId = $this->input('household_id');
+            $purokId = $this->input('purok_id');
+            
+            // Check if household_id is empty
+            $householdIdEmpty = ($householdId === null || $householdId === '' || $householdId === 0 || $householdId === '0');
+            
+            // Only require purok_id if household_id is not set
+            if ($householdIdEmpty) {
+                $purokIdEmpty = ($purokId === null || $purokId === '' || $purokId === 0 || $purokId === '0');
+                if ($purokIdEmpty) {
+                    $validator->errors()->add('purok_id', 'Purok is required when registering a resident without a household.');
+                }
+            }
 
             // Additional validation: Check for reasonable age based on birthdate
             if ($this->filled('birthdate')) {

@@ -352,7 +352,7 @@ class ResidentController extends Controller
             // Clean up data - convert empty strings to null for nullable fields
             $createData = $data;
             $nullableFields = [
-                'household_id', 'middle_name', 'suffix', 'place_of_birth', 'nationality', 
+                'household_id', 'purok_id', 'middle_name', 'suffix', 'place_of_birth', 'nationality', 
                 'religion', 'contact_number', 'email', 'valid_id_type', 'valid_id_number',
                 'relationship_to_head', 'employer_workplace', 'educational_attainment',
                 'remarks', 'photo_path', 'resident_status'
@@ -362,6 +362,29 @@ class ResidentController extends Controller
                 if (isset($createData[$field]) && $createData[$field] === '') {
                     $createData[$field] = null;
                 }
+            }
+
+            // If household_id is set, get purok_id from household if purok_id is not provided
+            if (isset($createData['household_id']) && $createData['household_id'] && !isset($createData['purok_id'])) {
+                $household = \App\Models\Household::find($createData['household_id']);
+                if ($household && $household->purok_id) {
+                    $createData['purok_id'] = $household->purok_id;
+                }
+            }
+
+            // Check if purok_id column exists in the residents table before trying to save it
+            // If column doesn't exist, remove purok_id from createData to avoid SQL errors
+            try {
+                $schema = \Illuminate\Support\Facades\Schema::getColumnListing('residents');
+                if (!in_array('purok_id', $schema)) {
+                    // Column doesn't exist, remove purok_id from data
+                    unset($createData['purok_id']);
+                    Log::info('purok_id column does not exist in residents table, removing from createData');
+                }
+            } catch (\Exception $e) {
+                // If we can't check the schema, remove purok_id to be safe
+                unset($createData['purok_id']);
+                Log::warning('Could not check if purok_id column exists, removing from createData: ' . $e->getMessage());
             }
             
             // Ensure boolean fields are actual booleans

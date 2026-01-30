@@ -231,7 +231,6 @@ const HouseholdListPage = React.memo(() => {
                 variant="outline-primary"
                 className="btn-outline-brand"
                 onClick={handleSearchSubmit}
-                disabled={isLoading}
               >
                 <i className="fas fa-search me-2" />
                 Search
@@ -244,7 +243,6 @@ const HouseholdListPage = React.memo(() => {
                   <Form.Select 
                     value={purokId} 
                     onChange={handlePurokChange}
-                    disabled={isLoading}
                     className="form-select-custom"
                   >
                     <option value="">All Puroks</option>
@@ -412,7 +410,7 @@ const HouseholdListPage = React.memo(() => {
               </div>
               <Pagination className="mb-0">
                 <Pagination.Prev 
-                  disabled={page <= 1 || isLoading}
+                  disabled={page <= 1}
                   onClick={() => handlePageChange(Math.max(1, page - 1))}
                   className="pagination-btn"
                 />
@@ -479,7 +477,7 @@ const HouseholdListPage = React.memo(() => {
                   return pages
                 })()}
                 <Pagination.Next 
-                  disabled={page >= totalPages || isLoading}
+                  disabled={page >= totalPages}
                   onClick={() => handlePageChange(page + 1)}
                   className="pagination-btn"
                 />

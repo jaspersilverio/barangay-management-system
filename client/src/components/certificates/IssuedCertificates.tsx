@@ -14,14 +14,12 @@ import {
   Eye, 
   Download,
   Printer,
-  RefreshCw,
   XCircle
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { 
   getIssuedCertificates, 
   createIssuedCertificate,
-  regenerateCertificatePdf,
   invalidateCertificate,
   downloadCertificatePdf,
   previewCertificatePdf,
@@ -45,9 +43,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   const [approvedRequests, setApprovedRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showActionModal, setShowActionModal] = useState(false)
+  const [showInvalidateModal, setShowInvalidateModal] = useState(false)
   const [selectedCertificate, setSelectedCertificate] = useState<IssuedCertificateType | null>(null)
-  const [actionType, setActionType] = useState<'invalidate' | 'regenerate'>('invalidate')
   // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -74,7 +71,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(searchInput)
-      setCurrentPage(1) // Reset to first page when search changes
+      setCurrentPage(1)
     }, 300)
 
     return () => clearTimeout(timeoutId)
@@ -160,55 +157,38 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
         signed_by: '',
         signature_position: ''
       })
-             setResidentSearchTerm('')
-       setRequestSearchTerm('')
-       fetchCertificates()
+      setResidentSearchTerm('')
+      setRequestSearchTerm('')
+      fetchCertificates()
     } catch (error) {
       console.error('Failed to create certificate:', error)
     }
   }
 
-  const handleAction = async () => {
+  const handleInvalidate = async () => {
     if (!selectedCertificate) return
 
     try {
-      switch (actionType) {
-        case 'invalidate':
-          await invalidateCertificate(selectedCertificate.id)
-          break
-        case 'regenerate':
-          await regenerateCertificatePdf(selectedCertificate.id)
-          break
-      }
-      
-      setShowActionModal(false)
+      await invalidateCertificate(selectedCertificate.id)
+      setShowInvalidateModal(false)
       setSelectedCertificate(null)
       fetchCertificates()
     } catch (error) {
-      console.error('Failed to perform action:', error)
+      console.error('Failed to invalidate certificate:', error)
     }
   }
 
-  const [downloadingId, setDownloadingId] = useState<number | null>(null)
-  const [previewingId, setPreviewingId] = useState<number | null>(null)
-  const [printingId, setPrintingId] = useState<number | null>(null)
-
   const handleDownloadPdf = async (certificate: IssuedCertificateType) => {
     try {
-      setDownloadingId(certificate.id)
-      
-      // Add timeout to prevent indefinite loading
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000)
       })
       
       const downloadPromise = downloadCertificatePdf(certificate.id)
       const blob = await Promise.race([downloadPromise, timeoutPromise]) as Blob
       
-      // Generate filename
       const filename = `${certificate.certificate_type}_${certificate.certificate_number}.pdf`
       
-      // Create blob URL and download
       const url = window.URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
@@ -221,19 +201,13 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       console.error('Failed to download PDF:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to download certificate PDF'
       alert(errorMessage)
-      setError(errorMessage)
-    } finally {
-      setDownloadingId(null)
     }
   }
 
   const handlePreviewPdf = async (certificate: IssuedCertificateType) => {
     try {
-      setPreviewingId(certificate.id)
-      
-      // Add timeout to prevent indefinite loading
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000)
       })
       
       const previewPromise = previewCertificatePdf(certificate.id)
@@ -251,19 +225,13 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       console.error('Failed to preview PDF:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to preview certificate PDF'
       alert(errorMessage)
-      setError(errorMessage)
-    } finally {
-      setPreviewingId(null)
     }
   }
 
   const handlePrintPdf = async (certificate: IssuedCertificateType) => {
     try {
-      setPrintingId(certificate.id)
-      
-      // Add timeout to prevent indefinite loading
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000) // 30 second timeout
+        setTimeout(() => reject(new Error('Request timeout. Please try again.')), 30000)
       })
       
       const printPromise = printCertificatePdf(certificate.id)
@@ -272,9 +240,6 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       console.error('Failed to print PDF:', error)
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to print certificate PDF'
       alert(errorMessage)
-      setError(errorMessage)
-    } finally {
-      setPrintingId(null)
     }
   }
 
@@ -438,60 +403,32 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                           size="sm"
                           variant="outline"
                           onClick={() => handlePreviewPdf(certificate)}
-                          disabled={previewingId === certificate.id}
                           title="Preview PDF"
                         >
-                          {previewingId === certificate.id ? (
-                            <RefreshCw size={14} className="spinning" />
-                          ) : (
-                            <Eye size={14} />
-                          )}
+                          <Eye size={14} />
                         </ButtonComponent>
                         <ButtonComponent
                           size="sm"
                           variant="outline"
                           onClick={() => handleDownloadPdf(certificate)}
-                          disabled={downloadingId === certificate.id}
                           title="Download PDF"
                         >
-                          {downloadingId === certificate.id ? (
-                            <RefreshCw size={14} className="spinning" />
-                          ) : (
-                            <Download size={14} />
-                          )}
+                          <Download size={14} />
                         </ButtonComponent>
                         <ButtonComponent
                           size="sm"
                           variant="outline"
                           onClick={() => handlePrintPdf(certificate)}
-                          disabled={printingId === certificate.id}
                           title="Print PDF"
                         >
-                          {printingId === certificate.id ? (
-                            <RefreshCw size={14} className="spinning" />
-                          ) : (
-                            <Printer size={14} />
-                          )}
+                          <Printer size={14} />
                         </ButtonComponent>
                         <ButtonComponent
                           size="sm"
                           variant="outline"
                           onClick={() => {
                             setSelectedCertificate(certificate)
-                            setActionType('regenerate')
-                            setShowActionModal(true)
-                          }}
-                          title="Regenerate PDF"
-                        >
-                          <RefreshCw size={14} />
-                        </ButtonComponent>
-                        <ButtonComponent
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedCertificate(certificate)
-                            setActionType('invalidate')
-                            setShowActionModal(true)
+                            setShowInvalidateModal(true)
                           }}
                           disabled={!certificate.is_valid}
                           title="Invalidate Certificate"
@@ -550,59 +487,59 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
         </Modal.Header>
         <Modal.Body className="modal-body-custom">
           <Form>
-                         <Form.Group className="mb-3">
-               <Form.Label>Certificate Request</Form.Label>
-               <div className="position-relative">
-                 <Form.Control
-                   id="request-search"
-                   name="request-search"
-                   type="text"
-                   placeholder="Search for an approved request..."
-                   value={requestSearchTerm}
-                   onChange={(e) => setRequestSearchTerm(e.target.value)}
-                   onFocus={() => setRequestSearchTerm('')}
-                 />
-                 {requestSearchTerm && (
-                   <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
-                     {filteredRequests.length > 0 ? (
-                       filteredRequests.map((request) => (
-                         <div
-                           key={request.id}
-                           className="px-3 py-2"
-                           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                           style={{ cursor: 'pointer' }}
-                           onClick={() => {
-                             setFormData({ 
-                               ...formData, 
-                               certificate_request_id: request.id,
-                               resident_id: request.resident_id || 0,
-                               certificate_type: request.certificate_type || 'barangay_clearance',
-                               purpose: request.purpose || ''
-                             })
-                             setRequestSearchTerm(`${request.resident?.full_name} - ${getCertificateTypeLabel(request.certificate_type)}`)
-                           }}
-                         >
-                           <div className="fw-medium">{request.resident?.full_name}</div>
-                           <small className="text-muted">
-                             {getCertificateTypeLabel(request.certificate_type)} • {request.purpose?.substring(0, 50)}...
-                           </small>
-                         </div>
-                       ))
-                     ) : (
-                       <div className="px-3 py-2 text-muted">No approved requests found</div>
-                     )}
-                   </div>
-                 )}
-                 {formData.certificate_request_id > 0 && (
-                   <div className="mt-2">
-                     <small className="text-success">
-                       Selected: {approvedRequests.find(r => r.id === formData.certificate_request_id)?.resident?.full_name} - {getCertificateTypeLabel(approvedRequests.find(r => r.id === formData.certificate_request_id)?.certificate_type || '')}
-                     </small>
-                   </div>
-                 )}
-               </div>
-             </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Certificate Request</Form.Label>
+              <div className="position-relative">
+                <Form.Control
+                  id="request-search"
+                  name="request-search"
+                  type="text"
+                  placeholder="Search for an approved request..."
+                  value={requestSearchTerm}
+                  onChange={(e) => setRequestSearchTerm(e.target.value)}
+                  onFocus={() => setRequestSearchTerm('')}
+                />
+                {requestSearchTerm && (
+                  <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
+                    {filteredRequests.length > 0 ? (
+                      filteredRequests.map((request) => (
+                        <div
+                          key={request.id}
+                          className="px-3 py-2"
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setFormData({ 
+                              ...formData, 
+                              certificate_request_id: request.id,
+                              resident_id: request.resident_id || 0,
+                              certificate_type: request.certificate_type || 'barangay_clearance',
+                              purpose: request.purpose || ''
+                            })
+                            setRequestSearchTerm(`${request.resident?.full_name} - ${getCertificateTypeLabel(request.certificate_type)}`)
+                          }}
+                        >
+                          <div className="fw-medium">{request.resident?.full_name}</div>
+                          <small className="text-muted">
+                            {getCertificateTypeLabel(request.certificate_type)} • {request.purpose?.substring(0, 50)}...
+                          </small>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="px-3 py-2 text-muted">No approved requests found</div>
+                    )}
+                  </div>
+                )}
+                {formData.certificate_request_id > 0 && (
+                  <div className="mt-2">
+                    <small className="text-success">
+                      Selected: {approvedRequests.find(r => r.id === formData.certificate_request_id)?.resident?.full_name} - {getCertificateTypeLabel(approvedRequests.find(r => r.id === formData.certificate_request_id)?.certificate_type || '')}
+                    </small>
+                  </div>
+                )}
+              </div>
+            </Form.Group>
             
             <Form.Group className="mb-3">
               <Form.Label>Resident</Form.Label>
@@ -737,64 +674,39 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
           <Button variant="secondary" onClick={() => setShowCreateModal(false)} className="btn-brand-secondary">
-            <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
           <ButtonComponent onClick={handleCreateCertificate} className="btn-brand-primary">
-            <i className="fas fa-save me-1"></i>
             Issue Certificate
           </ButtonComponent>
         </Modal.Footer>
       </Modal>
 
-      {/* Action Modal */}
-      <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
+      {/* Invalidate Confirmation Modal */}
+      <Modal show={showInvalidateModal} onHide={() => setShowInvalidateModal(false)}>
         <Modal.Header closeButton className="modal-header-custom">
           <Modal.Title className="modal-title-custom text-brand-primary">
-            {actionType === 'invalidate' && 'Invalidate Certificate'}
-            {actionType === 'regenerate' && 'Regenerate PDF'}
+            Invalidate Certificate
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="modal-body-custom">
           {selectedCertificate && (
             <div className="mb-3">
-              <p>
-                <strong>Certificate Number:</strong> {selectedCertificate.certificate_number}
-              </p>
-              <p>
-                <strong>Resident:</strong> {selectedCertificate.resident?.full_name}
-              </p>
-              <p>
-                <strong>Type:</strong> {getCertificateTypeLabel(selectedCertificate.certificate_type)}
-              </p>
+              <p><strong>Certificate Number:</strong> {selectedCertificate.certificate_number}</p>
+              <p><strong>Resident:</strong> {selectedCertificate.resident?.full_name}</p>
+              <p><strong>Type:</strong> {getCertificateTypeLabel(selectedCertificate.certificate_type)}</p>
             </div>
           )}
-          
-          {actionType === 'invalidate' && (
-            <Alert variant="warning">
-              Are you sure you want to invalidate this certificate? This action cannot be undone.
-            </Alert>
-          )}
-          
-          {actionType === 'regenerate' && (
-            <Alert variant="info">
-              This will regenerate the PDF file for this certificate. The existing PDF will be replaced.
-            </Alert>
-          )}
+          <Alert variant="warning">
+            Are you sure you want to invalidate this certificate? This action cannot be undone.
+          </Alert>
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
-          <Button variant="secondary" onClick={() => setShowActionModal(false)} className="btn-brand-secondary">
-            <i className="fas fa-times me-1"></i>
+          <Button variant="secondary" onClick={() => setShowInvalidateModal(false)} className="btn-brand-secondary">
             Cancel
           </Button>
-          <ButtonComponent 
-            variant={actionType === 'invalidate' ? 'danger' : 'primary'}
-            onClick={handleAction}
-            className={actionType === 'invalidate' ? 'btn-danger' : 'btn-brand-primary'}
-          >
-            <i className={`fas ${actionType === 'invalidate' ? 'fa-ban' : 'fa-redo'} me-1`}></i>
-            {actionType === 'invalidate' && 'Invalidate'}
-            {actionType === 'regenerate' && 'Regenerate'}
+          <ButtonComponent variant="danger" onClick={handleInvalidate} className="btn-danger">
+            Invalidate
           </ButtonComponent>
         </Modal.Footer>
       </Modal>

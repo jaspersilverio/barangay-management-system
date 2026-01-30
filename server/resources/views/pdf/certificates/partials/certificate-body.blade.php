@@ -1,19 +1,24 @@
-<p style="text-align: justify; margin: 15px 0; text-indent: 30px;">
-    This certification is being issued upon the request of the above-named person
-    for <strong>{{ $certificate->purpose }}</strong>.
+{{-- Certificate Purpose --}}
+<p class="purpose-statement">
+    This certification is being issued upon the request of the above-named individual
+    for <strong>{{ strtoupper($certificate->purpose) }}</strong> purposes and for whatever
+    legal intent it may serve.
 </p>
 
-<p style="text-align: justify; margin: 15px 0; text-indent: 30px;">
-    @if($certificate_type === 'clearance')
-        This clearance is valid from
-    @else
-        This certificate is valid from
+@php
+    $issueDate = $certificate->created_at ? \Carbon\Carbon::parse($certificate->created_at) : now();
+    $dayOrdinal = $issueDate->format('jS');
+    $monthYear = $issueDate->format('F, Y');
+@endphp
+<p class="issue-statement">
+    Given this <strong>{{ $dayOrdinal }}</strong> 
+    day of <strong>{{ $monthYear }}</strong>
+    at Barangay {{ $barangay_info['name'] ?? '' }}, 
+    @if(!empty($barangay_info['municipality']))
+        {{ $barangay_info['municipality'] }},
     @endif
-    <strong>{{ $valid_from_formatted ?? \Carbon\Carbon::parse($certificate->valid_from)->format('F d, Y') }}</strong>
-    to <strong>{{ $valid_until_formatted ?? \Carbon\Carbon::parse($certificate->valid_until)->format('F d, Y') }}</strong>.
-</p>
-
-<p style="text-align: justify; margin: 15px 0; text-indent: 30px;">
-    Issued this <strong>{{ $issued_date_formatted ?? \Carbon\Carbon::parse($certificate->created_at)->format('F d, Y') }}</strong>
-    at {{ $barangay_info['name'] ?? 'this barangay' }}, {{ $barangay_info['address'] ?? '' }}.
+    @if(!empty($barangay_info['province']))
+        {{ $barangay_info['province'] }},
+    @endif
+    Philippines.
 </p>

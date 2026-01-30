@@ -1,55 +1,32 @@
-<div style="margin: 20px 0; padding: 15px; border: 1px solid #ddd; background-color: #f9f9f9;">
-    <div class="section-title">Resident Information</div>
-    <table style="width: 100%; border: none;">
+{{-- Resident Information Box (Compact) --}}
+<div class="info-box">
+    <table>
         <tr>
-            <td style="border: none; padding: 5px 0; width: 30%;"><strong>Full Name:</strong></td>
-            <td style="border: none; padding: 5px 0;">{{ $resident->full_name }}</td>
+            <td class="info-label">Full Name:</td>
+            <td><strong>{{ strtoupper($resident->full_name) }}</strong></td>
+            @if($resident->age)
+            <td class="info-label" style="width: 15%;">Age:</td>
+            <td style="width: 20%;">{{ $resident->age }} yrs old</td>
+            @endif
         </tr>
         @if($resident->household && $resident->household->address)
         <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Address:</strong></td>
-            <td style="border: none; padding: 5px 0;">
+            <td class="info-label">Address:</td>
+            <td colspan="3">
                 {{ $resident->household->address }}
-                @if($resident->household->purok)
-                    , Purok {{ $resident->household->purok->name }}
-                @endif
+                @if($resident->household->purok), {{ $resident->household->purok->name }}@endif
             </td>
         </tr>
         @endif
-        @if($resident->birthdate)
         <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Date of Birth:</strong></td>
-            <td style="border: none; padding: 5px 0;">
-                {{ \Carbon\Carbon::parse($resident->birthdate)->format('F d, Y') }}
-                @if($resident->age)
-                    ({{ $resident->age }} years old)
-                @endif
-            </td>
+            @if($resident->civil_status)
+            <td class="info-label">Civil Status:</td>
+            <td style="text-transform: capitalize;">{{ $resident->civil_status }}</td>
+            @endif
+            @if($resident->sex)
+            <td class="info-label" style="width: 15%;">Sex:</td>
+            <td style="text-transform: capitalize; width: 20%;">{{ $resident->sex }}</td>
+            @endif
         </tr>
-        @endif
-        @if($resident->place_of_birth)
-        <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Place of Birth:</strong></td>
-            <td style="border: none; padding: 5px 0;">{{ $resident->place_of_birth }}</td>
-        </tr>
-        @endif
-        @if($resident->civil_status)
-        <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Civil Status:</strong></td>
-            <td style="border: none; padding: 5px 0;" class="text-capitalize">{{ $resident->civil_status }}</td>
-        </tr>
-        @endif
-        @if($resident->sex)
-        <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Sex:</strong></td>
-            <td style="border: none; padding: 5px 0;" class="text-capitalize">{{ $resident->sex }}</td>
-        </tr>
-        @endif
-        @if($resident->contact_number)
-        <tr>
-            <td style="border: none; padding: 5px 0;"><strong>Contact Number:</strong></td>
-            <td style="border: none; padding: 5px 0;">{{ $resident->contact_number }}</td>
-        </tr>
-        @endif
     </table>
 </div>
