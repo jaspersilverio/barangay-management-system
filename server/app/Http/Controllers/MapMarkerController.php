@@ -30,11 +30,11 @@ class MapMarkerController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow admin, captain, and staff to create markers
+        if (!in_array(Auth::user()->role, ['admin', 'captain', 'staff'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only admins can create markers.',
+                'message' => 'Unauthorized. You do not have permission to create markers.',
             ], 403);
         }
 
@@ -78,11 +78,11 @@ class MapMarkerController extends Controller
      */
     public function update(Request $request, MapMarker $mapMarker): JsonResponse
     {
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow admin, captain, and staff to update markers
+        if (!in_array(Auth::user()->role, ['admin', 'captain', 'staff'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only admins can update markers.',
+                'message' => 'Unauthorized. You do not have permission to update markers.',
             ], 403);
         }
 
@@ -109,11 +109,11 @@ class MapMarkerController extends Controller
      */
     public function destroy(MapMarker $mapMarker): JsonResponse
     {
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow admin, captain, and staff to delete markers
+        if (!in_array(Auth::user()->role, ['admin', 'captain', 'staff'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only admins can delete markers.',
+                'message' => 'Unauthorized. You do not have permission to delete markers.',
             ], 403);
         }
 
@@ -141,11 +141,11 @@ class MapMarkerController extends Controller
      */
     public function assignHousehold(Request $request, MapMarker $mapMarker): JsonResponse
     {
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow admin, captain, and staff to assign households to markers
+        if (!in_array(Auth::user()->role, ['admin', 'captain', 'staff'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only admins can assign households.',
+                'message' => 'Unauthorized. You do not have permission to assign households.',
             ], 403);
         }
 
@@ -168,11 +168,11 @@ class MapMarkerController extends Controller
      */
     public function removeHousehold(MapMarker $mapMarker): JsonResponse
     {
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow admin, captain, and staff to remove household assignments
+        if (!in_array(Auth::user()->role, ['admin', 'captain', 'staff'])) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthorized. Only admins can remove household assignments.',
+                'message' => 'Unauthorized. You do not have permission to remove household assignments.',
             ], 403);
         }
 

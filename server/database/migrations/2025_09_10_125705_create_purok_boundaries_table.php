@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('purok_boundaries')) {
+            return;
+        }
+
         Schema::create('purok_boundaries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('purok_id')->nullable()->constrained('puroks')->onDelete('set null');

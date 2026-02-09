@@ -1,5 +1,20 @@
 import api from './api'
 
+/** Session cache so dashboard shows data immediately when switching back (no loading) */
+const dashboardSessionCache: Record<string, unknown> = {}
+
+export function getDashboardCached<T>(key: string): T | undefined {
+  return dashboardSessionCache[key] as T | undefined
+}
+
+export function setDashboardCached<T>(key: string, value: T): void {
+  dashboardSessionCache[key] = value
+}
+
+export function clearDashboardCache(): void {
+  Object.keys(dashboardSessionCache).forEach((k) => delete dashboardSessionCache[k])
+}
+
 export type DashboardSummary = {
   total_households: number
   total_residents: number

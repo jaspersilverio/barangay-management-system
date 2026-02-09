@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
-import { getVaccinationSummary } from '../../services/dashboard.service'
+import { getVaccinationSummary, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
+import type { VaccinationSummary } from '../../services/dashboard.service'
 import { Syringe } from 'lucide-react'
 
 const COLORS = {
@@ -10,21 +11,28 @@ const COLORS = {
   overdue: '#dc3545',                 // red (warning emphasis)
 }
 
+const CACHE_KEY = 'vaccinationSummary'
+
 const VaccinationStatusChart = React.memo(() => {
-  const [data, setData] = useState<any>(null)
+  const cached = getDashboardCached<VaccinationSummary>(CACHE_KEY)
+  const [data, setData] = useState<VaccinationSummary | null>(cached ?? null)
   const [isError, setIsError] = useState(false)
   const [error, setError] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!cached)
 
-  // Manual data fetching
   useEffect(() => {
+    if (cached != null) {
+      setData(cached)
+      setIsLoading(false)
+      return
+    }
     const fetchData = async () => {
-      setIsLoading(true)
       setIsError(false)
       try {
         const response = await getVaccinationSummary()
         if (response.success) {
           setData(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         } else {
           throw new Error(response.message || 'Failed to fetch vaccination data')
         }
@@ -35,7 +43,6 @@ const VaccinationStatusChart = React.memo(() => {
         setIsLoading(false)
       }
     }
-
     fetchData()
   }, [])
 

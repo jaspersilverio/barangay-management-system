@@ -37,6 +37,7 @@ export async function listResidents(params: {
   pwds?: boolean
   children?: boolean
   unassigned?: boolean
+  household_id?: number | string
 }) {
   const res = await api.get('/residents', { params })
   return res.data as { success: boolean; data: any; message: string | null; errors: any }
@@ -223,6 +224,7 @@ export async function updateResident(id: number | string, payload: Partial<Resid
   }
   if (payload.is_pwd !== undefined) formData.append('is_pwd', payload.is_pwd.toString())
   if (payload.is_pregnant !== undefined) formData.append('is_pregnant', payload.is_pregnant.toString())
+  if (payload.is_solo_parent !== undefined) formData.append('is_solo_parent', payload.is_solo_parent.toString())
   if (payload.resident_status !== undefined) formData.append('resident_status', payload.resident_status)
   if (payload.remarks !== undefined) {
     if (!isEmpty(payload.remarks)) {
@@ -238,8 +240,12 @@ export async function updateResident(id: number | string, payload: Partial<Resid
       formData.append('photo', payload.photo)
     }
   }
+
+  // PHP does not parse FormData for PUT requests - $_POST stays empty.
+  // Use POST with _method=PUT (method spoofing) so Laravel routes correctly and PHP parses the body.
+  formData.append('_method', 'PUT')
   
-  const res = await api.put(`/residents/${id}`, formData, {
+  const res = await api.post(`/residents/${id}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

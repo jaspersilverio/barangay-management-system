@@ -8,7 +8,7 @@ import blotterService from '../services/blotter.service'
 import { approveIncidentReport, rejectIncidentReport } from '../services/incident-reports.service'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
-import { getCaptainSignature } from '../services/users.service'
+import { getBarangayInfo } from '../services/barangay-info.service'
 
 export default function ApprovalCenter() {
   const { user } = useAuth()
@@ -45,10 +45,12 @@ export default function ApprovalCenter() {
   const checkSignatureStatus = async () => {
     try {
       setCheckingSignature(true)
-      const response = await getCaptainSignature()
-      if (response.success) {
-        setHasSignature(response.data.has_signature)
-        setSignatureUrl(response.data.signature_url)
+      const response = await getBarangayInfo()
+      const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      if (response.success && response.data) {
+        const path = response.data.captain_signature_path
+        setHasSignature(!!path)
+        setSignatureUrl(path ? `${baseUrl}/storage/${path}` : null)
       }
     } catch (error) {
       console.error('Failed to check signature status:', error)
@@ -250,10 +252,10 @@ export default function ApprovalCenter() {
             Signature Required
           </Alert.Heading>
           <p className="mb-2">
-            <strong>No captain signature has been uploaded.</strong> You must upload a signature before approving any requests.
+            <strong>No Kapitan signature is set.</strong> Upload a signature in Barangay Settings so it appears on approved certificates and documents.
           </p>
           <p className="mb-0 small">
-            Please go to <strong>User Management</strong> page and use the "Manage Signature" button to upload your official signature.
+            Go to <strong>Settings → Barangay Information</strong> and upload the <strong>Kapitan Signature</strong> image.
           </p>
         </Alert>
       )}
@@ -576,9 +578,9 @@ export default function ApprovalCenter() {
                       ) : (
                         <Alert variant="warning" className="mb-0">
                           <AlertCircle className="w-4 h-4 me-2" />
-                          <strong>No signature uploaded.</strong>
+                          <strong>No signature set.</strong>
                           <br />
-                          <small>You must upload a signature before approving requests. Go to <strong>User Management</strong> to upload your signature.</small>
+                          <small>Upload the Kapitan signature in <strong>Settings → Barangay Information</strong> so it appears on approved documents.</small>
                         </Alert>
                       )}
                     </Col>
@@ -601,7 +603,7 @@ export default function ApprovalCenter() {
                       {!hasSignature && (
                         <Alert variant="danger" className="mb-3">
                           <AlertCircle className="w-4 h-4 me-2" />
-                          <strong>Approval Blocked:</strong> You cannot approve requests without an uploaded signature. Please upload your signature first.
+                          <strong>Approval blocked:</strong> Set the Kapitan signature in <strong>Settings → Barangay Information</strong> first.
                         </Alert>
                       )}
                       <Form.Group className="mb-2">

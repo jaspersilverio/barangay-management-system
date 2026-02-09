@@ -1,12 +1,11 @@
-{{-- Validity & Verification Section (Compact) --}}
 <div style="margin-top: 10px;">
     <table style="width: 100%; border: none; margin: 0; font-size: 9pt;">
         <tr>
             <td style="border: none; padding: 2px 0; width: 50%;">
-                <strong>Valid From:</strong> {{ $valid_from_formatted ?? \Carbon\Carbon::parse($certificate->valid_from)->format('F d, Y') }}
+                <strong>Valid From:</strong> {{ $valid_from_formatted ?? (isset($certificate->valid_from) && $certificate->valid_from ? \Carbon\Carbon::parse($certificate->valid_from)->format('F d, Y') : 'N/A') }}
             </td>
             <td style="border: none; padding: 2px 0; width: 50%;">
-                <strong>Valid Until:</strong> {{ $valid_until_formatted ?? \Carbon\Carbon::parse($certificate->valid_until)->format('F d, Y') }}
+                <strong>Valid Until:</strong> {{ $valid_until_formatted ?? (isset($certificate->valid_until) && $certificate->valid_until ? \Carbon\Carbon::parse($certificate->valid_until)->format('F d, Y') : 'N/A') }}
             </td>
         </tr>
         @if(!empty($certificate->certificate_number))

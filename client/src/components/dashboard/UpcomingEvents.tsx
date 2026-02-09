@@ -1,15 +1,19 @@
 import { useEffect, useState } from 'react'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
+import { getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import { Calendar, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import EventFormModal from '../events/EventFormModal'
 import ConfirmModal from '../modals/ConfirmModal'
 
+const CACHE_KEY = 'upcomingEvents'
+
 export default function UpcomingEvents() {
   const navigate = useNavigate()
-  const [events, setEvents] = useState<Event[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cached = getDashboardCached<Event[]>(CACHE_KEY)
+  const [events, setEvents] = useState<Event[] | null>(cached ?? null)
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -17,12 +21,17 @@ export default function UpcomingEvents() {
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null)
 
   useEffect(() => {
+    if (cached != null) {
+      setEvents(cached)
+      setLoading(false)
+      return
+    }
     const fetchEvents = async () => {
       try {
-        setLoading(true)
         const response = await getEvents(true) // Get upcoming events only
         if (response.success) {
           setEvents(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch events')
         }

@@ -83,7 +83,6 @@ const createSchema = () => z.object({
   message: 'Full address / sitio / street is required',
   path: ['new_household_address']
 }).refine((data) => {
-<<<<<<< HEAD
   // If unassigned, purok_id is required
   if (data.assignment_mode === 'unassigned') {
     return data.purok_id && data.purok_id !== '' && data.purok_id !== null
@@ -92,7 +91,7 @@ const createSchema = () => z.object({
 }, {
   message: 'Purok is required when registering a resident without a household',
   path: ['purok_id']
-=======
+}).refine((data) => {
   if (data.assignment_mode !== 'new_household') return true
   return data.new_household_property_type != null && String(data.new_household_property_type).trim() !== ''
 }, {
@@ -111,7 +110,6 @@ const createSchema = () => z.object({
 }, {
   message: 'Purok is required',
   path: ['new_household_purok_id']
->>>>>>> 8f292bde1f8efdaf11f1461f77e583ccc69feb7a
 })
 
 export type ResidentFormValues = z.infer<ReturnType<typeof createSchema>>

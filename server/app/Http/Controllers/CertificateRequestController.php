@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\BarangayInfo;
 use App\Models\CertificateRequest;
 use App\Models\IssuedCertificate;
 use App\Models\Official;
@@ -244,23 +245,10 @@ class CertificateRequestController extends Controller
             ], 422);
         }
 
-        // Get the captain user (if current user is captain, use them; otherwise find captain user)
+        // Captain name for signed_by: Barangay Settings first, then captain user
+        $barangayInfo = BarangayInfo::find(1);
         $captainUser = $user->isCaptain() ? $user : User::where('role', 'captain')->first();
-        
-        if (!$captainUser) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No Barangay Captain found in the system'
-            ], 400);
-        }
-
-        // Check if captain has a signature uploaded
-        if (!$captainUser->signature_path) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Barangay Captain signature is not set. Please upload signature first.'
-            ], 400);
-        }
+        $signedByName = ($barangayInfo && trim($barangayInfo->captain_name ?? '')) ? $barangayInfo->captain_name : ($captainUser ? $captainUser->name : 'Punong Barangay');
 
         // Approve the certificate request
         $certificateRequest->approve($user, $request->remarks);
@@ -289,7 +277,7 @@ class CertificateRequestController extends Controller
             'valid_from' => $validityDates['valid_from'],
             'valid_until' => $validityDates['valid_until'],
             'is_valid' => true,
-            'signed_by' => $captainUser->name,
+            'signed_by' => $signedByName,
             'signature_position' => 'Punong Barangay',
             'signed_at' => now()
         ]);

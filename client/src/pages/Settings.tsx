@@ -27,10 +27,13 @@ export default function Settings() {
     contact_number: '',
     email: '',
     captain_name: '',
-    logo_path: null
+    logo_path: null,
+    captain_signature_path: null
   })
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [signatureFile, setSignatureFile] = useState<File | null>(null)
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [showReviewModal, setShowReviewModal] = useState(false)
   const [reviewModalData, setReviewModalData] = useState<BarangayInfo | null>(null)
   const [preferences, setPreferences] = useState<SystemPreferences>({
@@ -73,12 +76,19 @@ export default function Settings() {
           contact_number: response.data.contact_number || '',
           email: response.data.email || '',
           captain_name: response.data.captain_name || '',
-          logo_path: response.data.logo_path
+          logo_path: response.data.logo_path,
+          captain_signature_path: response.data.captain_signature_path ?? null
         })
 
         // Set logo preview if exists
         if (response.data.logo_path) {
           setLogoPreview(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${response.data.logo_path}`)
+        }
+        // Set signature preview if exists
+        if (response.data.captain_signature_path) {
+          setSignaturePreview(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${response.data.captain_signature_path}`)
+        } else {
+          setSignaturePreview(null)
         }
 
         setHasBarangayInfo(!!(response.data.barangay_name || response.data.municipality || response.data.province))
@@ -156,6 +166,19 @@ export default function Settings() {
     }
   }
 
+  // Handle captain signature file selection
+  const handleSignatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setSignatureFile(file)
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setSignaturePreview(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   // Handle Review Changes
   const handleReviewChanges = () => {
     // Store snapshot of current state for modal
@@ -185,12 +208,17 @@ export default function Settings() {
       if (logoFile) {
         formData.append('logo', logoFile)
       }
+      // Add captain signature file if selected
+      if (signatureFile) {
+        formData.append('captain_signature', signatureFile)
+      }
 
       const response = await saveBarangayInfo(formData)
 
       if (response.success) {
         setSuccess('Barangay information saved successfully')
         setLogoFile(null)
+        setSignatureFile(null)
 
         // Update form state with saved data (never reset to blank)
         if (response.data) {
@@ -203,12 +231,21 @@ export default function Settings() {
             contact_number: response.data.contact_number || '',
             email: response.data.email || '',
             captain_name: response.data.captain_name || '',
-            logo_path: response.data.logo_path
+            logo_path: response.data.logo_path,
+            captain_signature_path: response.data.captain_signature_path ?? null
           })
 
           // Update logo preview
           if (response.data.logo_path) {
             setLogoPreview(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${response.data.logo_path}`)
+          } else {
+            setLogoPreview(null)
+          }
+          // Update signature preview
+          if (response.data.captain_signature_path) {
+            setSignaturePreview(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${response.data.captain_signature_path}`)
+          } else {
+            setSignaturePreview(null)
           }
 
           setHasBarangayInfo(!!(response.data.barangay_name || response.data.municipality || response.data.province))
@@ -689,6 +726,29 @@ export default function Settings() {
                                         src={logoPreview}
                                         alt="Logo preview"
                                         style={{ maxWidth: '200px', maxHeight: '150px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px', borderRadius: '4px' }}
+                                        className="bg-light"
+                                      />
+                                    </div>
+                                  )}
+                                </Form.Group>
+                              </Col>
+                              <Col md={6}>
+                                <Form.Group className="mb-3">
+                                  <Form.Label>Kapitan Signature</Form.Label>
+                                  <Form.Control
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleSignatureChange}
+                                  />
+                                  <Form.Text className="text-muted">
+                                    Upload signature image for certificates. Used when no captain user signature is set.
+                                  </Form.Text>
+                                  {signaturePreview && (
+                                    <div className="mt-2">
+                                      <img
+                                        src={signaturePreview}
+                                        alt="Signature preview"
+                                        style={{ maxWidth: '200px', maxHeight: '80px', objectFit: 'contain', border: '1px solid #ddd', padding: '8px', borderRadius: '4px', backgroundColor: '#fff' }}
                                         className="bg-light"
                                       />
                                     </div>
@@ -1176,6 +1236,31 @@ export default function Settings() {
                             alt="Current logo"
                             style={{ maxWidth: '200px', maxHeight: '150px', objectFit: 'contain' }}
                             className="border rounded"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none'
+                            }}
+                          />
+                        ) : (
+                          <span className="text-muted">N/A</span>
+                        )}
+                      </div>
+                    </Col>
+                    <Col md={6} className="mb-3">
+                      <strong>Kapitan Signature:</strong>
+                      <div className="mt-2">
+                        {signatureFile ? (
+                          <img
+                            src={URL.createObjectURL(signatureFile)}
+                            alt="Signature preview"
+                            style={{ maxWidth: '200px', maxHeight: '80px', objectFit: 'contain' }}
+                            className="border rounded bg-white"
+                          />
+                        ) : (reviewModalData?.captain_signature_path || barangayInfo.captain_signature_path) ? (
+                          <img
+                            src={`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/storage/${reviewModalData?.captain_signature_path || barangayInfo.captain_signature_path}`}
+                            alt="Current signature"
+                            style={{ maxWidth: '200px', maxHeight: '80px', objectFit: 'contain' }}
+                            className="border rounded bg-white"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none'
                             }}

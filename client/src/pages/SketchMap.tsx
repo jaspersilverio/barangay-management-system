@@ -20,7 +20,7 @@ import { getLayerState, getLayerConfig } from '../utils/layerConfig'
 
 export default function SketchMap() {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const canManageMarkers = ['admin', 'captain', 'staff'].includes(user?.role || '')
   
   const [clickPosition, setClickPosition] = useState<{ x: number; y: number } | null>(null)
   const [zoomLevel, setZoomLevel] = useState(1) // Start at 1x (full size)
@@ -463,15 +463,15 @@ export default function SketchMap() {
     // Clear hover when clicking
     setHoveredMarker(null)
     
-    // If it's a household marker and user is admin, show household assignment modal
-    if (marker.type === 'household' && isAdmin) {
+    // If it's a household marker and user can manage markers, show household assignment modal
+    if (marker.type === 'household' && canManageMarkers) {
       setSelectedMarkerForHousehold(marker)
       setShowHouseholdModal(true)
       setSelectedMarkerForInfo(null) // Close any open info popup
       return
     }
     
-    // For other markers or non-admin users, show info popup
+    // For other markers or users who cannot manage, show info popup
     if (selectedMarkerForInfo?.id === marker.id) {
       setSelectedMarkerForInfo(null)
     } else {
@@ -530,7 +530,7 @@ export default function SketchMap() {
             </div>
 
             {/* Drawing Tools (Admin Only) */}
-            {isAdmin && (
+            {canManageMarkers && (
               <>
                 <hr className="my-3" />
                 <div>
@@ -779,7 +779,7 @@ export default function SketchMap() {
                       highlightedMarker={highlightedMarker}
                       onMarkerClick={handleMarkerClick}
                       selectedMarkerForInfo={selectedMarkerForInfo}
-                      isAdmin={isAdmin}
+                      isAdmin={canManageMarkers}
                       onMarkerHover={setHoveredMarker}
                     />
                   ))}
@@ -799,7 +799,7 @@ export default function SketchMap() {
                       <MarkerInfoPopup
                         marker={selectedMarkerForInfo}
                         onClose={() => setSelectedMarkerForInfo(null)}
-                        isAdmin={isAdmin}
+                        isAdmin={canManageMarkers}
                         onDelete={handleMarkerDelete}
                       />
                     </div>
@@ -824,7 +824,7 @@ export default function SketchMap() {
           <MarkerSelectionPanel
             selectedMarkerType={selectedMarkerType}
             onMarkerTypeSelect={setSelectedMarkerType}
-            isAdmin={isAdmin}
+            isAdmin={canManageMarkers}
           />
         </div>
       </div>
@@ -890,7 +890,7 @@ export default function SketchMap() {
           setSelectedMarkerForHousehold(null)
         }}
         marker={selectedMarkerForHousehold}
-        isAdmin={isAdmin}
+        isAdmin={canManageMarkers}
         onHouseholdAssigned={handleHouseholdAssigned}
         onMarkerDeleted={handleMarkerDelete}
       />
@@ -915,7 +915,7 @@ export default function SketchMap() {
         }}
         boundary={selectedBoundary}
         onDelete={handleDeleteBoundary}
-        isAdmin={isAdmin}
+        isAdmin={canManageMarkers}
       />
 
       {/* Delete Boundary Modal */}

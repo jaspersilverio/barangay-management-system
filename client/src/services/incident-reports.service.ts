@@ -8,7 +8,6 @@ export interface IncidentReport {
   incident_time: string;
   location: string;
   persons_involved?: string[] | string | null;
-  reporting_officer_id: number;
   status: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
   approved_by?: number;
   rejected_by?: number;
@@ -29,11 +28,6 @@ export interface IncidentReport {
   created_at: string;
   updated_at: string;
   deleted_at?: string;
-  reporting_officer?: {
-    id: number;
-    name: string;
-    email?: string;
-  };
   creator?: {
     id: number;
     name: string;
@@ -51,7 +45,6 @@ export interface CreateIncidentReportData {
   incident_time: string;
   location: string;
   persons_involved?: string;
-  reporting_officer_id: number;
   status?: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
   notes?: string;
 }
@@ -63,7 +56,6 @@ export interface UpdateIncidentReportData {
   incident_time?: string;
   location?: string;
   persons_involved?: string;
-  reporting_officer_id?: number;
   status?: 'pending' | 'approved' | 'rejected' | 'Recorded' | 'Monitoring' | 'Resolved';
   notes?: string;
 }
@@ -128,7 +120,6 @@ export const createIncidentReport = async (
   formData.append('incident_date', data.incident_date);
   formData.append('incident_time', data.incident_time);
   formData.append('location', data.location);
-  formData.append('reporting_officer_id', data.reporting_officer_id.toString());
   
   if (data.persons_involved) {
     formData.append('persons_involved', data.persons_involved);
@@ -173,9 +164,6 @@ export const updateIncidentReport = async (
   }
   if (data.location !== undefined) {
     formData.append('location', data.location);
-  }
-  if (data.reporting_officer_id !== undefined) {
-    formData.append('reporting_officer_id', data.reporting_officer_id.toString());
   }
   if (data.persons_involved !== undefined) {
     formData.append('persons_involved', data.persons_involved || '');

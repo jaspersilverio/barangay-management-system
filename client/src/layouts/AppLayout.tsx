@@ -1,4 +1,4 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { Navbar, Container, Nav, Offcanvas, Button } from 'react-bootstrap'
 import { NotificationProvider } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
@@ -9,12 +9,33 @@ import {
 } from 'lucide-react'
 import NotificationBell from '../components/ui/NotificationBell'
 import Sidebar from '../components/sidebar/Sidebar'
+import SectionSubNav from '../components/navigation/SectionSubNav'
 import ThemeToggle from '../components/ui/ThemeToggle'
 import PendingApprovalBanner from '../components/ui/PendingApprovalBanner'
+
+const OFFICIALS_TABS = [
+  { label: 'Barangay', to: '/officials/barangay' },
+  { label: 'SK', to: '/officials/sk' },
+  { label: 'Tanod', to: '/officials/tanod' },
+  { label: 'BHW', to: '/officials/bhw' },
+  { label: 'Staff', to: '/officials/staff' },
+]
+
+const BENEFICIARIES_TABS = [
+  { label: '4Ps', to: '/beneficiaries/4ps' },
+  { label: 'Senior Citizens', to: '/beneficiaries/senior-citizens' },
+  { label: 'Solo Parents', to: '/beneficiaries/solo-parents' },
+  { label: 'PWD', to: '/beneficiaries/pwd' },
+]
 
 export default function AppLayout() {
   const { user } = useAuth()
   const [showOffcanvas, setShowOffcanvas] = useState(false)
+  const location = useLocation()
+  const pathname = location.pathname
+
+  const isOfficialsSection = pathname.startsWith('/officials')
+  const isBeneficiariesSection = pathname.startsWith('/beneficiaries')
 
   const handleCloseOffcanvas = () => setShowOffcanvas(false)
   const handleShowOffcanvas = () => setShowOffcanvas(true)
@@ -111,6 +132,12 @@ export default function AppLayout() {
           {/* Pending Approval Banner - Only visible to Captain/Admin */}
           <PendingApprovalBanner />
           <Container fluid className="p-4">
+            {isOfficialsSection && (
+              <SectionSubNav tabs={OFFICIALS_TABS} />
+            )}
+            {isBeneficiariesSection && (
+              <SectionSubNav tabs={BENEFICIARIES_TABS} />
+            )}
             <Outlet />
           </Container>
         </div>

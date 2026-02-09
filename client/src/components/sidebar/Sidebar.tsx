@@ -34,7 +34,8 @@ export default function Sidebar() {
       const matches =
         item.to === "/settings"
           ? currentPath.startsWith("/settings")
-          : item.to === currentPath;
+          : item.to === currentPath ||
+            (item.matchChildPaths && item.to && currentPath.startsWith(item.to + "/"));
       if (matches) {
         parentLabels.forEach((label) => expanded.add(label));
         return true;
@@ -180,6 +181,10 @@ export default function Sidebar() {
       if (currentPath === item.to) {
         return true;
       }
+      // For matchChildPaths (e.g. /officials, /beneficiaries), match child routes
+      if (item.matchChildPaths && currentPath.startsWith(item.to + "/")) {
+        return true;
+      }
     }
     if (item.children && item.children.length > 0) {
       return item.children.some((child) => isAnyChildActive(child));
@@ -231,7 +236,10 @@ export default function Sidebar() {
     const isDirectlyActive =
       item.to === "/settings"
         ? currentPath.startsWith("/settings")
-        : item.to === currentPath;
+        : item.to === currentPath ||
+          (item.matchChildPaths &&
+            item.to &&
+            currentPath.startsWith(item.to + "/"));
     const isTopLevelParent = level === 0 && hasChildren;
     const isActiveTopLevelParent =
       isTopLevelParent && activeParentLabel === item.label;
@@ -436,6 +444,7 @@ export default function Sidebar() {
         key={item.label}
         to={item.to || "#"}
         onClick={closeAllSubmenus}
+        end={!item.matchChildPaths}
         className={({ isActive }) =>
           `d-flex align-items-center gap-3 px-4 py-3 ${fontSize} rounded-lg transition-colors duration-200 text-decoration-none ${
             isActive
@@ -453,7 +462,6 @@ export default function Sidebar() {
               ? itemInlineStyles.borderLeft
               : undefined,
         })}
-        end
       >
         <Icon size={iconSize} className="flex-shrink-0" />
         <span>{item.label}</span>

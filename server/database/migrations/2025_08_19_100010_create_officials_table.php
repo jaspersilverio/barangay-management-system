@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('officials')) {
+            return;
+        }
+
         Schema::create('officials', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
@@ -23,7 +27,7 @@ return new class extends Migration
             $table->string('suffix')->nullable();
             $table->string('sex', 10)->nullable();
             $table->date('birthdate')->nullable();
-            $table->string('position');
+            $table->string('position')->nullable();
             $table->date('term_start')->nullable();
             $table->date('term_end')->nullable();
             $table->string('contact')->nullable();
@@ -34,7 +38,7 @@ return new class extends Migration
             $table->boolean('active')->default(true);
             $table->timestamps();
 
-            $table->index(['active', 'position']);
+            $table->index(['active', 'category']);
             $table->index('category');
         });
     }

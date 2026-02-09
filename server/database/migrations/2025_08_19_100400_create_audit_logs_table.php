@@ -11,6 +11,10 @@ i<?php
          */
         public function up(): void
         {
+            if (Schema::hasTable('audit_logs')) {
+                return;
+            }
+
             Schema::create('audit_logs', function (Blueprint $table) {
                 $table->engine = 'InnoDB';
                 $table->charset = 'utf8mb4';

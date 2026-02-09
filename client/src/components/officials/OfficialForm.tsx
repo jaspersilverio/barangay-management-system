@@ -23,7 +23,8 @@ export default function OfficialForm({
   const { puroks } = usePuroks()
   const isOfficialCategory = category === 'official'
   const isSKCategory = category === 'sk'
-  const isEnhancedCategory = isOfficialCategory || isSKCategory // Both official and SK use enhanced fields
+  const isAppointedCategory = category === 'tanod' || category === 'bhw' || category === 'staff'
+  const isEnhancedCategory = isOfficialCategory || isSKCategory
 
   const [formData, setFormData] = useState<CreateOfficialData>({
     name: '',
@@ -42,6 +43,17 @@ export default function OfficialForm({
       email: '',
       address: '',
       purok_id: undefined
+    }),
+    ...(isAppointedCategory && {
+      full_name: '',
+      gender: '',
+      birthdate: '',
+      contact_number: '',
+      address: '',
+      date_appointed: '',
+      status: 'active',
+      official_role: category,
+      official_type: 'appointed' as const
     })
   })
   const [photoPreview, setPhotoPreview] = useState<string | null>(null)
@@ -89,6 +101,30 @@ export default function OfficialForm({
         } catch {
           return ''
         }
+      }
+
+      // Load appointed fields if tanod/bhw/staff
+      if (isAppointedCategory) {
+        setFormData({
+          name: '',
+          position: '',
+          term_start: formatDateForInput(official.term_start),
+          term_end: '',
+          contact: official.contact || '',
+          active: official.active,
+          full_name: official.name,
+          gender: (official as any).sex?.toLowerCase() || '',
+          birthdate: formatDateForInput((official as any).birthdate),
+          contact_number: official.contact || '',
+          address: (official as any).address || '',
+          date_appointed: formatDateForInput(official.term_start),
+          status: official.active ? 'active' : 'inactive',
+          official_role: category,
+          official_type: 'appointed'
+        })
+        setPhotoPreview(official.photo_url || null)
+        setErrors({})
+        return
       }
 
       // Load enhanced fields if available for official/SK categories
@@ -143,6 +179,17 @@ export default function OfficialForm({
           email: '',
           address: '',
           purok_id: undefined
+        }),
+        ...(isAppointedCategory && {
+          full_name: '',
+          gender: '',
+          birthdate: '',
+          contact_number: '',
+          address: '',
+          date_appointed: '',
+          status: 'active',
+          official_role: category,
+          official_type: 'appointed' as const
         })
       })
       setPhotoPreview(null)
@@ -253,18 +300,33 @@ export default function OfficialForm({
           newErrors.birthdate = `SK members must be between 15 and 30 years old. Current age: ${age || 'N/A'}`
         }
       }
+    } else if (isAppointedCategory) {
+      if (!formData.full_name?.trim()) {
+        newErrors.full_name = 'Full name is required'
+      }
+      if (!formData.gender) {
+        newErrors.gender = 'Gender is required'
+      }
+      if (!formData.birthdate) {
+        newErrors.birthdate = 'Birthdate is required'
+      }
+      if (!formData.date_appointed) {
+        newErrors.date_appointed = 'Date appointed is required'
+      }
+      if (!formData.status) {
+        newErrors.status = 'Status is required'
+      }
     } else {
-      // For other categories, validate name
       if (!formData.name?.trim()) {
         newErrors.name = 'Name is required'
       }
     }
 
-    if (!formData.position) {
+    if (!isAppointedCategory && !formData.position) {
       newErrors.position = 'Position is required'
     }
 
-    if (formData.term_start && formData.term_end) {
+    if (!isAppointedCategory && formData.term_start && formData.term_end) {
       const startDate = new Date(formData.term_start)
       const endDate = new Date(formData.term_end)
       if (endDate < startDate) {
@@ -299,15 +361,19 @@ export default function OfficialForm({
       <Modal.Header closeButton className="modal-header-custom">
         <Modal.Title className="modal-title-custom text-brand-primary">
           {isEditing
-            ? (isSKCategory ? 'Edit SK Member' : isOfficialCategory ? 'Edit Official' : 'Edit Personnel')
-            : (isSKCategory ? 'Add New SK Member' : isOfficialCategory ? 'Add New Official' : 'Add New Personnel')
+            ? (isAppointedCategory
+                ? (category === 'tanod' ? 'Edit Barangay Tanod' : category === 'bhw' ? 'Edit Barangay Health Worker' : 'Edit Barangay Staff')
+                : isSKCategory ? 'Edit SK Member' : isOfficialCategory ? 'Edit Official' : 'Edit Personnel')
+            : (isAppointedCategory
+                ? (category === 'tanod' ? 'Add Barangay Tanod' : category === 'bhw' ? 'Add Barangay Health Worker' : 'Add Barangay Staff')
+                : isSKCategory ? 'Add New SK Member' : isOfficialCategory ? 'Add New Official' : 'Add New Personnel')
           }
         </Modal.Title>
       </Modal.Header>
       <Form onSubmit={handleSubmit}>
         <Modal.Body className="modal-body-custom">
           <Row>
-            <Col md={8}>
+            <Col md={isAppointedCategory ? 12 : 8}>
               {isEnhancedCategory ? (
                 <>
                   {/* Personal Information Section */}
@@ -551,96 +617,115 @@ export default function OfficialForm({
                 </>
               ) : (
                 <>
-                  {/* Simple form for other categories (tanod, bhw, staff) */}
+                  {/* Appointed officials form (tanod, bhw, staff) - no position */}
                   <Row>
                     <Col md={6}>
                       <Form.Group className="modal-form-group">
-                        <Form.Label className="modal-form-label">Name *</Form.Label>
+                        <Form.Label className="modal-form-label">Full Name *</Form.Label>
                         <Form.Control
                           type="text"
-                          value={formData.name || ''}
-                          onChange={(e) => handleInputChange('name', e.target.value)}
-                          isInvalid={!!errors.name}
+                          value={formData.full_name || ''}
+                          onChange={(e) => handleInputChange('full_name', e.target.value)}
+                          isInvalid={!!errors.full_name}
                           className="modal-form-control"
                         />
-                        <Form.Control.Feedback type="invalid">
-                          {errors.name}
-                        </Form.Control.Feedback>
+                        <Form.Control.Feedback type="invalid">{errors.full_name}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group className="modal-form-group">
-                        <Form.Label className="modal-form-label">Position *</Form.Label>
+                        <Form.Label className="modal-form-label">Gender *</Form.Label>
                         <Form.Select
-                          value={formData.position}
-                          onChange={(e) => handleInputChange('position', e.target.value)}
-                          isInvalid={!!errors.position}
+                          value={formData.gender || ''}
+                          onChange={(e) => handleInputChange('gender', e.target.value)}
+                          isInvalid={!!errors.gender}
                           className="modal-form-control"
                         >
-                          <option value="">Select Position</option>
-                          {positionOptions.map((position) => (
-                            <option key={position} value={position}>
-                              {position}
-                            </option>
-                          ))}
+                          <option value="">Select Gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
                         </Form.Select>
-                        <Form.Control.Feedback type="invalid">
-                          {errors.position}
-                        </Form.Control.Feedback>
+                        <Form.Control.Feedback type="invalid">{errors.gender}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                   </Row>
                   <Row>
                     <Col md={6}>
                       <Form.Group className="modal-form-group">
-                        <Form.Label className="modal-form-label">Term Start</Form.Label>
+                        <Form.Label className="modal-form-label">Birthdate *</Form.Label>
                         <Form.Control
                           type="date"
-                          value={formData.term_start || ''}
-                          onChange={(e) => handleInputChange('term_start', e.target.value)}
+                          value={formData.birthdate || ''}
+                          onChange={(e) => handleInputChange('birthdate', e.target.value)}
+                          isInvalid={!!errors.birthdate}
                           className="modal-form-control"
                         />
+                        <Form.Control.Feedback type="invalid">{errors.birthdate}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                     <Col md={6}>
                       <Form.Group className="modal-form-group">
-                        <Form.Label className="modal-form-label">Term End</Form.Label>
+                        <Form.Label className="modal-form-label">Contact Number</Form.Label>
                         <Form.Control
-                          type="date"
-                          value={formData.term_end || ''}
-                          onChange={(e) => handleInputChange('term_end', e.target.value)}
-                          isInvalid={!!errors.term_end}
+                          type="text"
+                          placeholder="Phone number"
+                          value={formData.contact_number || ''}
+                          onChange={(e) => handleInputChange('contact_number', e.target.value)}
                           className="modal-form-control"
                         />
-                        <Form.Control.Feedback type="invalid">
-                          {errors.term_end}
-                        </Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                   </Row>
-                  <Form.Group className="modal-form-group">
-                    <Form.Label className="modal-form-label">Contact Information</Form.Label>
-                    <Form.Control
-                      type="text"
-                      placeholder="Phone number or email"
-                      value={formData.contact || ''}
-                      onChange={(e) => handleInputChange('contact', e.target.value)}
-                      className="modal-form-control"
-                    />
-                  </Form.Group>
-                  <Form.Group className="modal-form-group">
-                    <Form.Check
-                      type="switch"
-                      id="active-switch-simple"
-                      label="Active"
-                      checked={formData.active}
-                      onChange={(e) => handleInputChange('active', e.target.checked)}
-                    />
-                  </Form.Group>
+                  <Row>
+                    <Col md={12}>
+                      <Form.Group className="modal-form-group">
+                        <Form.Label className="modal-form-label">Address</Form.Label>
+                        <Form.Control
+                          as="textarea"
+                          rows={2}
+                          placeholder="Street address"
+                          value={formData.address || ''}
+                          onChange={(e) => handleInputChange('address', e.target.value)}
+                          className="modal-form-control"
+                        />
+                      </Form.Group>
+                    </Col>
+                  </Row>
+                  <Row>
+                    <Col md={6}>
+                      <Form.Group className="modal-form-group">
+                        <Form.Label className="modal-form-label">Date Appointed *</Form.Label>
+                        <Form.Control
+                          type="date"
+                          value={formData.date_appointed || ''}
+                          onChange={(e) => handleInputChange('date_appointed', e.target.value)}
+                          isInvalid={!!errors.date_appointed}
+                          className="modal-form-control"
+                        />
+                        <Form.Control.Feedback type="invalid">{errors.date_appointed}</Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                    <Col md={6}>
+                      <Form.Group className="modal-form-group">
+                        <Form.Label className="modal-form-label">Status *</Form.Label>
+                        <Form.Select
+                          value={formData.status || 'active'}
+                          onChange={(e) => handleInputChange('status', e.target.value)}
+                          isInvalid={!!errors.status}
+                          className="modal-form-control"
+                        >
+                          <option value="active">Active</option>
+                          <option value="inactive">Inactive</option>
+                        </Form.Select>
+                        <Form.Control.Feedback type="invalid">{errors.status}</Form.Control.Feedback>
+                      </Form.Group>
+                    </Col>
+                  </Row>
                 </>
               )}
             </Col>
 
+            {!isAppointedCategory && (
             <Col md={4}>
               <Form.Group className="modal-form-group">
                 <Form.Label className="modal-form-label">Photo</Form.Label>
@@ -714,6 +799,7 @@ export default function OfficialForm({
                 </div>
               </Form.Group>
             </Col>
+            )}
           </Row>
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom" style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -740,8 +826,12 @@ export default function OfficialForm({
             {loading
               ? 'Saving...'
               : (isEditing
-                ? (isSKCategory ? 'Update SK Member' : isOfficialCategory ? 'Update Official' : 'Update Personnel')
-                : (isSKCategory ? 'Add SK Member' : isOfficialCategory ? 'Add Official' : 'Add Personnel')
+                ? (isAppointedCategory
+                    ? (category === 'tanod' ? 'Update Tanod' : category === 'bhw' ? 'Update BHW' : 'Update Staff')
+                    : isSKCategory ? 'Update SK Member' : isOfficialCategory ? 'Update Official' : 'Update Personnel')
+                : (isAppointedCategory
+                    ? (category === 'tanod' ? 'Add Tanod' : category === 'bhw' ? 'Add BHW' : 'Add Staff')
+                    : isSKCategory ? 'Add SK Member' : isOfficialCategory ? 'Add Official' : 'Add Personnel')
               )
             }
           </Button>

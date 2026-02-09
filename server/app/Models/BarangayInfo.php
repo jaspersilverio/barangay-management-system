@@ -21,6 +21,7 @@ class BarangayInfo extends Model
         'email',
         'captain_name',
         'logo_path',
+        'captain_signature_path',
     ];
 
     /**

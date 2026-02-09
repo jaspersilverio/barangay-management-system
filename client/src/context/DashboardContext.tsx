@@ -24,7 +24,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setError(null)
       const response = await getSummary()
       if (response.success) {
-        // Set data immediately - no delays
         setSummaryData(response.data)
       } else {
         setError(response.message || 'Failed to fetch dashboard data')
@@ -32,7 +31,6 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Dashboard data unavailable')
     } finally {
-      // Clear loading state immediately when data is ready
       setLoading(false)
     }
   }, [])

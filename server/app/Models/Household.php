@@ -61,6 +61,15 @@ class Household extends Model
     }
 
     /**
+     * Household members - residents with household_id = this household.
+     * Alias for residents() for clarity; same relationship.
+     */
+    public function members(): HasMany
+    {
+        return $this->hasMany(Resident::class);
+    }
+
+    /**
      * @return HasMany<FourPsBeneficiary>
      */
     public function fourPsBeneficiaries(): HasMany

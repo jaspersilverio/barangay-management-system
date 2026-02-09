@@ -273,7 +273,8 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
           <table className="table table-modern">
             <thead>
               <tr>
-                <th>Resident</th>
+                <th>Resident ID</th>
+                <th>Resident Name</th>
                 <th>Certificate Type</th>
                 <th>Purpose</th>
                 <th>Status</th>
@@ -284,11 +285,14 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
             <tbody>
               {requests.map((request) => (
                 <tr key={request.id}>
+                  <td>{request.resident_id}</td>
                   <td>
-                    <div>
-                      <div className="fw-medium">{request.resident?.full_name}</div>
-                      <small className="text-brand-muted">ID: {request.resident_id}</small>
-                    </div>
+                    <span className="fw-medium">
+                      {request.resident?.full_name ||
+                        (request.resident
+                          ? [request.resident.first_name, request.resident.last_name].filter(Boolean).join(' ')
+                          : '—')}
+                    </span>
                   </td>
                   <td>{getCertificateTypeLabel(request.certificate_type)}</td>
                   <td>

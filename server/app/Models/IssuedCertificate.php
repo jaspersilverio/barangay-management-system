@@ -79,12 +79,13 @@ class IssuedCertificate extends Model
     // Helper methods
     public function getCertificateTypeLabelAttribute(): string
     {
-        return match ($this->certificate_type) {
+        $type = $this->certificate_type ?? '';
+        return match ($type) {
             'barangay_clearance' => 'Barangay Clearance',
             'indigency' => 'Indigency Certificate',
             'residency' => 'Residency Certificate',
             'business_permit_endorsement' => 'Business Permit Endorsement',
-            default => ucfirst(str_replace('_', ' ', $this->certificate_type))
+            default => $type ? ucfirst(str_replace('_', ' ', $type)) : 'Certificate'
         };
     }
 
@@ -143,7 +144,7 @@ class IssuedCertificate extends Model
         if (!$this->relationLoaded('resident')) {
             $this->load('resident');
         }
-        
+
         $data = [
             'certificate_number' => $this->certificate_number,
             'resident_name' => $this->resident?->full_name ?? 'Unknown',

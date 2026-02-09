@@ -32,7 +32,6 @@ class PdfService
         $barangayInfo = BarangayInfo::find(1);
 
         if (!$barangayInfo) {
-            // Return defaults if not configured
             return [
                 'barangay_name' => 'Barangay',
                 'municipality' => 'Municipality',
@@ -44,6 +43,7 @@ class PdfService
                 'captain_name' => '',
                 'logo_path' => null,
                 'logo_base64' => null,
+                'captain_signature_base64' => null,
             ];
         }
 
@@ -82,6 +82,36 @@ class PdfService
             }
         }
 
+        // Convert captain signature to base64 for PDF certificates (fallback when no captain user signature)
+        $captainSignatureBase64 = null;
+        if ($barangayInfo->captain_signature_path ?? null) {
+            try {
+                if (Storage::disk('public')->exists($barangayInfo->captain_signature_path)) {
+                    $sigPath = Storage::disk('public')->path($barangayInfo->captain_signature_path);
+                    if (file_exists($sigPath) && is_readable($sigPath)) {
+                        $imageData = @file_get_contents($sigPath);
+                        if ($imageData !== false && strlen($imageData) > 0 && strlen($imageData) < 5 * 1024 * 1024) {
+                            $mimeType = $this->getMimeTypeFromExtension($barangayInfo->captain_signature_path);
+                            if (extension_loaded('gd')) {
+                                $imageInfo = @getimagesizefromstring($imageData);
+                                if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                    $mimeType = $imageInfo['mime'];
+                                }
+                            }
+                            if ($mimeType) {
+                                $captainSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                            }
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to load captain signature for PDF', [
+                    'error' => $e->getMessage(),
+                    'path' => $barangayInfo->captain_signature_path
+                ]);
+            }
+        }
+
         // Return both new and legacy field names for backward compatibility with PDF templates
         return [
             // New structure
@@ -96,7 +126,8 @@ class PdfService
             'secretary_name' => $barangayInfo->secretary_name ?? null,
             'treasurer_name' => $barangayInfo->treasurer_name ?? null,
             'logo_path' => $barangayInfo->logo_path,
-            'logo_base64' => $logoBase64, // Base64 encoded logo for PDF
+            'logo_base64' => $logoBase64,
+            'captain_signature_base64' => $captainSignatureBase64,
             // Legacy field names for backward compatibility with existing PDF templates
             'name' => $barangayInfo->barangay_name ?? 'Barangay',
             'contact' => $barangayInfo->contact_number ?? '',

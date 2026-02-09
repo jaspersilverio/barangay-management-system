@@ -9,7 +9,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { getMonthlyRegistrations } from '../../services/dashboard.service'
+import { getMonthlyRegistrations, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { MonthlyRegistrations } from '../../services/dashboard.service'
 
 // Sample data for demonstration when API doesn't return data
@@ -28,22 +28,28 @@ const sampleData: MonthlyRegistrations = [
   { month: 'Dec', households: 8, residents: 21 },
 ]
 
+const CACHE_KEY = 'monthlyRegistrations'
+
 export default function MonthlyRegistrationsChart() {
-  const [data, setData] = useState<MonthlyRegistrations>(sampleData)
-  const [loading, setLoading] = useState(true)
+  const cached = getDashboardCached<MonthlyRegistrations>(CACHE_KEY)
+  const [data, setData] = useState<MonthlyRegistrations>(cached ?? sampleData)
+  const [loading, setLoading] = useState(!cached)
 
   useEffect(() => {
+    if (cached != null) {
+      setData(cached)
+      setLoading(false)
+      return
+    }
     const fetchData = async () => {
       try {
-        setLoading(true)
         const response = await getMonthlyRegistrations()
         if (response.success && response.data && response.data.length > 0) {
           setData(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         }
-        // Keep using sample data if API doesn't return data
       } catch (err: any) {
         console.warn('Monthly registrations API not available, using sample data:', err)
-        // Keep using sample data on error
       } finally {
         setLoading(false)
       }

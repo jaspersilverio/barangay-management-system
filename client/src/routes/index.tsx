@@ -1,8 +1,34 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, useRouteError, Link } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
-import { Spinner } from 'react-bootstrap'
+import { Spinner, Alert, Button } from 'react-bootstrap'
 import AppLayout from '../layouts/AppLayout'
 import ProtectedRoute from './ProtectedRoute'
+
+// Shown when a lazy-loaded page fails to load (e.g. network or chunk error)
+function RouteErrorFallback() {
+  const error = useRouteError() as Error & { message?: string }
+  const isChunkError = error?.message?.includes('fetch') || error?.message?.includes('dynamically imported')
+  return (
+    <div className="p-4 text-center">
+      <Alert variant="warning" className="mb-3">
+        <h5 className="alert-heading">Something went wrong</h5>
+        <p className="mb-0 small text-muted">
+          {isChunkError
+            ? 'The page failed to load. Try refreshing the browser or restarting the dev server.'
+            : (error?.message || 'An unexpected error occurred.')}
+        </p>
+      </Alert>
+      <div className="d-flex gap-2 justify-content-center flex-wrap">
+        <Button variant="primary" onClick={() => window.location.reload()}>
+          Try again
+        </Button>
+        <Link to="/dashboard">
+          <Button variant="outline-secondary">Go to Dashboard</Button>
+        </Link>
+      </div>
+    </div>
+  )
+}
 
 // Loading component for Suspense fallback
 const PageLoader = () => (
@@ -230,7 +256,8 @@ const router = createBrowserRouter([
           },
           {
             path: 'residents',
-            element: <ResidentListPageWithSuspense />
+            element: <ResidentListPageWithSuspense />,
+            errorElement: <RouteErrorFallback />
           },
           {
             path: 'residents/:id',
@@ -242,11 +269,11 @@ const router = createBrowserRouter([
           },
           {
             path: 'puroks',
-            element: <PurokListPageWithSuspense />
-          },
-          {
-            path: 'puroks/:id',
-            element: <PurokDetailsPageWithSuspense />
+            element: <ProtectedRoute allow={['admin', 'captain', 'purok_leader']} />,
+            children: [
+              { index: true, element: <PurokListPageWithSuspense /> },
+              { path: ':id', element: <PurokDetailsPageWithSuspense /> }
+            ]
           },
           {
             path: 'certificates',
@@ -286,6 +313,10 @@ const router = createBrowserRouter([
           },
           {
             path: 'officials',
+            element: <Navigate to="/officials/barangay" replace />
+          },
+          {
+            path: 'officials/barangay',
             element: <OfficialsWithSuspense />
           },
           {
@@ -303,6 +334,10 @@ const router = createBrowserRouter([
           {
             path: 'officials/staff',
             element: <Suspense fallback={<PageLoader />}><StaffPage /></Suspense>,
+          },
+          {
+            path: 'beneficiaries',
+            element: <Navigate to="/beneficiaries/4ps" replace />
           },
           {
             path: 'beneficiaries/senior-citizens',

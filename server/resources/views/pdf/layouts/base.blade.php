@@ -26,7 +26,8 @@
         /* ==================== CERTIFICATE-SPECIFIC STYLES ==================== */
         .certificate-container {
             position: relative;
-            padding: 8mm 12mm 25mm 12mm; /* top right bottom left - extra bottom for footer */
+            padding: 8mm 12mm 25mm 12mm;
+            /* top right bottom left - extra bottom for footer */
         }
 
         /* Decorative Border */
@@ -389,14 +390,37 @@
             text-transform: capitalize;
         }
 
-        .mb-1 { margin-bottom: 5px; }
-        .mb-2 { margin-bottom: 10px; }
-        .mb-3 { margin-bottom: 15px; }
-        .mb-4 { margin-bottom: 20px; }
-        .mt-1 { margin-top: 5px; }
-        .mt-2 { margin-top: 10px; }
-        .mt-3 { margin-top: 15px; }
-        .mt-4 { margin-top: 20px; }
+        .mb-1 {
+            margin-bottom: 5px;
+        }
+
+        .mb-2 {
+            margin-bottom: 10px;
+        }
+
+        .mb-3 {
+            margin-bottom: 15px;
+        }
+
+        .mb-4 {
+            margin-bottom: 20px;
+        }
+
+        .mt-1 {
+            margin-top: 5px;
+        }
+
+        .mt-2 {
+            margin-top: 10px;
+        }
+
+        .mt-3 {
+            margin-top: 15px;
+        }
+
+        .mt-4 {
+            margin-top: 20px;
+        }
 
         /* ==================== REPORT-SPECIFIC STYLES ==================== */
         /* Page Header for Reports */
@@ -465,64 +489,70 @@
         $gdAvailable = extension_loaded('gd');
         $showLogo = false;
         $logoSrc = null;
-        
+
         // Only show logo if GD is available AND we have a valid base64 image
         // DomPDF requires GD to render PNG/JPEG images
-        if ($gdAvailable && !empty($barangay_info['logo_base64']) && str_starts_with($barangay_info['logo_base64'], 'data:')) {
+        if (
+            $gdAvailable &&
+            !empty($barangay_info['logo_base64']) &&
+            str_starts_with($barangay_info['logo_base64'], 'data:')
+        ) {
             $showLogo = true;
             $logoSrc = $barangay_info['logo_base64'];
         }
     @endphp
 
-    @if($isCertificate)
+    @if ($isCertificate)
         {{-- CERTIFICATE LAYOUT --}}
         <div class="certificate-border"></div>
         <div class="certificate-border-inner"></div>
-        
+
         <div class="certificate-container">
             {{-- Header --}}
             <div class="certificate-header">
                 {{-- Logo at the very top --}}
                 <div class="header-logo-container">
-                    @if($showLogo && $logoSrc)
+                    @if ($showLogo && $logoSrc)
                         <img src="{{ $logoSrc }}" alt="Barangay Seal" class="header-logo">
                     @else
                         <div class="logo-placeholder">B</div>
                     @endif
                 </div>
-                
+
                 {{-- Government Hierarchy Text (centered) --}}
                 <div class="gov-header">Republic of the Philippines</div>
                 <div class="location-header">
-                    @if(!empty($barangay_info['province']))
+                    @if (!empty($barangay_info['province']))
                         Province of {{ $barangay_info['province'] }}
                     @endif
                 </div>
                 <div class="location-header">
-                    @if(!empty($barangay_info['municipality']))
+                    @if (!empty($barangay_info['municipality']))
                         Municipality of {{ $barangay_info['municipality'] }}
                     @endif
                 </div>
                 <div class="brgy-header">Barangay {{ $barangay_info['name'] ?? 'Barangay' }}</div>
-                
+
                 {{-- Horizontal separator line --}}
                 <hr class="header-separator">
             </div>
 
             {{-- Content --}}
             <div class="content">
-                @if(isset($document_title))
+                @if (isset($document_title))
                     <div class="document-title">{{ $document_title }}</div>
                 @endif
 
                 @yield('content')
             </div>
 
-            {{-- Footer --}}
-            <div class="certificate-footer">
-                <div>NOT VALID WITHOUT OFFICIAL DRY SEAL</div>
-                <div class="footer-note">This document is system-generated. Verify authenticity at the Barangay Hall.</div>
-            </div>
+            @if (empty($hide_certificate_footer))
+                <div class="certificate-footer">
+                    <div>NOT VALID WITHOUT OFFICIAL DRY SEAL</div>
+                    <div class="footer-note">This document is system-generated. Verify authenticity at the Barangay
+                        Hall.</div>
+                </div>
+            @endif
         </div>
     @else
         {{-- REPORT LAYOUT --}}
@@ -530,24 +560,26 @@
             <table class="header-table">
                 <tr>
                     <td class="header-left">
-                        @if($showLogo && $logoSrc)
+                        @if ($showLogo && $logoSrc)
                             <img src="{{ $logoSrc }}" alt="Logo" style="width: 70px; height: 70px;">
                         @else
-                            <div style="width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; background: linear-gradient(135deg, #1a5276, #2874a6); line-height: 70px; text-align: center; color: white; font-size: 28pt; font-weight: bold;">B</div>
+                            <div
+                                style="width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; background: linear-gradient(135deg, #1a5276, #2874a6); line-height: 70px; text-align: center; color: white; font-size: 28pt; font-weight: bold;">
+                                B</div>
                         @endif
                     </td>
                     <td class="header-center">
                         <div style="font-size: 10pt;">Republic of the Philippines</div>
-                        @if(!empty($barangay_info['province']))
+                        @if (!empty($barangay_info['province']))
                             <div style="font-size: 10pt;">Province of {{ $barangay_info['province'] }}</div>
                         @endif
-                        @if(!empty($barangay_info['municipality']))
+                        @if (!empty($barangay_info['municipality']))
                             <div style="font-size: 10pt;">Municipality of {{ $barangay_info['municipality'] }}</div>
                         @endif
                         <div style="font-size: 14pt; font-weight: bold; margin-top: 5px; text-transform: uppercase;">
                             Barangay {{ $barangay_info['name'] ?? 'Barangay' }}
                         </div>
-                        @if(!empty($barangay_info['address']))
+                        @if (!empty($barangay_info['address']))
                             <div style="font-size: 9pt; color: #555;">{{ $barangay_info['address'] }}</div>
                         @endif
                     </td>
@@ -560,7 +592,7 @@
         </div>
 
         <div class="content">
-            @if(isset($document_title))
+            @if (isset($document_title))
                 <div class="document-title" style="text-decoration: none; margin: 15px 0;">{{ $document_title }}</div>
             @endif
 

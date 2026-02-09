@@ -86,10 +86,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/age-distribution', [DashboardController::class, 'ageDistribution']);
     Route::get('/dashboard/beneficiaries', [DashboardController::class, 'beneficiaries']);
 
-    // Read-only routes (staff, purok leaders, captain, and admin access)
-    Route::middleware('role:admin,captain,purok_leader,staff')->group(function () {
+    // Purok read (admin, captain, purok_leader only - no staff)
+    Route::middleware('role:admin,captain,purok_leader')->group(function () {
         Route::get('/puroks', [PurokController::class, 'index']);
         Route::get('/puroks/{purok}', [PurokController::class, 'show']);
+    });
+
+    // Read-only routes (staff, purok leaders, captain, and admin access)
+    Route::middleware('role:admin,captain,purok_leader,staff')->group(function () {
         Route::get('/households', [HouseholdController::class, 'index']);
         Route::get('/households/for-resident-form', [HouseholdController::class, 'forResidentForm']);
         Route::get('/households/{household}', [HouseholdController::class, 'show']);
@@ -181,8 +185,8 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
 
-    // Reports (admin and captain only - purok leaders get filtered data)
-    Route::middleware('role:admin,captain')->group(function () {
+    // Reports (admin, captain, and staff - purok leaders get filtered data via separate route)
+    Route::middleware('role:admin,captain,staff')->group(function () {
         Route::get('/reports/households', [ReportController::class, 'households']);
         Route::get('/reports/residents', [ReportController::class, 'residents']);
         Route::get('/reports/population-summary', [ReportController::class, 'populationSummary']);
@@ -192,8 +196,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/reports/blotters/export/csv', [ReportController::class, 'exportBlottersCsv']);
     });
 
-    // Puroks report (admin, captain, and purok leaders - purok leaders get filtered data)
-    Route::middleware('role:admin,captain,purok_leader')->group(function () {
+    // Puroks report (admin, captain, staff, and purok leaders - purok leaders get filtered data)
+    Route::middleware('role:admin,captain,staff,purok_leader')->group(function () {
         Route::get('/reports/puroks', [ReportController::class, 'puroks']);
         Route::get('/reports/puroks/export/csv', [ReportController::class, 'exportPuroksCsv']);
     });
@@ -216,8 +220,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/puroks/{purok}', [PurokController::class, 'destroy']);
     });
 
-    // Household and Resident management (purok leaders, captain, and admin access)
-    Route::middleware('role:purok_leader,admin,captain')->group(function () {
+    // Household and Resident management (purok leaders, captain, staff, and admin access)
+    Route::middleware('role:purok_leader,admin,captain,staff')->group(function () {
         Route::post('/households', [HouseholdController::class, 'store']);
         Route::put('/households/{household}', [HouseholdController::class, 'update']);
         Route::delete('/households/{household}', [HouseholdController::class, 'destroy']);
@@ -228,22 +232,30 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // 4Ps Beneficiaries management (staff, captain, and admin access)
+    // 4Ps create and update (staff, admin, captain)
     Route::middleware('role:staff,admin,captain')->group(function () {
         Route::post('/beneficiaries/4ps', [FourPsBeneficiaryController::class, 'store']);
         Route::put('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'update']);
+    });
+    // 4Ps delete (admin and captain only - no staff)
+    Route::middleware('role:admin,captain')->group(function () {
         Route::delete('/beneficiaries/4ps/{fourPs}', [FourPsBeneficiaryController::class, 'destroy']);
     });
 
     // Solo Parents management (staff, captain, and admin access)
+    // Solo Parents create, update, generate-certificate (staff, admin, captain)
     Route::middleware('role:staff,admin,captain')->group(function () {
         Route::post('/beneficiaries/solo-parents', [SoloParentController::class, 'store']);
         Route::put('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'update']);
-        Route::delete('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'destroy']);
         Route::post('/beneficiaries/solo-parents/{soloParent}/generate-certificate', [SoloParentController::class, 'generateCertificate']);
     });
+    // Solo Parents delete (admin and captain only - no staff)
+    Route::middleware('role:admin,captain')->group(function () {
+        Route::delete('/beneficiaries/solo-parents/{soloParent}', [SoloParentController::class, 'destroy']);
+    });
 
-    // Events management (purok leaders, captain, and admin access)
-    Route::middleware('role:purok_leader,admin,captain')->group(function () {
+    // Events management (purok leaders, captain, staff, and admin access)
+    Route::middleware('role:purok_leader,admin,captain,staff')->group(function () {
         Route::post('/events', [EventController::class, 'store']);
         Route::put('/events/{event}', [EventController::class, 'update']);
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
@@ -254,9 +266,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/blotters', [BlotterController::class, 'store']);
     });
 
-    // Blotter management (purok leaders, captain, and admin access - update/delete only)
-    Route::middleware('role:purok_leader,admin,captain')->group(function () {
+    // Blotter update (purok leaders, captain, staff, and admin)
+    Route::middleware('role:purok_leader,admin,captain,staff')->group(function () {
         Route::put('/blotters/{blotter}', [BlotterController::class, 'update']);
+    });
+
+    // Blotter delete (purok leaders, captain, and admin only - no staff)
+    Route::middleware('role:purok_leader,admin,captain')->group(function () {
         Route::delete('/blotters/{blotter}', [BlotterController::class, 'destroy']);
     });
 
@@ -265,9 +281,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/incident-reports', [IncidentReportController::class, 'store']);
     });
 
-    // Incident Reports management (purok leaders, captain, and admin access - update/delete only)
-    Route::middleware('role:purok_leader,admin,captain')->group(function () {
+    // Incident Reports update (purok leaders, captain, staff, and admin)
+    Route::middleware('role:purok_leader,admin,captain,staff')->group(function () {
         Route::put('/incident-reports/{incidentReport}', [IncidentReportController::class, 'update']);
+    });
+
+    // Incident Reports delete (purok leaders, captain, and admin only - no staff)
+    Route::middleware('role:purok_leader,admin,captain')->group(function () {
         Route::delete('/incident-reports/{incidentReport}', [IncidentReportController::class, 'destroy']);
     });
 
@@ -282,8 +302,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/map/markers', [MapMarkerController::class, 'index']);
     Route::get('/map/markers/types', [MapMarkerController::class, 'getTypeOptions']);
 
-    // Map marker management (admin and captain)
-    Route::middleware('role:admin,captain')->group(function () {
+    // Map marker management (admin, captain, and staff)
+    Route::middleware('role:admin,captain,staff')->group(function () {
         Route::post('/map/markers', [MapMarkerController::class, 'store']);
         Route::get('/map/markers/{mapMarker}', [MapMarkerController::class, 'show']);
         Route::put('/map/markers/{mapMarker}', [MapMarkerController::class, 'update']);
@@ -300,6 +320,18 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users', [UserController::class, 'store']); // Only admin can create users
     });
 
+    // Officials management - create, update, toggle (admin, captain, staff)
+    Route::middleware('role:admin,captain,staff')->group(function () {
+        Route::post('/officials', [OfficialController::class, 'store']);
+        Route::put('/officials/{official}', [OfficialController::class, 'update']);
+        Route::patch('/officials/{official}/toggle-active', [OfficialController::class, 'toggleActive']);
+    });
+
+    // Officials delete (admin and captain only - no staff)
+    Route::middleware('role:admin,captain')->group(function () {
+        Route::delete('/officials/{official}', [OfficialController::class, 'destroy']);
+    });
+
     // User management routes (admin and captain - except creation)
     Route::middleware('role:admin,captain')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
@@ -314,12 +346,6 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/users/captain/signature', [UserController::class, 'uploadSignature']);
         Route::get('/users/captain/signature', [UserController::class, 'getSignature']);
 
-        // Officials management
-        Route::post('/officials', [OfficialController::class, 'store']);
-        Route::put('/officials/{official}', [OfficialController::class, 'update']);
-        Route::delete('/officials/{official}', [OfficialController::class, 'destroy']);
-        Route::patch('/officials/{official}/toggle-active', [OfficialController::class, 'toggleActive']);
-
         // Settings management
         Route::get('/settings', [SettingsController::class, 'index']);
         Route::put('/settings/preferences', [SettingsController::class, 'updatePreferences']);
@@ -333,8 +359,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('purok-boundaries', PurokBoundaryController::class);
     });
 
-    // Vaccination routes (purok leaders, captain, and admin access)
-    Route::middleware('role:purok_leader,admin,captain')->group(function () {
+    // Vaccination routes (purok leaders, captain, staff, and admin access)
+    Route::middleware('role:purok_leader,admin,captain,staff')->group(function () {
         Route::get('/vaccinations', [VaccinationController::class, 'index']);
         Route::post('/vaccinations', [VaccinationController::class, 'store']);
         Route::get('/vaccinations/statistics', [VaccinationController::class, 'statistics']);

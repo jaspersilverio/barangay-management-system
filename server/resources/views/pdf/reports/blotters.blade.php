@@ -22,101 +22,86 @@
             color: #000;
         }
 
-        /* ==================== HEADER ==================== */
-        .page-header {
-            width: 100%;
-            border-bottom: 2px solid #000;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        .header-table {
-            width: 100%;
-            border: none;
-        }
-
-        .header-table td {
-            border: none;
-            padding: 0;
-            vertical-align: middle;
-        }
-
-        .header-left {
-            width: 15%;
+        /* ==================== HEADER (MATCH CERTIFICATE/VACCINATION STYLE) ==================== */
+        .certificate-header {
             text-align: center;
+            margin-top: 0;
+            margin-bottom: 0;
+            padding-bottom: 0;
         }
 
-        .header-center {
-            width: 70%;
+        .header-logo-container {
             text-align: center;
-        }
-
-        .header-right {
-            width: 15%;
-            text-align: right;
-            font-size: 8pt;
-            color: #333;
+            margin-bottom: 8px;
         }
 
         .header-logo {
             width: 70px;
             height: 70px;
+            object-fit: contain;
         }
 
         .logo-placeholder {
             width: 70px;
             height: 70px;
+            margin: 0 auto;
             border-radius: 50%;
-            background-color: #1a5276;
+            background: linear-gradient(135deg, #1a5276, #2874a6);
+            color: white;
+            font-size: 28pt;
+            font-weight: bold;
             line-height: 70px;
             text-align: center;
-            color: white;
-            font-size: 24pt;
-            font-weight: bold;
-            margin: 0 auto;
         }
 
-        .header-text-row {
-            font-size: 9pt;
-            color: #333;
-            margin: 1px 0;
+        .gov-header {
+            font-size: 11pt;
+            font-weight: normal;
+            letter-spacing: 0.3px;
+            margin-bottom: 2px;
+            line-height: 1.4;
         }
 
-        .header-barangay {
-            font-size: 14pt;
+        .location-header {
+            font-size: 11pt;
+            font-weight: normal;
+            margin: 2px 0;
+            line-height: 1.4;
+        }
+
+        .brgy-header {
+            font-size: 13pt;
             font-weight: bold;
-            color: #000;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin: 3px 0;
+            margin: 4px 0 0 0;
+            color: #1a1a1a;
         }
 
-        .header-office {
-            font-size: 10pt;
-            font-weight: bold;
-            margin-top: 3px;
+        .header-separator {
+            border: none;
+            border-top: 1px solid #333;
+            margin: 12px auto 15px auto;
+            width: 100%;
         }
 
-        /* ==================== TITLE SECTION ==================== */
-        .title-section {
+        .document-title {
             text-align: center;
-            margin: 15px 0;
-            padding-bottom: 10px;
-            border-bottom: 3px double #000;
-        }
-
-        .report-title {
-            font-size: 16pt;
+            font-size: 18pt;
             font-weight: bold;
+            margin: 5px 0 10px;
+            color: #1a1a1a;
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin-bottom: 10px;
+            text-decoration: underline;
+            text-underline-offset: 6px;
         }
 
         .filter-info {
             font-size: 9pt;
             color: #333;
             margin-top: 8px;
+            text-align: center;
         }
 
         .filter-info span {
@@ -312,46 +297,49 @@
     </style>
 </head>
 <body>
-    {{-- ==================== PAGE HEADER ==================== --}}
-    <div class="page-header">
-        <table class="header-table">
-            <tr>
-                <td class="header-left">
-                    @php
-                        $showLogo = false;
-                        $logoSrc = null;
-                        $gdAvailable = extension_loaded('gd');
-                        
-                        if ($gdAvailable && !empty($barangay_info['logo_base64'])) {
-                            $showLogo = true;
-                            $logoSrc = $barangay_info['logo_base64'];
-                        }
-                    @endphp
-                    
-                    @if ($showLogo && $logoSrc)
-                        <img src="{{ $logoSrc }}" alt="Logo" class="header-logo">
-                    @else
-                        <div class="logo-placeholder">B</div>
-                    @endif
-                </td>
-                <td class="header-center">
-                    <div class="header-text-row">Republic of the Philippines</div>
-                    <div class="header-text-row">{{ $barangay_info['province'] ?? 'Province' }}</div>
-                    <div class="header-text-row">{{ $barangay_info['municipality'] ?? 'Municipality' }}</div>
-                    <div class="header-barangay">{{ $barangay_info['name'] ?? 'Barangay' }}</div>
-                    <div class="header-office">OFFICE OF THE PUNONG BARANGAY</div>
-                </td>
-                <td class="header-right">
-                    <div><strong>Date:</strong> {{ $generated_date ?? date('F d, Y') }}</div>
-                    <div><strong>Time:</strong> {{ $generated_time ?? date('h:i A') }}</div>
-                </td>
-            </tr>
-        </table>
+    {{-- ==================== PAGE HEADER (CERTIFICATE-STYLE) ==================== --}}
+    @php
+        $gdAvailable = extension_loaded('gd');
+        $showLogo = false;
+        $logoSrc = null;
+        if ($gdAvailable && !empty($barangay_info['logo_base64']) && str_starts_with($barangay_info['logo_base64'] ?? '', 'data:')) {
+            $showLogo = true;
+            $logoSrc = $barangay_info['logo_base64'];
+        }
+    @endphp
+
+    <div class="certificate-header">
+        <div class="header-logo-container">
+            @if ($showLogo && $logoSrc)
+                <img src="{{ $logoSrc }}" alt="Barangay Seal" class="header-logo">
+            @else
+                <div class="logo-placeholder">B</div>
+            @endif
+        </div>
+        <div class="gov-header">Republic of the Philippines</div>
+        <div class="location-header">
+            @if (!empty($barangay_info['province']))
+                Province of {{ $barangay_info['province'] }}
+            @else
+                Province of Capiz
+            @endif
+        </div>
+        <div class="location-header">
+            @if (!empty($barangay_info['municipality']))
+                Municipality of {{ $barangay_info['municipality'] }}
+            @else
+                Municipality of Ivisan
+            @endif
+        </div>
+        <div class="brgy-header">
+            Barangay {{ $barangay_info['barangay_name'] ?? $barangay_info['name'] ?? 'Poblacion Sur' }}
+        </div>
+        <hr class="header-separator">
     </div>
 
-    {{-- ==================== TITLE SECTION ==================== --}}
-    <div class="title-section">
-        <div class="report-title">{{ $document_title ?? 'BLOTTER / CASE RECORDS REPORT' }}</div>
+    {{-- ==================== TITLE & FILTERS ==================== --}}
+    <div>
+        <div class="document-title">{{ $document_title ?? 'BLOTTER / CASE RECORDS REPORT' }}</div>
         <div class="filter-info">
             <span><strong>Date Range:</strong> {{ $filters['date_range'] ?? 'All Dates' }}</span>
             <span>|</span>

@@ -11,7 +11,9 @@ import {
   createOfficial,
   updateOfficial,
   deleteOfficial,
-  toggleOfficialActive
+  toggleOfficialActive,
+  OFFICIAL_POSITION_OPTIONS,
+  SK_POSITION_OPTIONS
 } from '../../services/officials.service'
 
 interface PersonnelPageProps {
@@ -28,9 +30,9 @@ export default function PersonnelPage({
   addButtonLabel
 }: PersonnelPageProps) {
   const { user } = useAuth()
-  // Only admin can manage (create/edit/delete) personnel
-  // All authenticated users can view personnel
-  const canManage = user?.role === 'admin'
+  // Admin, captain, and staff can manage (create/edit/toggle); only admin and captain can delete
+  const canManage = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'staff'
+  const canDelete = user?.role === 'admin' || user?.role === 'captain'
 
   // State
   const [officials, setOfficials] = useState<Official[]>([])
@@ -138,7 +140,7 @@ export default function PersonnelPage({
   // Handle delete
   const handleDelete = async (id: number) => {
     // Authorization check
-    if (!canManage) {
+    if (!canDelete) {
       setError('You do not have permission to delete personnel.')
       return
     }
@@ -275,6 +277,14 @@ export default function PersonnelPage({
         {/* Left Column - Personnel List */}
         <Col lg={8}>
           <OfficialList
+            positionOptions={
+              category === 'official'
+                ? OFFICIAL_POSITION_OPTIONS
+                : category === 'sk'
+                  ? SK_POSITION_OPTIONS
+                  : []
+            }
+            hidePositionFilter={category === 'tanod' || category === 'bhw' || category === 'staff'}
             officials={officials}
             loading={loading}
             onEdit={handleEdit}
@@ -284,6 +294,7 @@ export default function PersonnelPage({
             onFilterPosition={handleFilterPosition}
             onFilterStatus={handleFilterStatus}
             canManage={canManage}
+            canDelete={canDelete}
           />
         </Col>
 

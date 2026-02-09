@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col, Alert } from 'react-bootstrap';
 import { X, FileText, MapPin, Calendar, Clock, User, AlertCircle } from 'lucide-react';
 import { type UpdateIncidentReportData, updateIncidentReport, type IncidentReport } from '../../services/incident-reports.service';
-import { getUsers, type User as UserType } from '../../services/users.service';
 
 interface EditIncidentReportModalProps {
   show: boolean;
@@ -24,33 +23,18 @@ const EditIncidentReportModal: React.FC<EditIncidentReportModalProps> = ({
     incident_time: '',
     location: '',
     persons_involved: '',
-    reporting_officer_id: 0,
     status: 'Recorded',
     notes: ''
   });
 
-  const [users, setUsers] = useState<UserType[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (show && incidentReport) {
-      loadUsers();
       populateForm();
     }
   }, [show, incidentReport]);
-
-  const loadUsers = async () => {
-    try {
-      const response = await getUsers({ per_page: 100 });
-      if (response.success && response.data?.data) {
-        setUsers(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error loading users:', error);
-      setUsers([]);
-    }
-  };
 
   const populateForm = () => {
     if (!incidentReport) return;
@@ -82,7 +66,6 @@ const EditIncidentReportModal: React.FC<EditIncidentReportModalProps> = ({
       incident_time: incidentTime,
       location: incidentReport.location || '',
       persons_involved: personsInvolved,
-      reporting_officer_id: incidentReport.reporting_officer_id || 0,
       status: incidentReport.status || 'Recorded',
       notes: incidentReport.notes || ''
     });
@@ -120,9 +103,6 @@ const EditIncidentReportModal: React.FC<EditIncidentReportModalProps> = ({
     }
     if (!formData.location?.trim()) {
       newErrors.location = 'Location is required.';
-    }
-    if (!formData.reporting_officer_id) {
-      newErrors.reporting_officer_id = 'Reporting officer is required.';
     }
 
     setErrors(newErrors);
@@ -303,30 +283,6 @@ const EditIncidentReportModal: React.FC<EditIncidentReportModalProps> = ({
           </Row>
 
           <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label className="form-label-custom">
-                  <User size={16} className="me-2" />
-                  Reporting Officer <span className="text-danger">*</span>
-                </Form.Label>
-                <Form.Select
-                  value={formData.reporting_officer_id}
-                  onChange={(e) => handleInputChange('reporting_officer_id', parseInt(e.target.value))}
-                  isInvalid={!!errors.reporting_officer_id}
-                  className="form-control-custom"
-                >
-                  <option value="">Select reporting officer...</option>
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role})
-                    </option>
-                  ))}
-                </Form.Select>
-                <Form.Control.Feedback type="invalid">
-                  {errors.reporting_officer_id}
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
             <Col md={6}>
               <Form.Group className="mb-3">
                 <Form.Label className="form-label-custom">

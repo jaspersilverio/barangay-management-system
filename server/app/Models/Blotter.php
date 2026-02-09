@@ -54,6 +54,11 @@ class Blotter extends Model
     ];
 
     /**
+     * Accessors to append to array/JSON (so list API returns complainant/respondent names).
+     */
+    protected $appends = ['complainant_name', 'respondent_name', 'complainant_type', 'respondent_type'];
+
+    /**
      * Get the complainant (resident who filed the complaint)
      */
     public function complainant(): BelongsTo

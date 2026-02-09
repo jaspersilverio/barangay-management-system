@@ -63,7 +63,8 @@ export async function getHouseholdResidents(householdId: number) {
 
 export async function getHousehold(id: number | string) {
 	const res = await api.get(`/households/${id}`)
-	return res.data as { success: boolean; data: any; message: string | null; errors: any }
+	const payload = res.data as { success: boolean; data: any; message: string | null; errors: any }
+	return payload.success && payload.data ? payload.data : null
 }
 
 export async function createHousehold(payload: HouseholdPayload) {

@@ -25,7 +25,7 @@ export interface Official {
 
 export interface CreateOfficialData {
   user_id?: number
-  name?: string // Optional for official category (composed from first/middle/last/suffix)
+  name?: string
   category?: string
   first_name?: string
   middle_name?: string
@@ -33,7 +33,7 @@ export interface CreateOfficialData {
   suffix?: string
   sex?: string
   birthdate?: string
-  position: string
+  position?: string
   term_start?: string
   term_end?: string
   contact?: string
@@ -42,6 +42,14 @@ export interface CreateOfficialData {
   purok_id?: number
   photo?: File
   active?: boolean
+  // Appointed officials (tanod, bhw, staff)
+  full_name?: string
+  gender?: string
+  contact_number?: string
+  date_appointed?: string
+  status?: string
+  official_role?: 'tanod' | 'bhw' | 'staff'
+  official_type?: 'appointed'
 }
 
 export interface UpdateOfficialData extends Partial<CreateOfficialData> {
@@ -109,28 +117,39 @@ export async function createOfficial(data: CreateOfficialData) {
   const formData = new FormData()
   
   // Add text fields
-  if (data.user_id) formData.append('user_id', data.user_id.toString())
-  if (data.name) formData.append('name', data.name)
-  if (data.category) formData.append('category', data.category)
-  
-  // Add personal information fields (for official and SK categories)
-  if (data.first_name) formData.append('first_name', data.first_name)
-  if (data.middle_name) formData.append('middle_name', data.middle_name)
-  if (data.last_name) formData.append('last_name', data.last_name)
-  if (data.suffix) formData.append('suffix', data.suffix)
-  if (data.sex) formData.append('sex', data.sex)
-  if (data.birthdate) formData.append('birthdate', data.birthdate)
-  if (data.email) formData.append('email', data.email)
-  if (data.address) formData.append('address', data.address)
-  if (data.purok_id) formData.append('purok_id', data.purok_id.toString())
-  formData.append('position', data.position)
-  if (data.term_start) formData.append('term_start', data.term_start)
-  if (data.term_end) formData.append('term_end', data.term_end)
-  if (data.contact) formData.append('contact', data.contact)
-  
-  // Handle active field properly
-  const activeValue = data.active !== undefined ? data.active : true
-  formData.append('active', activeValue.toString())
+  // Appointed officials: use appointed payload
+  if (data.official_type === 'appointed' && data.official_role) {
+    formData.append('official_type', 'appointed')
+    formData.append('official_role', data.official_role)
+    formData.append('full_name', data.full_name ?? '')
+    formData.append('gender', data.gender ?? '')
+    formData.append('birthdate', data.birthdate ?? '')
+    formData.append('date_appointed', data.date_appointed ?? '')
+    formData.append('status', data.status ?? 'active')
+    if (data.contact_number) formData.append('contact_number', data.contact_number)
+    if (data.address) formData.append('address', data.address)
+  } else {
+    if (data.user_id) formData.append('user_id', data.user_id.toString())
+    if (data.name) formData.append('name', data.name ?? '')
+    if (data.category) formData.append('category', data.category ?? '')
+    if (data.first_name) formData.append('first_name', data.first_name)
+    if (data.middle_name) formData.append('middle_name', data.middle_name)
+    if (data.last_name) formData.append('last_name', data.last_name)
+    if (data.suffix) formData.append('suffix', data.suffix)
+    if (data.sex) formData.append('sex', data.sex)
+    if (data.birthdate) formData.append('birthdate', data.birthdate)
+    if (data.email) formData.append('email', data.email)
+    if (data.address) formData.append('address', data.address)
+    if (data.purok_id) formData.append('purok_id', data.purok_id.toString())
+    formData.append('position', data.position ?? '')
+  }
+  if (data.official_type !== 'appointed') {
+    if (data.term_start) formData.append('term_start', data.term_start)
+    if (data.term_end) formData.append('term_end', data.term_end)
+    if (data.contact) formData.append('contact', data.contact)
+    const activeValue = data.active !== undefined ? data.active : true
+    formData.append('active', activeValue.toString())
+  }
   
   // Add photo if provided
   if (data.photo) {
@@ -148,15 +167,30 @@ export async function createOfficial(data: CreateOfficialData) {
 
 export async function updateOfficial(id: number, data: Partial<CreateOfficialData>) {
   const formData = new FormData()
-  
-  // Add text fields - always send required fields
+
+  // Appointed officials: map to legacy format for update
+  if (data.official_type === 'appointed' && data.official_role) {
+    formData.append('category', data.official_role)
+    formData.append('name', data.full_name ?? '')
+    formData.append('sex', (data.gender ?? '').charAt(0).toUpperCase() + (data.gender ?? '').slice(1).toLowerCase())
+    formData.append('birthdate', data.birthdate ?? '')
+    formData.append('contact', data.contact_number ?? '')
+    formData.append('address', data.address ?? '')
+    formData.append('term_start', data.date_appointed ?? '')
+    formData.append('active', (data.status === 'active').toString())
+    if (data.photo) formData.append('photo', data.photo)
+    const res = await api.put(`/officials/${id}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data as { success: boolean; data: Official; message: string | null; errors: any }
+  }
+
   if (data.user_id !== undefined && data.user_id !== null) {
     formData.append('user_id', data.user_id.toString())
   }
-  // Always send name and position if they exist (required fields)
   if (data.name !== undefined) formData.append('name', data.name)
   if (data.category !== undefined) formData.append('category', data.category)
-  if (data.position !== undefined) formData.append('position', data.position)
+  if (data.position !== undefined) formData.append('position', data.position ?? '')
   if (data.term_start !== undefined) formData.append('term_start', data.term_start || '')
   if (data.term_end !== undefined) formData.append('term_end', data.term_end || '')
   if (data.contact !== undefined) formData.append('contact', data.contact || '')

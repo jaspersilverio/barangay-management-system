@@ -11,6 +11,7 @@ export type BarangayInfo = {
   email: string
   captain_name: string
   logo_path: string | null
+  captain_signature_path: string | null
   created_at?: string
   updated_at?: string
 }

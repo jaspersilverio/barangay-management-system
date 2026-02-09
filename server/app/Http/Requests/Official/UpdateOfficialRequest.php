@@ -13,18 +13,32 @@ class UpdateOfficialRequest extends BaseFormRequest
 
     public function rules(): array
     {
-        // Get category from request or from the official model if updating
         $category = $this->input('category');
         if (!$category && $this->route('official')) {
             $category = $this->route('official')->category;
         }
-        // Default to 'official' if not specified
         if (!$category) {
             $category = 'official';
         }
+        $isAppointed = in_array($category, ['tanod', 'bhw', 'staff']);
         $isOfficialCategory = $category === 'official';
         $isSKCategory = $category === 'sk';
         $isEnhancedCategory = $isOfficialCategory || $isSKCategory;
+
+        // Appointed officials: simpler validation, no position
+        if ($isAppointed) {
+            return [
+                'name' => ['sometimes', 'required', 'string', 'max:255'],
+                'sex' => ['nullable', 'string', 'in:Male,Female,male,female'],
+                'birthdate' => ['nullable', 'date'],
+                'contact' => ['nullable', 'string', 'max:20'],
+                'address' => ['nullable', 'string'],
+                'term_start' => ['nullable', 'date'],
+                'position' => ['nullable'],
+                'active' => ['sometimes', 'nullable'],
+                'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
+            ];
+        }
 
         return [
             'user_id' => ['nullable', 'exists:users,id'],

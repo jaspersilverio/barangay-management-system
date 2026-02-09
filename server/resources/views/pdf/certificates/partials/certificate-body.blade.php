@@ -1,12 +1,11 @@
-{{-- Certificate Purpose --}}
 <p class="purpose-statement">
     This certification is being issued upon the request of the above-named individual
-    for <strong>{{ strtoupper($certificate->purpose) }}</strong> purposes and for whatever
+    for <strong>{{ strtoupper($certificate->purpose ?? '') }}</strong> purposes and for whatever
     legal intent it may serve.
 </p>
 
 @php
-    $issueDate = $certificate->created_at ? \Carbon\Carbon::parse($certificate->created_at) : now();
+    $issueDate = ($certificate->created_at ?? null) ? \Carbon\Carbon::parse($certificate->created_at) : now();
     $dayOrdinal = $issueDate->format('jS');
     $monthYear = $issueDate->format('F, Y');
 @endphp

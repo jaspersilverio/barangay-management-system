@@ -40,6 +40,7 @@ class BarangayInfoController extends Controller
                 'email' => 'nullable|email|max:255',
                 'captain_name' => 'nullable|string|max:255',
                 'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+                'captain_signature' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
             ]);
 
             DB::beginTransaction();
@@ -49,16 +50,26 @@ class BarangayInfoController extends Controller
 
             // Handle logo upload
             if ($request->hasFile('logo')) {
-                // Delete old logo if exists
                 if ($barangayInfo->logo_path) {
                     Storage::disk('public')->delete($barangayInfo->logo_path);
                 }
-
                 $file = $request->file('logo');
                 $extension = $file->getClientOriginalExtension();
                 $filename = 'barangay_logo_' . time() . '_' . uniqid() . '.' . $extension;
                 $logoPath = $file->storeAs('barangay', $filename, 'public');
                 $barangayInfo->logo_path = $logoPath;
+            }
+
+            // Handle captain signature upload
+            if ($request->hasFile('captain_signature')) {
+                if ($barangayInfo->captain_signature_path) {
+                    Storage::disk('public')->delete($barangayInfo->captain_signature_path);
+                }
+                $file = $request->file('captain_signature');
+                $extension = $file->getClientOriginalExtension();
+                $filename = 'captain_signature_' . time() . '_' . uniqid() . '.' . $extension;
+                $signaturePath = $file->storeAs('barangay', $filename, 'public');
+                $barangayInfo->captain_signature_path = $signaturePath;
             }
 
             // Update fields

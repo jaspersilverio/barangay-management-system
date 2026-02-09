@@ -1,10 +1,8 @@
 @extends('pdf.layouts.base')
 
 @section('content')
-    {{-- Greeting --}}
     <p class="greeting">TO WHOM IT MAY CONCERN:</p>
 
-    {{-- Main Certification Body --}}
     <p class="body-text">
         This is to certify that <strong>{{ strtoupper($resident->full_name) }}</strong>,
         @if($resident->age)
@@ -35,12 +33,7 @@
         and is known to be a law-abiding citizen of this community.
     </p>
 
-    {{-- Purpose and Validity --}}
     @include('pdf.certificates.partials.certificate-body', ['certificate_type' => 'certificate'])
 
-    {{-- Signatures --}}
     @include('pdf.certificates.partials.signatures')
-
-    {{-- Verification --}}
-    @include('pdf.certificates.partials.verification')
 @endsection

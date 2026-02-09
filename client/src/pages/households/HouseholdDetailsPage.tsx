@@ -29,15 +29,15 @@ export default function HouseholdDetailsPage() {
     return sex.charAt(0).toUpperCase() + sex.slice(1)
   }
 
-  // Filter out head of household from members list (already filtered in backend, but double-check)
-  const members = data?.residents?.filter((r: any) => r.id !== data?.head_resident_id) || []
+  // Backend returns members (excludes head; head shown in header). Use members or residents key.
+  const members = data?.members ?? data?.residents ?? []
 
   const load = async () => {
     if (!id) return
     setLoading(true)
     try {
-      const res = await getHousehold(id)
-      setData(res.data)
+      const household = await getHousehold(id)
+      setData(household)
     } finally {
       setLoading(false)
     }
@@ -90,13 +90,23 @@ export default function HouseholdDetailsPage() {
       </Row>
 
       <Card className="shadow rounded-3 p-4 mt-3">
-        <div className="mb-2">
-          <h5 className="mb-0">Household Members</h5>
-          <small className="text-muted">
-            {hh.head_resident_id && (
-              <>Head: <strong>{hh.head_name}</strong> (not shown in members list)</>
-            )}
-          </small>
+        <div className="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h5 className="mb-0">Household Members</h5>
+            <small className="text-muted">
+              {hh.head_resident_id && (
+                <>Head: <strong>{hh.head_name}</strong> (not shown below). </>
+              )}
+              {members.length} member{members.length !== 1 ? 's' : ''}
+            </small>
+          </div>
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => setShowResidentsModal(true)}
+          >
+            View / Manage Residents
+          </Button>
         </div>
         <div className="table-responsive">
           <Table striped bordered hover responsive>
@@ -126,7 +136,12 @@ export default function HouseholdDetailsPage() {
                 </tr>
               ))}
               {(!members || members.length === 0) && (
-                <tr><td colSpan={4} className="text-center py-3 text-muted">No members yet. Add residents to this household.</td></tr>
+                <tr>
+                  <td colSpan={4} className="text-center py-4 text-muted">
+                    <p className="mb-2">No household members found.</p>
+                    <small>To add members: go to <strong>Residents</strong>, edit a resident, and assign them to this household.</small>
+                  </td>
+                </tr>
               )}
             </tbody>
           </Table>
@@ -147,7 +162,8 @@ export default function HouseholdDetailsPage() {
             head_name: data.head_name || 'N/A',
             address: data.address || '',
             head_resident_id: data.head_resident_id,
-            purok: data.purok ? { name: data.purok.name } : undefined
+            purok: data.purok ? { name: data.purok.name } : undefined,
+            purok_id: data.purok_id ?? data.purok?.id,
           }}
         />
       )}

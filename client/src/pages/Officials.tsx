@@ -5,13 +5,14 @@ import OfficialList from '../components/officials/OfficialList'
 import OfficialForm from '../components/officials/OfficialForm'
 import OfficialCard from '../components/officials/OfficialCard'
 import { 
-  type Official, 
+  type Official,
   type CreateOfficialData,
-  getOfficials, 
-  createOfficial, 
-  updateOfficial, 
-  deleteOfficial, 
-  toggleOfficialActive 
+  getOfficials,
+  createOfficial,
+  updateOfficial,
+  deleteOfficial,
+  toggleOfficialActive,
+  OFFICIAL_POSITION_OPTIONS
 } from '../services/officials.service'
 
 export default function Officials() {
@@ -263,6 +264,7 @@ export default function Officials() {
         {/* Left Column - Officials List */}
         <Col lg={8}>
           <OfficialList
+            positionOptions={OFFICIAL_POSITION_OPTIONS}
             officials={officials}
             loading={loading}
             onEdit={handleEdit}

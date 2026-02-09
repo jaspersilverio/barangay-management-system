@@ -1,28 +1,36 @@
 import { useEffect, useState, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
-import { getBeneficiariesSummary, type BeneficiariesSummary } from '../../services/dashboard.service'
+import { getBeneficiariesSummary, getDashboardCached, setDashboardCached, type BeneficiariesSummary } from '../../services/dashboard.service'
 import { Gift } from 'lucide-react'
 
-const COLORS = [
-  'var(--color-primary)',    // blue-500
-  'var(--color-accent)',      // green-500
-  'var(--color-warning)',     // amber-500
-  '#8B5CF6',                  // purple-500
-]
+const CATEGORY_COLORS: Record<string, string> = {
+  '4Ps': 'var(--color-primary)',           // blue
+  'Solo Parent': 'var(--color-accent)',    // green
+  'Senior Citizens': 'var(--color-warning)', // yellow
+  'PWD': '#8B5CF6',                         // purple
+}
+const DEFAULT_COLOR = 'var(--color-text-muted)'
+const CACHE_KEY = 'beneficiariesSummary'
 
 export default function BeneficiariesChart() {
-  const [data, setData] = useState<BeneficiariesSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cached = getDashboardCached<BeneficiariesSummary>(CACHE_KEY)
+  const [data, setData] = useState<BeneficiariesSummary | null>(cached ?? null)
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (cached != null) {
+      setData(cached)
+      setLoading(false)
+      return
+    }
     const fetchData = async () => {
       try {
-        setLoading(true)
         setError(null)
         const response = await getBeneficiariesSummary()
         if (response.success) {
           setData(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch beneficiaries data')
         }
@@ -32,7 +40,6 @@ export default function BeneficiariesChart() {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 
@@ -40,10 +47,10 @@ export default function BeneficiariesChart() {
     if (!data || !data.categories) return []
     return data.categories
       .filter(cat => cat.count > 0)
-      .map((cat, index) => ({
+      .map(cat => ({
         name: cat.name,
         value: cat.count,
-        color: COLORS[index % COLORS.length],
+        color: CATEGORY_COLORS[cat.name] ?? DEFAULT_COLOR,
       }))
   }, [data])
 
@@ -165,9 +172,9 @@ export default function BeneficiariesChart() {
       {/* Summary Stats */}
       <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
         <div className="grid grid-cols-4 gap-4 text-center">
-          {data.categories.map((cat, index) => (
+          {data.categories.map((cat) => (
             <div key={cat.name}>
-              <div className="text-2xl font-bold" style={{ color: COLORS[index % COLORS.length] }}>
+              <div className="text-2xl font-bold" style={{ color: CATEGORY_COLORS[cat.name] ?? DEFAULT_COLOR }}>
                 {cat.count}
               </div>
               <div className="text-xs text-gray-500">{cat.name}</div>

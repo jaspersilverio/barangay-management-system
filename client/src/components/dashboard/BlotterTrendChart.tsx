@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { getBlotterSummary } from '../../services/dashboard.service'
+import { getBlotterSummary, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { BlotterSummary } from '../../services/dashboard.service'
 import { FileText } from 'lucide-react'
 
@@ -10,19 +10,27 @@ const COLORS = {
   resolved: 'var(--color-accent)'  // green-500
 }
 
+const CACHE_KEY = 'blotterSummary'
+
 export default function BlotterTrendChart() {
-  const [data, setData] = useState<BlotterSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cached = getDashboardCached<BlotterSummary>(CACHE_KEY)
+  const [data, setData] = useState<BlotterSummary | null>(cached ?? null)
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (cached != null) {
+      setData(cached)
+      setLoading(false)
+      return
+    }
     const fetchData = async () => {
       try {
-        setLoading(true)
         setError(null)
         const response = await getBlotterSummary()
         if (response.success) {
           setData(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch blotter data')
         }
@@ -32,7 +40,6 @@ export default function BlotterTrendChart() {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 

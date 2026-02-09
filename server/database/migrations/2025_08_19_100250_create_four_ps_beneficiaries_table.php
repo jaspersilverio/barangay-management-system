@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('four_ps_beneficiaries')) {
+            return;
+        }
+
         Schema::create('four_ps_beneficiaries', function (Blueprint $table) {
             $table->engine = 'InnoDB';
             $table->charset = 'utf8mb4';

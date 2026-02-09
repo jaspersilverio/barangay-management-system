@@ -45,6 +45,7 @@ export default function SoloParentsPage() {
   const debounceTimeoutRef = useRef<number | null>(null)
 
   const canManage = role === 'admin' || role === 'staff'
+  const canDelete = role === 'admin' || role === 'captain'
 
   const effectivePurokId = useMemo(() => {
     if (role === 'admin') return purokId
@@ -431,14 +432,16 @@ export default function SoloParentsPage() {
                             >
                               Edit
                             </Button>
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              className="btn-action btn-action-delete"
-                              onClick={() => setShowDelete(soloParent.id)}
-                            >
-                              Delete
-                            </Button>
+                            {canDelete && (
+                              <Button
+                                variant="outline-danger"
+                                size="sm"
+                                className="btn-action btn-action-delete"
+                                onClick={() => setShowDelete(soloParent.id)}
+                              >
+                                Delete
+                              </Button>
+                            )}
                           </div>
                         </td>
                       )}

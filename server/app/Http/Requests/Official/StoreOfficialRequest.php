@@ -13,6 +13,23 @@ class StoreOfficialRequest extends BaseFormRequest
 
     public function rules(): array
     {
+        $officialType = $this->input('official_type');
+        $isAppointed = $officialType === 'appointed';
+
+        if ($isAppointed) {
+            return [
+                'full_name' => ['required', 'string', 'max:255'],
+                'gender' => ['required', 'string', 'in:male,female,Male,Female'],
+                'birthdate' => ['required', 'date'],
+                'contact_number' => ['nullable', 'string', 'max:20'],
+                'address' => ['nullable', 'string'],
+                'date_appointed' => ['required', 'date'],
+                'status' => ['required', 'string', 'in:active,inactive'],
+                'official_role' => ['required', 'string', 'in:tanod,bhw,staff'],
+                'official_type' => ['required', 'string', 'in:appointed'],
+            ];
+        }
+
         $category = $this->input('category', 'official');
         $isOfficialCategory = $category === 'official';
         $isSKCategory = $category === 'sk';
@@ -22,7 +39,6 @@ class StoreOfficialRequest extends BaseFormRequest
             'user_id' => ['nullable', 'exists:users,id'],
             'name' => $isEnhancedCategory ? ['nullable', 'string', 'max:255'] : ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'in:official,sk,tanod,bhw,staff'],
-            // Official and SK category fields
             'first_name' => $isEnhancedCategory ? ['required', 'string', 'max:255'] : ['nullable', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => $isEnhancedCategory ? ['required', 'string', 'max:255'] : ['nullable', 'string', 'max:255'],
@@ -33,21 +49,18 @@ class StoreOfficialRequest extends BaseFormRequest
             'address' => ['nullable', 'string', 'max:500'],
             'purok_id' => ['nullable', 'exists:puroks,id'],
             'position' => [
-                'required', 
-                'string', 
+                'required',
+                'string',
                 'max:255',
                 function ($attribute, $value, $fail) use ($isOfficialCategory) {
-                    // Validate position based on category
                     if ($isOfficialCategory) {
-                        // Official positions must start with "Barangay" and not include SK/Tanod/BHW
                         $invalidPositions = ['SK', 'Tanod', 'Health Worker', 'BHW', 'Day Care Worker'];
                         foreach ($invalidPositions as $invalid) {
                             if (stripos($value, $invalid) !== false) {
-                                $fail("Position '{$value}' is not valid for Barangay Officials. SK, Tanod, and BHW positions belong to their respective categories.");
+                                $fail("Position '{$value}' is not valid for Barangay Officials.");
                                 return;
                             }
                         }
-                        // Must be an official position
                         $officialPositions = [
                             'Barangay Captain',
                             'Barangay Kagawad',
@@ -72,13 +85,18 @@ class StoreOfficialRequest extends BaseFormRequest
             'term_start' => ['nullable', 'date'],
             'term_end' => ['nullable', 'date', 'after_or_equal:term_start'],
             'contact' => ['nullable', 'string', 'max:255'],
-            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'], // 5MB max, webp support
+            'photo' => ['nullable', 'image', 'mimes:jpeg,jpg,png,webp', 'max:5120'],
             'active' => ['nullable'],
         ];
     }
 
     protected function prepareForValidation()
     {
+        // Appointed officials: normalize status to active boolean
+        if ($this->input('official_type') === 'appointed' && $this->has('status')) {
+            $this->merge(['active' => $this->status === 'active']);
+        }
+
         // Convert active to boolean if it's a string
         if ($this->has('active')) {
             $activeValue = $this->active;

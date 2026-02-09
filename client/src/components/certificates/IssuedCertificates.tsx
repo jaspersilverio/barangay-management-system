@@ -347,7 +347,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
             <thead>
               <tr>
                 <th>Certificate Number</th>
-                <th>Resident</th>
+                <th>Resident ID</th>
+                <th>Resident Name</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th>Valid Until</th>
@@ -364,11 +365,14 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                       <div className="fw-medium">{certificate.certificate_number}</div>
                       <small className="text-brand-muted">{certificate.certificate_type}</small>
                     </td>
+                    <td>{certificate.resident_id}</td>
                     <td>
-                      <div>
-                        <div className="fw-medium">{certificate.resident?.full_name}</div>
-                        <small className="text-brand-muted">ID: {certificate.resident_id}</small>
-                      </div>
+                      <span className="fw-medium">
+                        {certificate.resident?.full_name ||
+                          (certificate.resident
+                            ? [certificate.resident.first_name, certificate.resident.last_name].filter(Boolean).join(' ')
+                            : '—')}
+                      </span>
                     </td>
                     <td>{getCertificateTypeLabel(certificate.certificate_type)}</td>
                     <td>

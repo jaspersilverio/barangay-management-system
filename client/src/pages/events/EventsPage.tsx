@@ -18,7 +18,7 @@ export default function EventsPage() {
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null)
 
   // Determine user permissions
-  const canManage = user?.role === 'admin' || user?.role === 'purok_leader'
+  const canManage = user?.role === 'admin' || user?.role === 'purok_leader' || user?.role === 'staff'
 
   useEffect(() => {
     loadEvents()

@@ -20,7 +20,7 @@ class ResidentController extends Controller
         // Include all residents - those with households and those without (unassigned)
         // Eager load household relationships for better performance
         // Also load households where residents are heads (for heads without household_id set)
-        $query = Resident::with(['household.purok', 'household.headResident']);
+        $query = Resident::with(['household.purok', 'household.headResident', 'soloParent']);
         $user = $request->user();
         
         // Preload households where residents are heads to ensure we have all household data
@@ -86,6 +86,11 @@ class ResidentController extends Controller
         }
         if ($search = $request->string('search')->toString()) {
             $query->search($search);
+        }
+
+        // Filter by household_id - residents in a specific household
+        if ($householdId = $request->integer('household_id')) {
+            $query->where('household_id', $householdId);
         }
 
         // Sort alphabetically by last name, then first name (LGU standard)
@@ -696,16 +701,42 @@ class ResidentController extends Controller
                 ]);
             }
 
-            // Update the resident
+            // Update the resident (exclude is_solo_parent - it's handled via solo_parents table)
+            $soloParentRequested = $data['is_solo_parent'] ?? null;
+            unset($data['is_solo_parent']);
             $resident->update($data);
 
+            // Handle solo parent: create or delete SoloParent record
+            if ($soloParentRequested !== null) {
+                $existingSoloParent = \App\Models\SoloParent::where('resident_id', $resident->id)->first();
+                if ($soloParentRequested) {
+                    if (!$existingSoloParent) {
+                        \App\Models\SoloParent::create([
+                            'resident_id' => $resident->id,
+                            'eligibility_reason' => 'unmarried_parent',
+                            'date_declared' => now(),
+                            'valid_until' => now()->addYears(1),
+                            'created_by' => $user->id,
+                        ]);
+                    }
+                } else {
+                    if ($existingSoloParent) {
+                        $existingSoloParent->delete();
+                    }
+                }
+            }
+
             // Log the audit trail
+            $auditChanges = $data;
+            if ($soloParentRequested !== null) {
+                $auditChanges['is_solo_parent'] = $soloParentRequested;
+            }
             AuditLog::create([
                 'user_id' => $user->id,
                 'action' => 'updated',
                 'model_type' => Resident::class,
                 'model_id' => $resident->id,
-                'changes' => $data,
+                'changes' => $auditChanges,
                 'ip_address' => $request->ip(),
             ]);
 

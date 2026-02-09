@@ -17,7 +17,8 @@ class HouseholdController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Household::with(['purok', 'headResident'])->withCount('residents');
+        $query = Household::with(['purok', 'headResident'])
+            ->selectRaw('households.*, (SELECT COUNT(*) FROM residents WHERE residents.deleted_at IS NULL AND (residents.household_id = households.id OR residents.id = households.head_resident_id)) as residents_count');
         $user = $request->user();
 
         // Role-based filtering
@@ -32,12 +33,10 @@ class HouseholdController extends Controller
         }
 
         // Sort alphabetically by head resident name (A-Z)
-        // Use subquery to avoid join issues with pagination
         $query->leftJoin('residents', 'households.head_resident_id', '=', 'residents.id')
               ->orderBy('residents.first_name', 'asc')
               ->orderBy('residents.last_name', 'asc')
-              ->orderBy('households.head_name', 'asc') // Fallback for households without head_resident_id
-              ->select('households.*');
+              ->orderBy('households.head_name', 'asc');
 
         $households = $query->paginate($request->integer('per_page', 15));
 
@@ -132,9 +131,42 @@ class HouseholdController extends Controller
 
     public function show(Household $household)
     {
-        $household->load(['residents', 'headResident', 'purok']);
-        
-        // Format response
+        $household->load(['headResident', 'purok']);
+
+        // Data integrity: ensure head has household_id set (fixes heads linked only via head_resident_id)
+        if ($household->head_resident_id) {
+            $head = Resident::find($household->head_resident_id);
+            if ($head && !$head->household_id) {
+                $head->update(['household_id' => $household->id, 'relationship_to_head' => 'Head']);
+            }
+        }
+
+        // Load all residents: household_id = this household OR id = head (single source of truth)
+        // Include head; head may not have household_id if linked via head_resident_id only
+        $allResidents = Resident::where('household_id', $household->id)
+            ->when($household->head_resident_id, function ($q) use ($household) {
+                $q->orWhere('id', $household->head_resident_id);
+            })
+            ->get();
+
+        // Members: exclude head to avoid duplication (head shown in header)
+        $members = $allResidents
+            ->filter(fn ($r) => $r->id !== $household->head_resident_id)
+            ->map(function ($resident) {
+                return [
+                    'id' => $resident->id,
+                    'first_name' => $resident->first_name,
+                    'middle_name' => $resident->middle_name,
+                    'last_name' => $resident->last_name,
+                    'full_name' => $resident->full_name,
+                    'sex' => $resident->sex,
+                    'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
+                    'relationship_to_head' => $resident->relationship_to_head,
+                ];
+            })
+            ->values()
+            ->all();
+
         $formatted = [
             'id' => $household->id,
             'address' => $household->address,
@@ -154,23 +186,10 @@ class HouseholdController extends Controller
                 'id' => $household->purok->id,
                 'name' => $household->purok->name,
             ] : null,
-            'residents' => $household->residents->filter(function ($resident) use ($household) {
-                // Filter out the head of household from members list
-                return $resident->id !== $household->head_resident_id;
-            })->map(function ($resident) {
-                return [
-                    'id' => $resident->id,
-                    'first_name' => $resident->first_name,
-                    'middle_name' => $resident->middle_name,
-                    'last_name' => $resident->last_name,
-                    'full_name' => $resident->full_name,
-                    'sex' => $resident->sex,
-                    'birthdate' => $resident->birthdate ? $resident->birthdate->format('Y-m-d') : null,
-                    'relationship_to_head' => $resident->relationship_to_head,
-                ];
-            }),
+            'residents' => $members,
+            'members' => $members,
         ];
-        
+
         return $this->respondSuccess($formatted);
     }
 
@@ -250,12 +269,24 @@ class HouseholdController extends Controller
             }
         }
 
-        $residents = $household->residents()->get();
+        // Data integrity: ensure head has household_id set
+        if ($household->head_resident_id) {
+            $head = Resident::find($household->head_resident_id);
+            if ($head && !$head->household_id) {
+                $head->update(['household_id' => $household->id, 'relationship_to_head' => 'Head']);
+            }
+        }
+
+        // Direct query: residents with household_id = this household, or head by id
+        $residents = Resident::where('household_id', $household->id)
+            ->when($household->head_resident_id, function ($q) use ($household) {
+                $q->orWhere('id', $household->head_resident_id);
+            })
+            ->get();
 
         // Filter out the head of household from members list
         // Transform the response for the frontend
         $formattedResidents = $residents->filter(function ($resident) use ($household) {
-            // Exclude the head of household from the members list
             return $resident->id !== $household->head_resident_id;
         })->map(function ($resident) {
             return [
@@ -271,7 +302,7 @@ class HouseholdController extends Controller
                 'occupation_status' => $resident->occupation_status,
                 'is_pwd' => $resident->is_pwd,
             ];
-        });
+        })->values()->all();
 
         return $this->respondSuccess($formattedResidents);
     }

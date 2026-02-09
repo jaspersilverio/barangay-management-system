@@ -1,9 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer, Badge } from 'react-bootstrap'
-import { listHouseholds, deleteHousehold, createHousehold, updateHousehold, type Household } from '../../services/households.service'
+import { listHouseholds, deleteHousehold } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
-import HouseholdFormModal from '../../components/households/HouseholdFormModal'
-import ViewResidentsModal from '../../components/households/ViewResidentsModal'
 import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
@@ -23,9 +21,6 @@ const HouseholdListPage = React.memo(() => {
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
   const [showDelete, setShowDelete] = useState<null | number>(null)
-  const [showForm, setShowForm] = useState(false)
-  const [showViewResidents, setShowViewResidents] = useState<null | Household>(null)
-  const [editingId, setEditingId] = useState<null | number>(null)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' | 'warning' }>({ show: false, message: '', variant: 'success' })
 
   // Manual state management
@@ -36,10 +31,10 @@ const HouseholdListPage = React.memo(() => {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimeoutRef = useRef<number | null>(null)
 
-  const canManage = role === 'admin' || role === 'purok_leader'
+  const canManage = role === 'admin' || role === 'purok_leader' || role === 'staff'
 
   const effectivePurokId = useMemo(() => {
-    if (role === 'admin') return purokId
+    if (role === 'admin' || role === 'staff') return purokId
     if (role === 'purok_leader') return assignedPurokId ? String(assignedPurokId) : ''
     return purokId
   }, [purokId, role, assignedPurokId])
@@ -128,10 +123,6 @@ const HouseholdListPage = React.memo(() => {
     }
   }, [showDelete, refreshDashboard, loadHouseholds])
 
-  const handleViewResidents = useCallback((household: Household) => {
-    setShowViewResidents(household)
-  }, [])
-
   // Handle search input change - only updates input value, not search query
   // Search query is updated via debounce effect above
   const handleSearchChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,16 +167,6 @@ const HouseholdListPage = React.memo(() => {
 
   const handlePageChange = useCallback((pageNumber: number) => {
     setPage(pageNumber)
-  }, [])
-
-  const handleHideForm = useCallback(() => {
-    setShowForm(false)
-    setEditingId(null)
-  }, [])
-
-  const handleEdit = useCallback((id: number) => {
-    setEditingId(id)
-    setShowForm(true)
   }, [])
 
   const handleShowDelete = useCallback((id: number) => {
@@ -236,7 +217,7 @@ const HouseholdListPage = React.memo(() => {
                 Search
               </Button>
             </Col>
-            {role === 'admin' && (
+            {(role === 'admin' || role === 'staff') && (
               <Col md={4}>
                 <Form.Group className="mb-0">
                   <Form.Label className="form-label-custom">Purok</Form.Label>
@@ -307,8 +288,6 @@ const HouseholdListPage = React.memo(() => {
                     <td>
                       <div className="action-buttons">
                         <div className="skeleton-button" style={{ width: '60px', height: '28px', marginRight: '5px' }}></div>
-                        <div className="skeleton-button" style={{ width: '70px', height: '28px', marginRight: '5px' }}></div>
-                        <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
                         <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
                       </div>
                     </td>
@@ -359,33 +338,15 @@ const HouseholdListPage = React.memo(() => {
                       <i className="fas fa-eye"></i>
                       View
                     </Button>
-                    <Button 
-                      size="sm" 
-                      onClick={() => handleViewResidents(hh)}
-                      className="btn-action btn-action-add"
-                    >
-                      <i className="fas fa-users"></i>
-                      Residents
-                    </Button>
                     {canManage && (
-                      <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleEdit(hh.id)}
-                          className="btn-action btn-action-edit"
-                        >
-                          <i className="fas fa-edit"></i>
-                          Edit
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          onClick={() => handleShowDelete(hh.id)}
-                          className="btn-action btn-action-delete"
-                        >
-                          <i className="fas fa-trash"></i>
-                          Delete
-                        </Button>
-                      </>
+                      <Button
+                        size="sm"
+                        onClick={() => handleShowDelete(hh.id)}
+                        className="btn-action btn-action-delete"
+                      >
+                        <i className="fas fa-trash"></i>
+                        Delete
+                      </Button>
                     )}
                   </div>
                 </td>
@@ -495,64 +456,6 @@ const HouseholdListPage = React.memo(() => {
         onConfirm={handleDelete}
         onHide={handleHideDelete}
       />
-
-      <HouseholdFormModal
-        show={showForm}
-        initial={(() => {
-          if (!editingId) return undefined
-          const hh = items.find((i: any) => i.id === editingId)
-          if (!hh) return undefined
-          return {
-            address: hh.address,
-            property_type: hh.property_type || '',
-            head_resident_id: hh.head_resident_id || hh.head_resident?.id || '',
-            contact: hh.contact || '',
-            purok_id: hh.purok_id ? String(hh.purok_id) : '',
-          }
-        })()}
-        onSubmit={async (values) => {
-          try {
-            // Handle optional purok_id for purok leaders
-            const payload = {
-              address: values.address,
-              property_type: values.property_type,
-              head_resident_id: typeof values.head_resident_id === 'string' ? parseInt(values.head_resident_id) : values.head_resident_id,
-              head_name: values.head_name,
-              contact: values.contact,
-              purok_id: values.purok_id || '', // Convert undefined to empty string
-            }
-
-            if (editingId) {
-              await updateHousehold(editingId, payload)
-              setToast({ show: true, message: 'Household updated', variant: 'success' })
-            } else {
-              await createHousehold(payload)
-              setToast({ show: true, message: 'Household created', variant: 'success' })
-            }
-            setShowForm(false)
-            setEditingId(null)
-            // Reload data after successful save
-            loadHouseholds()
-            // Refresh dashboard data to update counts
-            await refreshDashboard()
-          } catch (e: any) {
-            setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
-          }
-        }}
-        onHide={handleHideForm}
-      />
-
-      {showViewResidents && (
-        <ViewResidentsModal
-          show={showViewResidents !== null}
-          household={showViewResidents}
-          onHide={() => {
-            setShowViewResidents(null)
-            // Refresh the household list to update resident counts
-            loadHouseholds()
-          }}
-        />
-      )}
 
       {/* Toast Notifications */}
       <ToastContainer position="top-end" className="p-3">

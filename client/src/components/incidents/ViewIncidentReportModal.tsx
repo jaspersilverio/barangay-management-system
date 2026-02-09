@@ -164,20 +164,6 @@ const ViewIncidentReportModal: React.FC<ViewIncidentReportModalProps> = ({
             <div className="d-flex align-items-start gap-2 mb-3">
               <User size={18} className="text-muted mt-1" />
               <div>
-                <div className="text-muted small">Reporting Officer</div>
-                <div className="fw-medium">
-                  {incidentReport.reporting_officer?.name || 'N/A'}
-                  {incidentReport.reporting_officer?.email && (
-                    <span className="text-muted small ms-2">({incidentReport.reporting_officer.email})</span>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Col>
-          <Col md={6}>
-            <div className="d-flex align-items-start gap-2 mb-3">
-              <User size={18} className="text-muted mt-1" />
-              <div>
                 <div className="text-muted small">Created By</div>
                 <div className="fw-medium">{incidentReport.creator?.name || 'N/A'}</div>
               </div>

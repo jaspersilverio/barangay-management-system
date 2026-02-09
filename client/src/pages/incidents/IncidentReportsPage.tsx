@@ -2,14 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Search, 
-  RefreshCw,
   FileText,
   Calendar,
   MapPin,
   CheckCircle,
-  Eye,
-  Edit,
-  Trash2,
   Plus,
   AlertCircle,
   Download
@@ -26,7 +22,7 @@ import AddIncidentReportModal from '../../components/incidents/AddIncidentReport
 import EditIncidentReportModal from '../../components/incidents/EditIncidentReportModal';
 import ViewIncidentReportModal from '../../components/incidents/ViewIncidentReportModal';
 import DeleteConfirmModal from '../../components/incidents/DeleteConfirmModal';
-import { Button, Alert, Card, Form, Table, Badge, Pagination, InputGroup } from 'react-bootstrap';
+import { Button, Alert, Card, Form, Table, Pagination, InputGroup } from 'react-bootstrap';
 
 const IncidentReportsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
@@ -252,14 +248,6 @@ const IncidentReportsPage: React.FC = () => {
     );
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const formatDateTime = (dateString: string, timeString: string) => {
     const date = new Date(dateString);
     const [hours, minutes] = timeString.split(':');
@@ -274,7 +262,8 @@ const IncidentReportsPage: React.FC = () => {
     });
   };
 
-  const canManage = user?.role === 'admin' || user?.role === 'purok_leader';
+  const canManage = user?.role === 'admin' || user?.role === 'purok_leader' || user?.role === 'staff';
+  const canDelete = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'purok_leader';
 
   if (!isAuthenticated) {
     return (
@@ -406,7 +395,7 @@ const IncidentReportsPage: React.FC = () => {
                 {exporting ? 'Exporting PDF...' : 'Export PDF'}
               </Button>
               <Button
-                variant="outline-info"
+                variant="outline-success"
                 onClick={handleExportCsv}
                 disabled={loading || exporting}
               >
@@ -443,7 +432,6 @@ const IncidentReportsPage: React.FC = () => {
                     <th>Incident Title</th>
                     <th>Location</th>
                     <th>Status</th>
-                    <th>Reporting Officer</th>
                     <th className="text-end">Actions</th>
                   </tr>
                 </thead>
@@ -471,9 +459,6 @@ const IncidentReportsPage: React.FC = () => {
                       </td>
                       <td>{getStatusBadge(incidentReport.status)}</td>
                       <td>
-                        {incidentReport.reporting_officer?.name || 'N/A'}
-                      </td>
-                      <td>
                         <div className="action-buttons">
                           <Button
                             size="sm"
@@ -495,15 +480,17 @@ const IncidentReportsPage: React.FC = () => {
                                 <i className="fas fa-edit"></i>
                                 Edit
                               </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleDeleteIncidentReport(incidentReport.id)}
-                                className="btn-action btn-action-delete"
-                                title="Delete"
-                              >
-                                <i className="fas fa-trash"></i>
-                                Delete
-                              </Button>
+                              {canDelete && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleDeleteIncidentReport(incidentReport.id)}
+                                  className="btn-action btn-action-delete"
+                                  title="Delete"
+                                >
+                                  <i className="fas fa-trash"></i>
+                                  Delete
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>

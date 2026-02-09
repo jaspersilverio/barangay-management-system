@@ -1,24 +1,31 @@
 import { useEffect, useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
-import { getAgeDistribution, type AgeDistribution } from '../../services/dashboard.service'
+import { getAgeDistribution, getDashboardCached, setDashboardCached, type AgeDistribution } from '../../services/dashboard.service'
 import { Users } from 'lucide-react'
 
 // Single color theme - using primary blue with varying opacity
 const PRIMARY_COLOR = 'var(--color-primary)' // blue-500
+const CACHE_KEY = 'ageDistribution'
 
 export default function AgeDistributionChart() {
-  const [data, setData] = useState<AgeDistribution | null>(null)
-  const [loading, setLoading] = useState(true)
+  const cached = getDashboardCached<AgeDistribution>(CACHE_KEY)
+  const [data, setData] = useState<AgeDistribution | null>(cached ?? null)
+  const [loading, setLoading] = useState(!cached)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (cached != null) {
+      setData(cached)
+      setLoading(false)
+      return
+    }
     const fetchData = async () => {
       try {
-        setLoading(true)
         setError(null)
         const response = await getAgeDistribution()
         if (response.success) {
           setData(response.data)
+          setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch age distribution data')
         }
@@ -28,7 +35,6 @@ export default function AgeDistributionChart() {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [])
 

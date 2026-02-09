@@ -9,6 +9,7 @@ export default function PuroksReport() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
+  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
 
   useEffect(() => {
     loadReport()
@@ -36,6 +37,7 @@ export default function PuroksReport() {
   const handleExport = async (type: 'pdf' | 'csv') => {
     try {
       setExporting(true)
+      setExportType(type)
       setError(null)
 
       if (type === 'csv') {
@@ -67,6 +69,7 @@ export default function PuroksReport() {
       console.error('Export error:', err)
     } finally {
       setExporting(false)
+      setExportType(null)
     }
   }
 
@@ -126,19 +129,17 @@ export default function PuroksReport() {
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2 btn-brand-primary"
             >
-              <Download className="h-4 w-4" />
-              Export PDF
+              <Download size={16} className="me-2" />
+              {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
             </Button>
             <Button
               variant="outline-success"
               onClick={() => handleExport('csv')}
               disabled={exporting}
-              className="d-flex align-items-center gap-2 btn-success"
             >
-              <Download className="h-4 w-4" />
-              Export CSV
+              <Download size={16} className="me-2" />
+              {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
             </Button>
           </div>
         </Col>

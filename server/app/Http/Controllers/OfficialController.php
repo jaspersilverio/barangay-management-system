@@ -76,13 +76,29 @@ class OfficialController extends Controller
 
         $data = $request->validated();
 
-        // Ensure category is set (default to 'official' if not provided for backward compatibility)
-        if (!isset($data['category']) || empty($data['category'])) {
-            $data['category'] = 'official';
+        // Appointed officials (tanod, bhw, staff): map payload to official record
+        if (isset($data['official_type']) && $data['official_type'] === 'appointed') {
+            $data = [
+                'name' => $data['full_name'],
+                'category' => $data['official_role'],
+                'sex' => ucfirst(strtolower($data['gender'] ?? '')),
+                'birthdate' => $data['birthdate'],
+                'contact' => $data['contact_number'] ?? null,
+                'address' => $data['address'] ?? null,
+                'term_start' => $data['date_appointed'],
+                'term_end' => null,
+                'position' => null,
+                'active' => ($data['status'] ?? 'active') === 'active',
+            ];
+        } else {
+            // Ensure category is set (default to 'official' if not provided)
+            if (!isset($data['category']) || empty($data['category'])) {
+                $data['category'] = 'official';
+            }
         }
 
         // For official and SK categories, compose name from first/middle/last/suffix if provided
-        if (in_array($data['category'], ['official', 'sk']) && isset($data['first_name']) && isset($data['last_name'])) {
+        if (isset($data['first_name']) && isset($data['last_name']) && in_array($data['category'] ?? '', ['official', 'sk'])) {
             $nameParts = array_filter([
                 $data['first_name'] ?? '',
                 $data['middle_name'] ?? '',
@@ -199,6 +215,11 @@ class OfficialController extends Controller
         }
 
         $data = $request->validated();
+
+        // Appointed officials (tanod, bhw, staff): ensure position stays null
+        if (in_array($official->category, ['tanod', 'bhw', 'staff'])) {
+            $data['position'] = null;
+        }
 
         // For official and SK categories, compose name from first/middle/last/suffix if provided
         if (in_array($official->category, ['official', 'sk']) && isset($data['first_name']) && isset($data['last_name'])) {

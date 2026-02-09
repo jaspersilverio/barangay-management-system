@@ -20,7 +20,8 @@ import { exportBlottersToPdf } from '../services/pdf.service';
 import { exportBlottersCsv } from '../services/reports.service';
 
 const BlotterPage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const canDelete = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'purok_leader';
   const [blotters, setBlotters] = useState<Blotter[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBlotter, setSelectedBlotter] = useState<Blotter | null>(null);
@@ -431,7 +432,7 @@ const BlotterPage: React.FC = () => {
                   {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
                 </Button>
                 <Button
-                  variant="outline-info"
+                  variant="outline-success"
                   onClick={() => handleExport('csv')}
                   disabled={exporting}
                 >
@@ -571,15 +572,17 @@ const BlotterPage: React.FC = () => {
                             <i className="fas fa-edit"></i>
                             Edit
                           </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleDeleteBlotter(blotter)}
-                            className="btn-action btn-action-delete"
-                            title="Delete Case"
-                          >
-                            <i className="fas fa-trash"></i>
-                            Delete
-                          </Button>
+                          {canDelete && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleDeleteBlotter(blotter)}
+                              className="btn-action btn-action-delete"
+                              title="Delete Case"
+                            >
+                              <i className="fas fa-trash"></i>
+                              Delete
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

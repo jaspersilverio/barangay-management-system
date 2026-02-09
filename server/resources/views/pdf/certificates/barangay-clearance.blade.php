@@ -1,10 +1,8 @@
 @extends('pdf.layouts.base')
 
 @section('content')
-    {{-- Greeting --}}
     <p class="greeting">TO WHOM IT MAY CONCERN:</p>
 
-    {{-- Main Certification Body --}}
     <p class="body-text">
         This is to certify that <strong>{{ strtoupper($resident->full_name) }}</strong>,
         @if($resident->age)
@@ -36,12 +34,6 @@
         filed against him/her in this Barangay.
     </p>
 
-    {{-- Purpose and Validity --}}
     @include('pdf.certificates.partials.certificate-body', ['certificate_type' => 'clearance'])
-
-    {{-- Signatures --}}
     @include('pdf.certificates.partials.signatures')
-
-    {{-- Verification --}}
-    @include('pdf.certificates.partials.verification')
 @endsection

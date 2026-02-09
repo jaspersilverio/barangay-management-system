@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('issued_certificates')) {
+            return;
+        }
+
         Schema::create('issued_certificates', function (Blueprint $table) {
             $table->id();
             $table->foreignId('certificate_request_id')->constrained()->onDelete('cascade');

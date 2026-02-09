@@ -1,86 +1,55 @@
-import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { 
   Users, 
-  Home, 
-  MapPin, 
   Calendar,
   FileText,
-  Settings
+  Settings,
+  Award,
+  ClipboardList
 } from 'lucide-react'
 
 export default function QuickActions() {
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    // Simulate a brief loading state for consistency with other dashboard components
-    const timer = setTimeout(() => {
-      setLoading(false)
-    }, 300)
-
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (loading) {
-    return (
-      <div className="card-modern p-4">
-        <h5 className="h5 font-bold text-brand-primary mb-4">Quick Actions</h5>
-        <div className="grid grid-cols-2 gap-3">
-          {[...Array(6)].map((_, index) => (
-            <div key={index} className="skeleton-card" style={{ height: '80px' }}>
-              <div className="d-flex align-items-center gap-3 p-4">
-                <div className="skeleton-circle" style={{ width: '40px', height: '40px' }}></div>
-                <div className="flex-1">
-                  <div className="skeleton-line" style={{ width: '70%', height: '16px', marginBottom: '8px' }}></div>
-                  <div className="skeleton-line" style={{ width: '50%', height: '12px' }}></div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
   const actions = [
     {
-      title: 'Add Resident',
+      title: 'Register Resident',
       description: 'Register new resident',
       icon: <Users className="w-6 h-6" />,
-      href: '/residents/add',
+      to: '/residents/register',
       color: 'primary'
     },
     {
-      title: 'Add Household',
-      description: 'Register new household',
-      icon: <Home className="w-6 h-6" />,
-      href: '/households/add',
-      color: 'success'
-    },
-    {
-      title: 'Add Purok',
-      description: 'Create new purok',
-      icon: <MapPin className="w-6 h-6" />,
-      href: '/puroks/add',
+      title: 'Certificates',
+      description: 'Request and issue certificates',
+      icon: <Award className="w-6 h-6" />,
+      to: '/certificates',
       color: 'info'
     },
     {
-      title: 'Add Event',
-      description: 'Schedule new event',
+      title: 'Blotter',
+      description: 'Blotter entries and reports',
+      icon: <ClipboardList className="w-6 h-6" />,
+      to: '/blotter',
+      color: 'success'
+    },
+    {
+      title: 'Events',
+      description: 'Schedule and manage events',
       icon: <Calendar className="w-6 h-6" />,
-      href: '/events/add',
+      to: '/events',
       color: 'warning'
     },
     {
-      title: 'Generate Report',
-      description: 'Create reports',
+      title: 'Reports',
+      description: 'Generate reports',
       icon: <FileText className="w-6 h-6" />,
-      href: '/reports',
+      to: '/reports',
       color: 'danger'
     },
     {
       title: 'Settings',
       description: 'System settings',
       icon: <Settings className="w-6 h-6" />,
-      href: '/settings',
+      to: '/settings',
       color: 'neutral'
     }
   ]
@@ -102,10 +71,10 @@ export default function QuickActions() {
       <h5 className="h5 font-bold text-brand-primary mb-4">Quick Actions</h5>
       <div className="grid grid-cols-2 gap-3">
         {actions.map((action, index) => (
-          <a
+          <Link
             key={index}
-            href={action.href}
-            className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-soft ${getColorClasses(action.color)}`}
+            to={action.to}
+            className={`p-4 rounded-xl border transition-all duration-200 hover:shadow-soft text-decoration-none d-block ${getColorClasses(action.color)}`}
             style={{
               borderColor: 'var(--color-border)',
               backgroundColor: 'var(--color-surface)',
@@ -126,7 +95,7 @@ export default function QuickActions() {
                 <p className="text-xs opacity-75">{action.description}</p>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

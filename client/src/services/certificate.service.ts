@@ -264,12 +264,12 @@ export const previewCertificatePdf = async (id: number): Promise<string> => {
     throw new Error('Invalid response format')
   } catch (error: any) {
     if (error.response && error.response.data instanceof Blob) {
-      // Try to parse error from blob
+      const text = await error.response.data.text()
       try {
-        const text = await error.response.data.text()
         const errorData = JSON.parse(text)
         throw new Error(errorData.message || 'Failed to preview certificate PDF')
-      } catch {
+      } catch (parseError: any) {
+        if (parseError instanceof Error && parseError.message !== 'Failed to preview certificate PDF') throw parseError
         throw new Error('Failed to preview certificate PDF')
       }
     }

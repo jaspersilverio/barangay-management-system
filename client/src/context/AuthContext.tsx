@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import * as AuthService from '../services/auth.service'
+import { clearDashboardCache } from '../services/dashboard.service'
 
 type User = {
   id: number
@@ -75,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       await AuthService.logout()
     } finally {
+      clearDashboardCache()
       sessionStorage.removeItem('token')
       sessionStorage.removeItem('user')
       setUser(null)

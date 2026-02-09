@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Home,
   MapPin,
-  UserPlus,
   Users,
   UserCheck,
   Syringe,
@@ -16,8 +15,6 @@ import {
   BarChart3,
   Settings,
   ShieldCheck,
-  Baby,
-  Heart,
   Gift,
   CheckSquare,
 } from 'lucide-react'
@@ -30,6 +27,8 @@ export interface MenuItem {
   children?: MenuItem[]
   roles?: string[] // If specified, only show for these roles
   isGroup?: boolean // If true, this is a group label (not clickable, muted style)
+  /** When true, NavLink matches child paths (e.g. /officials matches /officials/barangay) */
+  matchChildPaths?: boolean
 }
 
 /**
@@ -64,6 +63,7 @@ export const sidebarMenu: MenuItem[] = [
         label: 'Purok',
         to: '/puroks',
         icon: MapPin,
+        roles: ['admin', 'captain', 'purok_leader'],
       },
     ],
   },
@@ -112,62 +112,15 @@ export const sidebarMenu: MenuItem[] = [
     children: [
       {
         label: 'Officials',
+        to: '/officials',
         icon: ShieldCheck,
-        isGroup: true,
-        children: [
-          {
-            label: 'Barangay Officials',
-            to: '/officials',
-            icon: ShieldCheck,
-          },
-          {
-            label: 'SK Officials',
-            to: '/officials/sk',
-            icon: Users,
-          },
-          {
-            label: 'Barangay Tanod',
-            to: '/officials/tanod',
-            icon: ShieldCheck,
-          },
-          {
-            label: 'Barangay Health Workers',
-            to: '/officials/bhw',
-            icon: Heart,
-          },
-          {
-            label: 'Barangay Staff',
-            to: '/officials/staff',
-            icon: Users,
-          },
-        ],
+        matchChildPaths: true,
       },
       {
         label: 'Beneficiaries',
+        to: '/beneficiaries',
         icon: Gift,
-        isGroup: true,
-        children: [
-          {
-            label: '4Ps',
-            to: '/beneficiaries/4ps',
-            icon: Gift,
-          },
-          {
-            label: 'Senior Citizens',
-            to: '/beneficiaries/senior-citizens',
-            icon: Heart,
-          },
-          {
-            label: 'Solo Parents',
-            to: '/beneficiaries/solo-parents',
-            icon: Users,
-          },
-          {
-            label: 'PWD',
-            to: '/beneficiaries/pwd',
-            icon: Baby,
-          },
-        ],
+        matchChildPaths: true,
       },
     ],
   },

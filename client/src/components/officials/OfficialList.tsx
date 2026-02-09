@@ -12,6 +12,12 @@ interface OfficialListProps {
   onFilterPosition: (position: string) => void
   onFilterStatus: (active: boolean | null) => void
   canManage?: boolean
+  /** When false, Delete action is hidden (e.g. staff can manage but not delete) */
+  canDelete?: boolean
+  /** Position options for the filter dropdown; must match the Add/Edit modal for this category */
+  positionOptions?: string[]
+  /** Hide position filter (for appointed officials: tanod, bhw, staff) */
+  hidePositionFilter?: boolean
 }
 
 export default function OfficialList({
@@ -23,7 +29,10 @@ export default function OfficialList({
   onSearch,
   onFilterPosition,
   onFilterStatus,
-  canManage = false
+  canManage = false,
+  canDelete = false,
+  positionOptions = [],
+  hidePositionFilter = false
 }: OfficialListProps) {
   // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
@@ -63,19 +72,17 @@ export default function OfficialList({
   }
 
   const getPositionColor = (position: string) => {
-    const colors: { [key: string]: string } = {
-      'Barangay Captain': 'primary',
-      'Barangay Kagawad': 'info',
-      'Barangay Secretary': 'warning',
-      'Barangay Treasurer': 'success',
-      'Barangay SK Chairman': 'danger',
-      'Barangay SK Kagawad': 'danger',
-      'Barangay Health Worker': 'info',
-      'Barangay Tanod': 'dark',
-      'Barangay Day Care Worker': 'warning',
-      'Other': 'secondary'
-    }
-    return colors[position] || 'secondary'
+    if (!position) return 'secondary'
+    if (position.startsWith('Barangay Captain')) return 'primary'
+    if (position.startsWith('Barangay Kagawad')) return 'info'
+    if (position.startsWith('Barangay Secretary')) return 'warning'
+    if (position.startsWith('Barangay Treasurer')) return 'success'
+    if (position.startsWith('Barangay Administrator') || position.startsWith('Barangay Clerk')) return 'dark'
+    if (position.startsWith('SK')) return 'danger'
+    if (position.includes('Health Worker')) return 'info'
+    if (position.includes('Tanod')) return 'dark'
+    if (position.includes('Day Care')) return 'warning'
+    return 'secondary'
   }
 
   return (
@@ -98,24 +105,21 @@ export default function OfficialList({
               </InputGroup>
             </Form>
           </div>
+          {!hidePositionFilter && (
           <div className="col-md-3">
             <Form.Select
               value={selectedPosition}
               onChange={(e) => handlePositionFilter(e.target.value)}
             >
               <option value="">All Positions</option>
-              <option value="Barangay Captain">Barangay Captain</option>
-              <option value="Barangay Kagawad">Barangay Kagawad</option>
-              <option value="Barangay Secretary">Barangay Secretary</option>
-              <option value="Barangay Treasurer">Barangay Treasurer</option>
-              <option value="Barangay SK Chairman">Barangay SK Chairman</option>
-              <option value="Barangay SK Kagawad">Barangay SK Kagawad</option>
-              <option value="Barangay Health Worker">Barangay Health Worker</option>
-              <option value="Barangay Tanod">Barangay Tanod</option>
-              <option value="Barangay Day Care Worker">Barangay Day Care Worker</option>
-              <option value="Other">Other</option>
+              {positionOptions.map((position) => (
+                <option key={position} value={position}>
+                  {position}
+                </option>
+              ))}
             </Form.Select>
           </div>
+          )}
           <div className="col-md-3">
             <Form.Select
               value={selectedStatus === null ? '' : selectedStatus.toString()}
@@ -285,13 +289,17 @@ export default function OfficialList({
                           <Dropdown.Item onClick={() => onToggleActive(official.id)}>
                             {official.active ? '🔴 Deactivate' : '🟢 Activate'}
                           </Dropdown.Item>
-                          <Dropdown.Divider />
-                          <Dropdown.Item
-                            onClick={() => onDelete(official.id)}
-                            className="text-danger"
-                          >
-                            🗑️ Delete
-                          </Dropdown.Item>
+                          {canDelete && (
+                            <>
+                              <Dropdown.Divider />
+                              <Dropdown.Item
+                                onClick={() => onDelete(official.id)}
+                                className="text-danger"
+                              >
+                                🗑️ Delete
+                              </Dropdown.Item>
+                            </>
+                          )}
                         </Dropdown.Menu>
                       </Dropdown>
                     ) : (

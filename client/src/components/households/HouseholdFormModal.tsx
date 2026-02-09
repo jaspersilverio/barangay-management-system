@@ -23,7 +23,7 @@ export type HouseholdFormValues = z.infer<ReturnType<typeof createSchema>>
 
 type Props = {
   show: boolean
-  initial?: Partial<HouseholdFormValues>
+  initial?: Partial<HouseholdFormValues> & { head_name?: string }
   onSubmit: (values: HouseholdFormValues) => Promise<void>
   onHide: () => void
 }
@@ -32,7 +32,7 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
   const { puroks } = usePuroks()
   const { user } = useAuth()
   const [residents, setResidents] = useState<Resident[]>([])
-  const [loadingResidents, setLoadingResidents] = useState(false)
+  const [, setLoadingResidents] = useState(false)
   const [residentSearchTerm, setResidentSearchTerm] = useState('')
   const [selectedResident, setSelectedResident] = useState<Resident | null>(null)
 
@@ -41,7 +41,7 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
   const assignedPurokId = user?.assigned_purok_id
 
   const schema = createSchema(isPurokLeader)
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue, watch } = useForm<HouseholdFormValues>({
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting }, setValue } = useForm<HouseholdFormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
       address: '',
@@ -53,20 +53,25 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
     },
   })
 
-  // Load residents for head selection
+  // Load residents and pre-fill head of household when editing
   useEffect(() => {
     if (show) {
-      loadResidents()
-      if (initial?.head_resident_id) {
-        // If editing, find and set the selected resident
-        const residentId = typeof initial.head_resident_id === 'string' ? parseInt(initial.head_resident_id) : initial.head_resident_id
-        loadResidents().then(() => {
-          const resident = residents.find(r => r.id === residentId)
+      if (initial?.head_resident_id != null && initial.head_resident_id !== '') {
+        const residentId = typeof initial.head_resident_id === 'string' ? parseInt(initial.head_resident_id, 10) : initial.head_resident_id
+        const headName = initial.head_name || ''
+        setResidentSearchTerm(headName)
+        loadResidents().then((list) => {
+          const resident = list.find((r: Resident) => r.id === residentId)
           if (resident) {
             setSelectedResident(resident)
-            setResidentSearchTerm(resident.full_name || `${resident.first_name} ${resident.last_name}`)
+            setResidentSearchTerm(resident.full_name || `${resident.first_name} ${resident.middle_name || ''} ${resident.last_name}`.trim())
+            setValue('head_resident_id', resident.id)
+          } else if (headName) {
+            setValue('head_resident_id', residentId)
           }
         })
+      } else {
+        loadResidents()
       }
     } else {
       setResidents([])
@@ -75,16 +80,20 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
     }
   }, [show, initial])
 
-  const loadResidents = async () => {
+  const loadResidents = async (): Promise<Resident[]> => {
     setLoadingResidents(true)
     try {
       const response = await listResidents({ per_page: 1000 })
       if (response.success) {
         const residentsList = response.data.data || response.data
-        setResidents(Array.isArray(residentsList) ? residentsList : [])
+        const list = Array.isArray(residentsList) ? residentsList : []
+        setResidents(list)
+        return list
       }
+      return []
     } catch (error) {
       console.error('Error loading residents:', error)
+      return []
     } finally {
       setLoadingResidents(false)
     }
@@ -96,13 +105,24 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
     return fullName.includes(residentSearchTerm.toLowerCase())
   })
 
-  useEffect(() => { 
+  useEffect(() => {
+    if (!show) return
+    const headId = initial?.head_resident_id != null && initial.head_resident_id !== ''
+      ? (typeof initial.head_resident_id === 'string' ? parseInt(initial.head_resident_id, 10) : initial.head_resident_id)
+      : undefined
     const newInitial = {
       ...initial,
       purok_id: isPurokLeader && assignedPurokId ? String(assignedPurokId) : initial?.purok_id || '',
+      ...(headId != null && headId !== 0 && { head_resident_id: headId }),
     }
-    reset(newInitial) 
-  }, [initial, reset, isPurokLeader, assignedPurokId])
+    reset(newInitial)
+    if (initial?.head_name != null && initial.head_name !== '') {
+      setResidentSearchTerm(initial.head_name)
+    }
+    if (headId != null && headId !== 0) {
+      setValue('head_resident_id', headId)
+    }
+  }, [show, initial, reset, isPurokLeader, assignedPurokId, setValue])
 
   return (
     <Modal show={show} onHide={onHide} centered>
@@ -179,7 +199,11 @@ export default function HouseholdFormModal({ show, initial, onSubmit, onHide }: 
               <Form.Control
                 type="text"
                 placeholder="Search for a resident..."
-                value={residentSearchTerm}
+                value={
+                  selectedResident
+                    ? (selectedResident.full_name || `${selectedResident.first_name} ${selectedResident.middle_name || ''} ${selectedResident.last_name}`.trim())
+                    : residentSearchTerm
+                }
                 onChange={(e) => {
                   setResidentSearchTerm(e.target.value)
                   if (selectedResident) {

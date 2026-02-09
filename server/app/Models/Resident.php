@@ -253,37 +253,37 @@ class Resident extends Model
 
     /**
      * Check if resident is a solo parent.
-     * Solo parent: Head of household, single/widowed/divorced/separated, with dependents
+     * First checks solo_parents table (explicit registration). Fallback: head of household, solo civil status, with dependents.
      */
     public function getIsSoloParentAttribute(): bool
     {
         try {
+            // Explicit registration in solo_parents table takes precedence
+            if ($this->relationLoaded('soloParent')) {
+                return $this->soloParent !== null;
+            }
+            if (SoloParent::where('resident_id', $this->id)->exists()) {
+                return true;
+            }
+
+            // Fallback: computed from household relationship
             if (!$this->household || !$this->household_id) {
                 return false;
             }
-
-            // Check if this resident is the head of household
             $isHead = $this->household->head_resident_id === $this->id;
-
             if (!$isHead) {
                 return false;
             }
-
-            // Check civil status
             $soloStatuses = ['single', 'widowed', 'divorced', 'separated'];
             if (!in_array($this->civil_status, $soloStatuses)) {
                 return false;
             }
-
-            // Check if household has other residents (dependents)
-            // Use direct query to avoid N+1 issues
             $hasDependents = Resident::where('household_id', $this->household_id)
                 ->where('id', '!=', $this->id)
                 ->exists();
 
             return $hasDependents;
         } catch (\Exception $e) {
-            // If any error occurs, return false
             return false;
         }
     }

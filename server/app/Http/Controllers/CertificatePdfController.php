@@ -8,7 +8,6 @@ use App\Models\Resident;
 use App\Models\User;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -62,78 +61,51 @@ class CertificatePdfController extends Controller
     }
 
     /**
-     * Get captain user with signature
+     * Get full council list for Certificate of Indigency left column (Barangay X Council).
+     * Returns array of [ 'name' => 'HON. ...', 'position' => '...' ] ordered: Punong Barangay, Kagawads, SK, Secretary, Treasurer, Record Keeper.
+     */
+    protected function getCouncilListForCertificate(): array
+    {
+        $officials = Official::active()
+            ->whereIn('category', ['official', 'sk'])
+            ->get();
+
+        $order = function ($pos) {
+            $p = strtolower($pos);
+            if (str_contains($p, 'punong') || str_contains($p, 'captain')) return 1;
+            if (str_contains($p, 'kagawad')) return 2;
+            if (str_contains($p, 'sk') && (str_contains($p, 'chair') || str_contains($p, 'chairperson'))) return 3;
+            if (str_contains($p, 'secretary')) return 4;
+            if (str_contains($p, 'treasurer')) return 5;
+            if (str_contains($p, 'record') || str_contains($p, 'keeper')) return 6;
+            return 7;
+        };
+
+        $list = $officials->map(function ($o) use ($order) {
+            $pos = $o->position ?? '';
+            $hon = in_array($order($pos), [1, 2, 3]) ? 'HON. ' : '';
+            return [
+                'sort' => $order($pos),
+                'name' => $hon . strtoupper($o->name ?? ''),
+                'position' => $pos ?: '—',
+            ];
+        })->sortBy('sort')->values()->all();
+
+        return array_map(fn($e) => ['name' => $e['name'], 'position' => $e['position']], $list);
+    }
+
+    /**
+     * Get captain name/position for certificate display (fallback when barangay_info/officials lack name).
+     * Signature image is only from Barangay Settings via PdfService::getBarangayInfo().
      */
     protected function getCaptainForCertificate(): ?array
     {
         try {
             $captainUser = User::where('role', 'captain')->first();
-            
-            if (!$captainUser) {
-                Log::warning('No captain user found for certificate');
-                return null;
-            }
-
-            $signatureBase64 = null;
-            
-            if ($captainUser->signature_path) {
-                try {
-                    if (Storage::disk('public')->exists($captainUser->signature_path)) {
-                        $signaturePath = Storage::disk('public')->path($captainUser->signature_path);
-                        
-                        // Check if file is readable and not too large (max 5MB)
-                        if (file_exists($signaturePath) && is_readable($signaturePath)) {
-                            $fileSize = filesize($signaturePath);
-                            if ($fileSize > 0 && $fileSize < 5 * 1024 * 1024) { // 5MB limit
-                                $imageData = @file_get_contents($signaturePath);
-                                if ($imageData !== false) {
-                                    // Determine MIME type from file extension (works without GD)
-                                    $mimeType = $this->getMimeTypeFromExtension($captainUser->signature_path);
-                                    
-                                    // If GD is available, try to get more accurate MIME type
-                                    if (extension_loaded('gd')) {
-                                        $imageInfo = @getimagesizefromstring($imageData);
-                                        if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                            $mimeType = $imageInfo['mime'];
-                                        }
-                                    }
-                                    
-                                    if ($mimeType) {
-                                        $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                                        Log::info('Signature loaded successfully', [
-                                            'path' => $captainUser->signature_path,
-                                            'mime' => $mimeType,
-                                            'size' => $fileSize
-                                        ]);
-                                    }
-                                }
-                            } else {
-                                Log::warning('Signature file too large or empty', [
-                                    'path' => $signaturePath,
-                                    'size' => $fileSize
-                                ]);
-                            }
-                        }
-                    } else {
-                        Log::warning('Signature file does not exist in storage', [
-                            'signature_path' => $captainUser->signature_path
-                        ]);
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to load captain signature', [
-                        'error' => $e->getMessage(),
-                        'signature_path' => $captainUser->signature_path
-                    ]);
-                    // Continue without signature - don't fail the whole PDF generation
-                }
-            } else {
-                Log::info('No signature path set for captain user');
-            }
-
+            $name = $captainUser ? $captainUser->name : '';
             return [
-                'name' => $captainUser->name,
-                'position' => 'Punong Barangay',
-                'signature_base64' => $signatureBase64
+                'name' => $name,
+                'position' => 'Punong Barangay'
             ];
         } catch (\Exception $e) {
             Log::error('Failed to get captain for certificate', [
@@ -150,7 +122,7 @@ class CertificatePdfController extends Controller
     protected function getMimeTypeFromExtension(string $filePath): ?string
     {
         $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
-        
+
         $mimeTypes = [
             'jpg' => 'image/jpeg',
             'jpeg' => 'image/jpeg',
@@ -160,7 +132,7 @@ class CertificatePdfController extends Controller
             'bmp' => 'image/bmp',
             'svg' => 'image/svg+xml',
         ];
-        
+
         return $mimeTypes[$extension] ?? null;
     }
 
@@ -186,11 +158,13 @@ class CertificatePdfController extends Controller
             $data = [
                 'is_certificate' => true, // Flag for certificate-specific layout
                 'title' => $certificate->certificate_type_label ?? 'Certificate',
-                'document_title' => strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
+                'document_title' => $certificate->certificate_type === 'indigency' ? null : strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
                 'certificate' => $certificate,
                 'resident' => $resident,
                 'officials' => $officials,
                 'captain' => $captain,
+                'council_list' => $this->getCouncilListForCertificate(),
+                'hide_certificate_footer' => $certificate->certificate_type === 'indigency',
                 'valid_from_formatted' => Carbon::parse($certificate->valid_from)->format('F d, Y'),
                 'valid_until_formatted' => Carbon::parse($certificate->valid_until)->format('F d, Y'),
                 'issued_date_formatted' => Carbon::parse($certificate->created_at)->format('F d, Y'),
@@ -234,7 +208,7 @@ class CertificatePdfController extends Controller
     {
         try {
             Log::info('Starting PDF download', ['certificate_id' => $id]);
-            
+
             $certificate = IssuedCertificate::find($id);
 
             if (!$certificate) {
@@ -253,7 +227,7 @@ class CertificatePdfController extends Controller
             );
 
             Log::info('Preparing certificate data', ['certificate_id' => $certificate->id]);
-            
+
             // Prepare data first to catch any errors early
             $data = $this->prepareCertificateData($certificate);
             $view = $this->getViewForCertificate($certificate);
@@ -271,9 +245,9 @@ class CertificatePdfController extends Controller
                 $filename,
                 ['paper' => 'A4', 'orientation' => 'portrait']
             );
-            
+
             Log::info('PDF download completed successfully', ['certificate_id' => $certificate->id]);
-            
+
             return $response;
         } catch (\Exception $e) {
             Log::error('PDF download failed', [
@@ -295,7 +269,8 @@ class CertificatePdfController extends Controller
      */
     protected function getViewForCertificate(IssuedCertificate $certificate): string
     {
-        return match ($certificate->certificate_type) {
+        $type = $certificate->certificate_type ?? '';
+        return match ($type) {
             'barangay_clearance' => 'pdf.certificates.barangay-clearance',
             'indigency' => 'pdf.certificates.indigency',
             'residency' => 'pdf.certificates.residency',
@@ -312,19 +287,19 @@ class CertificatePdfController extends Controller
         try {
             // Load relationships with error handling
             $certificate->load(['resident.household.purok', 'issuedBy', 'certificateRequest']);
-            
+
             if (!$certificate->resident_id) {
                 throw new \Exception('Certificate has no resident_id');
             }
 
             $resident = Resident::with(['household.purok'])->find($certificate->resident_id);
-            
+
             if (!$resident) {
                 throw new \Exception('Resident not found for certificate');
             }
 
             $officials = $this->getOfficialsForCertificate();
-            
+
             // Get captain with signature
             $captain = $this->getCaptainForCertificate();
 
@@ -332,7 +307,7 @@ class CertificatePdfController extends Controller
             $validFromFormatted = 'N/A';
             $validUntilFormatted = 'N/A';
             $issuedDateFormatted = 'N/A';
-            
+
             try {
                 if ($certificate->valid_from) {
                     $validFromFormatted = Carbon::parse($certificate->valid_from)->format('F d, Y');
@@ -360,11 +335,13 @@ class CertificatePdfController extends Controller
             return [
                 'is_certificate' => true, // Flag for certificate-specific layout
                 'title' => $certificate->certificate_type_label ?? 'Certificate',
-                'document_title' => strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
+                'document_title' => $certificate->certificate_type === 'indigency' ? null : strtoupper($certificate->certificate_type_label ?? 'CERTIFICATE'),
                 'certificate' => $certificate,
                 'resident' => $resident,
                 'officials' => $officials,
                 'captain' => $captain,
+                'council_list' => $this->getCouncilListForCertificate(),
+                'hide_certificate_footer' => $certificate->certificate_type === 'indigency',
                 'valid_from_formatted' => $validFromFormatted,
                 'valid_until_formatted' => $validUntilFormatted,
                 'issued_date_formatted' => $issuedDateFormatted,
@@ -387,7 +364,7 @@ class CertificatePdfController extends Controller
     {
         try {
             Log::info('Starting PDF preview', ['certificate_id' => $id]);
-            
+
             $certificate = IssuedCertificate::find($id);
 
             if (!$certificate) {
@@ -424,11 +401,11 @@ class CertificatePdfController extends Controller
                 $filename,
                 ['paper' => 'A4', 'orientation' => 'portrait']
             );
-            
+
             Log::info('PDF preview completed successfully', ['certificate_id' => $certificate->id]);
-            
+
             return $response;
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('PDF preview failed', [
                 'certificate_id' => $id,
                 'message' => $e->getMessage(),

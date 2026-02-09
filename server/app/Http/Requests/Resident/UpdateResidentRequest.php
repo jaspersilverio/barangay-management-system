@@ -131,6 +131,10 @@ class UpdateResidentRequest extends BaseFormRequest
                 'sometimes',
                 'boolean'
             ],
+            'is_solo_parent' => [
+                'sometimes',
+                'boolean'
+            ],
             'resident_status' => [
                 'nullable',
                 'in:active,deceased,transferred,inactive'
@@ -241,6 +245,20 @@ class UpdateResidentRequest extends BaseFormRequest
             if ($this->has($field) && $this->input($field) === '') {
                 $this->merge([$field => null]);
             }
+        }
+
+        // Convert is_pwd and is_pregnant from FormData strings to booleans
+        if ($this->has('is_pwd')) {
+            $v = $this->input('is_pwd');
+            $this->merge(['is_pwd' => in_array($v, [true, 'true', '1', 1], true)]);
+        }
+        if ($this->has('is_pregnant')) {
+            $v = $this->input('is_pregnant');
+            $this->merge(['is_pregnant' => in_array($v, [true, 'true', '1', 1], true)]);
+        }
+        if ($this->has('is_solo_parent')) {
+            $v = $this->input('is_solo_parent');
+            $this->merge(['is_solo_parent' => in_array($v, [true, 'true', '1', 1], true)]);
         }
     }
 
