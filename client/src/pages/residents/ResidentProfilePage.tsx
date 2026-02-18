@@ -192,29 +192,31 @@ export default function ResidentProfilePage() {
     <div className="page-container page-sub">
       {/* Header */}
       <div className="page-header mb-4">
-        <div className="d-flex align-items-center">
-          <Button 
-            variant="outline-secondary" 
-            onClick={() => navigate('/residents')}
-            className="me-3"
-          >
-            <ArrowLeft size={16} />
-          </Button>
-          <div className="flex-grow-1">
-            <h1 className="h3 mb-1 text-brand-primary">{fullName}</h1>
-            <div className="d-flex align-items-center gap-2 flex-wrap">
-              <span className="text-muted">Resident Profile</span>
-              {resident.is_head_of_household && (
-                <Badge bg="primary" className="rounded-pill">Head of Household</Badge>
-              )}
-              {getResidentStatusBadge(resident.resident_status)}
+        <div className="d-flex align-items-start justify-content-between flex-wrap gap-3">
+          <div className="d-flex align-items-center">
+            <Button 
+              variant="outline-secondary" 
+              onClick={() => navigate('/residents')}
+              className="me-3"
+            >
+              <ArrowLeft size={16} />
+            </Button>
+            <div>
+              <h1 className="h3 mb-1 text-brand-primary">{fullName}</h1>
+              <div className="d-flex align-items-center gap-2 flex-wrap">
+                <span className="text-muted">Resident Profile</span>
+                {resident.is_head_of_household && (
+                  <Badge bg="primary" className="rounded-pill">Head of Household</Badge>
+                )}
+                {getResidentStatusBadge(resident.resident_status)}
+              </div>
             </div>
           </div>
           {canManage && (
             <Button 
               variant="primary"
               onClick={() => setShowEditModal(true)}
-              className="btn-brand-primary"
+              className="btn-brand-primary flex-shrink-0"
             >
               <i className="fas fa-edit me-2"></i>
               Edit Resident
@@ -849,6 +851,9 @@ export default function ResidentProfilePage() {
           show={showEditModal}
           initial={{
             household_id: resident.household_id || null,
+            purok_id: (resident.purok_id ?? resident.household?.purok_id) != null
+              ? String(resident.purok_id ?? resident.household?.purok_id)
+              : null,
             first_name: resident.first_name,
             middle_name: resident.middle_name || '',
             last_name: resident.last_name,

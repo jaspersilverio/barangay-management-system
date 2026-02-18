@@ -13,15 +13,31 @@ const COLORS = {
 const CACHE_KEY = 'blotterSummary'
 
 export default function BlotterTrendChart() {
-  const cached = getDashboardCached<BlotterSummary>(CACHE_KEY)
-  const [data, setData] = useState<BlotterSummary | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState<BlotterSummary | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<BlotterSummary>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        try {
+          setError(null)
+          const response = await getBlotterSummary()
+          if (response.success) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            setError(response.message || 'Failed to fetch blotter data')
+          }
+        } catch (err: any) {
+          setError(err?.response?.data?.message || 'Blotter data unavailable')
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

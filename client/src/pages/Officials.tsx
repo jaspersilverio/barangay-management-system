@@ -274,6 +274,7 @@ export default function Officials() {
             onFilterPosition={handleFilterPosition}
             onFilterStatus={handleFilterStatus}
             canManage={canManage}
+            canDelete={canManage}
           />
         </Col>
 

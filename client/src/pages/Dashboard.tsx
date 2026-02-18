@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Dropdown, Form } from 'react-bootstrap'
 import { Settings2 } from 'lucide-react'
+import { useDashboard } from '../context/DashboardContext'
 import DashboardSummary from '../components/dashboard/DashboardSummary'
 import VaccinationSummaryCard from '../components/dashboard/VaccinationSummaryCard'
 import BlotterSummaryCard from '../components/dashboard/BlotterSummaryCard'
@@ -39,11 +40,17 @@ function loadVisibility(): typeof defaultVisibility {
 }
 
 export default function Dashboard() {
+  const { refreshData } = useDashboard()
   const [visibleSections, setVisibleSections] = useState(loadVisibility)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleSections))
   }, [visibleSections])
+
+  // Refresh dashboard data when page is visited to ensure counts are accurate
+  useEffect(() => {
+    refreshData().catch(() => {})
+  }, [refreshData])
 
   const setSection = useCallback((key: keyof typeof defaultVisibility, value: boolean) => {
     setVisibleSections((prev) => ({ ...prev, [key]: value }))

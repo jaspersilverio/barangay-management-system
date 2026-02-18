@@ -14,16 +14,33 @@ const COLORS = {
 const CACHE_KEY = 'vaccinationSummary'
 
 const VaccinationStatusChart = React.memo(() => {
-  const cached = getDashboardCached<VaccinationSummary>(CACHE_KEY)
-  const [data, setData] = useState<VaccinationSummary | null>(cached ?? null)
+  const [data, setData] = useState<VaccinationSummary | null>(null)
   const [isError, setIsError] = useState(false)
   const [error, setError] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(!cached)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
+    const cached = getDashboardCached<VaccinationSummary>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setIsLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        setIsError(false)
+        try {
+          const response = await getVaccinationSummary()
+          if (response.success) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            throw new Error(response.message || 'Failed to fetch vaccination data')
+          }
+        } catch (err) {
+          setIsError(true)
+          setError(err)
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

@@ -354,6 +354,12 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       
       reset(defaultValues)
       
+      // Explicitly set purok_id for select (ensure string for HTML select matching)
+      const purokId = initial?.purok_id ?? (initial as any)?.household?.purok_id
+      if (purokId != null) {
+        setValue('purok_id', String(purokId))
+      }
+      
       // Set sex state
       setSelectedSex(defaultValues.sex || 'male')
       
@@ -388,9 +394,13 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
       const household = households.find(h => h.id === Number(initial.household_id))
       if (household) {
         setSelectedHousehold(household)
+        // Sync purok_id from household when it loads (for existing assignment mode)
+        if (household.purok_id != null) {
+          setValue('purok_id', String(household.purok_id))
+        }
       }
     }
-  }, [households, initial?.household_id])
+  }, [households, initial?.household_id, setValue])
 
   // Load photo preview when initial changes (for editing)
   useEffect(() => {
@@ -432,7 +442,11 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
           photo: photoFile || undefined
         }
         
+        // Call onSubmit - if it throws, don't reset the form
+        // This allows users to keep their form data when there's an error
         await onSubmit(cleanedValues)
+        
+        // Only reset form state if onSubmit succeeds (no error thrown)
         reset()
         setSelectedHousehold(null)
         setAssignmentMode('unassigned')
@@ -944,6 +958,34 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                           control: (provided) => ({
                             ...provided,
                             borderColor: errors.household_id ? '#dc3545' : provided.borderColor,
+                            backgroundColor: 'var(--color-surface)',
+                            color: 'var(--color-text-primary)',
+                          }),
+                          menu: (provided) => ({
+                            ...provided,
+                            backgroundColor: 'var(--color-surface)',
+                            zIndex: 9999,
+                          }),
+                          menuList: (provided) => ({
+                            ...provided,
+                            backgroundColor: 'var(--color-surface)',
+                          }),
+                          option: (provided, state) => ({
+                            ...provided,
+                            backgroundColor: state.isFocused ? 'var(--color-border)' : 'var(--color-surface)',
+                            color: 'var(--color-text-primary)',
+                          }),
+                          input: (provided) => ({
+                            ...provided,
+                            color: 'var(--color-text-primary)',
+                          }),
+                          singleValue: (provided) => ({
+                            ...provided,
+                            color: 'var(--color-text-primary)',
+                          }),
+                          placeholder: (provided) => ({
+                            ...provided,
+                            color: 'var(--color-text-muted)',
                           }),
                         }}
                       />
@@ -966,7 +1008,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                       >
                         <option value="">Select purok</option>
                         {puroks.map((purok) => (
-                          <option key={purok.id} value={purok.id}>
+                          <option key={purok.id} value={String(purok.id)}>
                             {purok.name}
                           </option>
                         ))}
@@ -1007,7 +1049,7 @@ export default function ResidentFormModal({ show, initial, onSubmit, onHide }: P
                           >
                             <option value="">Select purok</option>
                             {puroks.map((purok) => (
-                              <option key={purok.id} value={purok.id}>
+                              <option key={purok.id} value={String(purok.id)}>
                                 {purok.name}
                               </option>
                             ))}

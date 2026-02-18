@@ -5,7 +5,9 @@ import {
   InputGroup, 
   Modal, 
   Alert,
-  Pagination
+  Pagination,
+  Toast,
+  ToastContainer
 } from 'react-bootstrap'
 import { 
   Plus, 
@@ -14,13 +16,15 @@ import {
   Eye, 
   Download,
   Printer,
-  XCircle
+  XCircle,
+  Trash2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { 
   getIssuedCertificates, 
   createIssuedCertificate,
   invalidateCertificate,
+  deleteIssuedCertificate,
   downloadCertificatePdf,
   previewCertificatePdf,
   printCertificatePdf,
@@ -44,6 +48,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showInvalidateModal, setShowInvalidateModal] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [selectedCertificate, setSelectedCertificate] = useState<IssuedCertificateType | null>(null)
   // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
@@ -66,6 +71,11 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
   const [filteredResidents, setFilteredResidents] = useState<any[]>([])
   const [requestSearchTerm, setRequestSearchTerm] = useState('')
   const [filteredRequests, setFilteredRequests] = useState<any[]>([])
+  const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({
+    show: false,
+    message: '',
+    variant: 'success'
+  })
 
   // Debounce input value to search query (300ms delay)
   useEffect(() => {
@@ -175,6 +185,29 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       fetchCertificates()
     } catch (error) {
       console.error('Failed to invalidate certificate:', error)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!selectedCertificate) return
+
+    try {
+      await deleteIssuedCertificate(selectedCertificate.id)
+      setShowDeleteModal(false)
+      setSelectedCertificate(null)
+      setToast({
+        show: true,
+        message: 'Certificate deleted successfully',
+        variant: 'success'
+      })
+      fetchCertificates()
+    } catch (error: any) {
+      console.error('Failed to delete certificate:', error)
+      setToast({
+        show: true,
+        message: error?.response?.data?.message || 'Failed to delete certificate',
+        variant: 'danger'
+      })
     }
   }
 
@@ -438,6 +471,17 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                           title="Invalidate Certificate"
                         >
                           <XCircle size={14} />
+                        </ButtonComponent>
+                        <ButtonComponent
+                          size="sm"
+                          variant="danger"
+                          onClick={() => {
+                            setSelectedCertificate(certificate)
+                            setShowDeleteModal(true)
+                          }}
+                          title="Delete Certificate"
+                        >
+                          <Trash2 size={14} />
                         </ButtonComponent>
                       </div>
                     </td>
@@ -714,6 +758,57 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
           </ButtonComponent>
         </Modal.Footer>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
+            Delete Certificate
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="modal-body-custom">
+          {selectedCertificate && (
+            <div className="mb-3">
+              <p><strong>Certificate Number:</strong> {selectedCertificate.certificate_number}</p>
+              <p><strong>Resident:</strong> {selectedCertificate.resident?.full_name}</p>
+              <p><strong>Type:</strong> {getCertificateTypeLabel(selectedCertificate.certificate_type)}</p>
+            </div>
+          )}
+          <Alert variant="danger">
+            <strong>Warning:</strong> Are you sure you want to permanently delete this certificate? 
+            This action cannot be undone and the certificate record will be removed from the system.
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} className="btn-brand-secondary">
+            Cancel
+          </Button>
+          <ButtonComponent variant="danger" onClick={handleDelete} className="btn-danger">
+            <Trash2 size={14} className="me-2" />
+            Delete Permanently
+          </ButtonComponent>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Toast Notification */}
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999 }}>
+        <Toast 
+          show={toast.show} 
+          onClose={() => setToast({ ...toast, show: false })}
+          delay={3000}
+          autohide
+          bg={toast.variant}
+        >
+          <Toast.Header>
+            <strong className="me-auto">
+              {toast.variant === 'success' ? 'Success' : 'Error'}
+            </strong>
+          </Toast.Header>
+          <Toast.Body className={toast.variant === 'success' ? 'text-white' : 'text-white'}>
+            {toast.message}
+          </Toast.Body>
+        </Toast>
+      </ToastContainer>
     </div>
   )
 }

@@ -10,6 +10,7 @@ use App\Http\Controllers\NotificationController;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 
@@ -60,6 +61,7 @@ class IssuedCertificateController extends Controller
         }
 
         $certificates = $query->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
             ->paginate($request->get('per_page', 15));
 
         return response()->json([
@@ -184,12 +186,33 @@ class IssuedCertificateController extends Controller
 
     public function destroy(IssuedCertificate $issuedCertificate): JsonResponse
     {
+        // Load relationships for notification
+        $issuedCertificate->load(['resident']);
+        
+        // Store certificate info before deletion for notification
+        $certificateNumber = $issuedCertificate->certificate_number;
+        $certificateType = ucwords(str_replace('_', ' ', $issuedCertificate->certificate_type));
+        $residentName = $issuedCertificate->resident ? $issuedCertificate->resident->full_name : 'Unknown Resident';
+        $deletedBy = Auth::user() ? Auth::user()->name : 'System';
+        
         // Delete PDF file if exists
         if ($issuedCertificate->pdf_path && Storage::disk('public')->exists($issuedCertificate->pdf_path)) {
             Storage::disk('public')->delete($issuedCertificate->pdf_path);
         }
 
         $issuedCertificate->delete();
+
+        // Create system notification about the deletion
+        try {
+            NotificationController::createSystemNotification(
+                'Certificate Deleted',
+                "Certificate {$certificateNumber} ({$certificateType}) for {$residentName} has been deleted by {$deletedBy}",
+                'certificate_deleted'
+            );
+        } catch (\Exception $e) {
+            // Log but don't fail the delete operation
+            Log::warning('Failed to create notification for certificate deletion: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,

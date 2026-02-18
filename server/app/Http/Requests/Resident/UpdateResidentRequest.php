@@ -17,12 +17,39 @@ class UpdateResidentRequest extends BaseFormRequest
         $isPurokLeader = $user && $user->role === 'purok_leader';
 
         return [
+            'purok_id' => [
+                'nullable',
+                function ($attribute, $value, $fail) {
+                    if ($value === null || $value === '' || $value === '0') {
+                        return;
+                    }
+                    if (!is_numeric($value)) {
+                        $fail('The purok ID must be a number.');
+                        return;
+                    }
+                    if (!\App\Models\Purok::where('id', (int)$value)->exists()) {
+                        $fail('The selected purok does not exist.');
+                    }
+                },
+            ],
             'household_id' => [
                 'sometimes',
                 'nullable', // Allow setting to null for unassigned residents
-                'integer',
-                'exists:households,id',
-                'min:1'
+                function ($attribute, $value, $fail) {
+                    // Skip validation if value is null (unassigned resident)
+                    if ($value === null || $value === '' || $value === '0') {
+                        return;
+                    }
+                    // Validate it's a valid integer
+                    if (!is_numeric($value)) {
+                        $fail('The household ID must be a number.');
+                        return;
+                    }
+                    // Validate the household exists
+                    if (!\App\Models\Household::where('id', (int)$value)->exists()) {
+                        $fail('The selected household does not exist.');
+                    }
+                },
             ],
             'first_name' => [
                 'sometimes',
@@ -79,7 +106,7 @@ class UpdateResidentRequest extends BaseFormRequest
                 'nullable',
                 'string',
                 'max:20',
-                'regex:/^[0-9\-\+\(\)\s]+$/'
+                'regex:/^[0-9\-\+\(\)\s]*$/' // Allow empty string with * instead of +
             ],
             'email' => [
                 'nullable',
@@ -102,10 +129,8 @@ class UpdateResidentRequest extends BaseFormRequest
                 'in:single,married,widowed,divorced,separated'
             ],
             'relationship_to_head' => [
-                'required_if:household_id,!=,null', // Required if household is assigned
-                'nullable',
+                'nullable', // Validated in withValidator based on household_id
                 'string',
-                'min:2',
                 'max:255'
             ],
             'occupation_status' => [
@@ -226,6 +251,8 @@ class UpdateResidentRequest extends BaseFormRequest
     {
         // Convert empty strings to null for optional fields
         $optionalFields = [
+            'household_id', // Important: must convert empty string to null for integer validation
+            'purok_id', // For unassigned residents
             'email',
             'valid_id_type',
             'valid_id_number',
@@ -242,7 +269,7 @@ class UpdateResidentRequest extends BaseFormRequest
         ];
 
         foreach ($optionalFields as $field) {
-            if ($this->has($field) && $this->input($field) === '') {
+            if ($this->has($field) && ($this->input($field) === '' || $this->input($field) === '0')) {
                 $this->merge([$field => null]);
             }
         }
@@ -268,9 +295,14 @@ class UpdateResidentRequest extends BaseFormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator) {
+            $householdId = $this->input('household_id');
+            
+            // Check if household_id is actually set (not null, not empty)
+            $hasHousehold = $householdId !== null && $householdId !== '' && $householdId !== '0' && $householdId !== 0;
+            
             // Additional validation: Check if household exists and is accessible
-            if ($this->filled('household_id')) {
-                $household = \App\Models\Household::find($this->household_id);
+            if ($hasHousehold) {
+                $household = \App\Models\Household::find($householdId);
                 if (!$household) {
                     $validator->errors()->add('household_id', 'The selected household does not exist.');
                     return;
@@ -281,11 +313,12 @@ class UpdateResidentRequest extends BaseFormRequest
                 if ($user && $user->isPurokLeader() && $household->purok_id != $user->assigned_purok_id) {
                     $validator->errors()->add('household_id', 'You can only assign residents to households in your assigned purok.');
                 }
-            }
-
-            // If household_id is being set to null, relationship_to_head should also be null
-            if ($this->filled('household_id') && $this->household_id === null) {
-                $this->merge(['relationship_to_head' => null]);
+                
+                // Validate relationship_to_head is provided when household is assigned
+                $relationshipToHead = $this->input('relationship_to_head');
+                if (empty($relationshipToHead) || (is_string($relationshipToHead) && trim($relationshipToHead) === '')) {
+                    $validator->errors()->add('relationship_to_head', 'Relationship to head is required when assigning to a household.');
+                }
             }
 
             // Additional validation: Check for reasonable age based on birthdate

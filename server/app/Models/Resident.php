@@ -68,6 +68,15 @@ class Resident extends Model
     }
 
     /**
+     * Direct purok relationship (for unassigned residents with purok_id)
+     * @return BelongsTo<Purok, Resident>
+     */
+    public function purok(): BelongsTo
+    {
+        return $this->belongsTo(Purok::class);
+    }
+
+    /**
      * Get blotter cases where this resident is the complainant
      */
     public function complainantBlotters(): HasMany

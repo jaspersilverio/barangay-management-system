@@ -6,15 +6,30 @@ import { Clock, Plus, Edit, Trash2 } from 'lucide-react'
 const CACHE_KEY = 'recentActivities'
 
 export default function RecentActivities() {
-  const cached = getDashboardCached<RecentActivity[]>(CACHE_KEY)
-  const [activities, setActivities] = useState<RecentActivity[] | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [activities, setActivities] = useState<RecentActivity[] | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<RecentActivity[]>(CACHE_KEY)
     if (cached != null) {
       setActivities(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchActivities = async () => {
+        try {
+          const response = await getRecentActivities()
+          if (response.success) {
+            setActivities(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            setError(response.message || 'Failed to fetch activities')
+          }
+        } catch (err: any) {
+          setError(err?.response?.data?.message || 'Activities unavailable')
+        }
+      }
+      fetchActivities()
       return
     }
     const fetchActivities = async () => {

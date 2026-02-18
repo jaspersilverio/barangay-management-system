@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { getSummary } from '../services/dashboard.service'
+import { getSummary, clearDashboardCache } from '../services/dashboard.service'
 import type { DashboardSummary } from '../services/dashboard.service'
 import { useAuth } from './AuthContext'
 
@@ -36,6 +36,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const refreshData = useCallback(async () => {
+    // Clear dashboard cache so all widgets refetch fresh data
+    clearDashboardCache()
     await fetchSummary()
   }, [fetchSummary])
 

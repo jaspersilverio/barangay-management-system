@@ -3,6 +3,7 @@ import { Modal, Form, Button, Table, Badge, Spinner } from 'react-bootstrap'
 import { type MapMarker } from '../../services/map.service'
 import { type HouseholdOption, getHouseholdsForResidentForm } from '../../services/households.service'
 import { deleteResident } from '../../services/residents.service'
+import { useDashboard } from '../../context/DashboardContext'
 import MapService from '../../services/map.service'
 import ResidentFormModal from './ResidentFormModal'
 import ResidentProfileModal from './ResidentProfileModal'
@@ -24,6 +25,7 @@ export default function HouseholdAssignmentModal({
   onHouseholdAssigned,
   onMarkerDeleted
 }: HouseholdAssignmentModalProps) {
+  const { refreshData: refreshDashboard } = useDashboard()
   const [households, setHouseholds] = useState<HouseholdOption[]>([])
   const [selectedHouseholdId, setSelectedHouseholdId] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -159,6 +161,7 @@ export default function HouseholdAssignmentModal({
     setIsDeletingResident(residentId)
     try {
       await deleteResident(residentId)
+      await refreshDashboard()
       // Reload marker with household data to refresh the residents list
       const updatedMarker = await loadMarkerWithHousehold()
       if (updatedMarker) {

@@ -31,14 +31,27 @@ const sampleData: MonthlyRegistrations = [
 const CACHE_KEY = 'monthlyRegistrations'
 
 export default function MonthlyRegistrationsChart() {
-  const cached = getDashboardCached<MonthlyRegistrations>(CACHE_KEY)
-  const [data, setData] = useState<MonthlyRegistrations>(cached ?? sampleData)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState<MonthlyRegistrations>(sampleData)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const cached = getDashboardCached<MonthlyRegistrations>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        try {
+          const response = await getMonthlyRegistrations()
+          if (response.success && response.data && response.data.length > 0) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          }
+        } catch (err: any) {
+          console.warn('Monthly registrations API not available, using sample data:', err)
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

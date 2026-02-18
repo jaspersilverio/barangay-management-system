@@ -20,7 +20,7 @@ class ResidentController extends Controller
         // Include all residents - those with households and those without (unassigned)
         // Eager load household relationships for better performance
         // Also load households where residents are heads (for heads without household_id set)
-        $query = Resident::with(['household.purok', 'household.headResident', 'soloParent']);
+        $query = Resident::with(['household.purok', 'household.headResident', 'purok', 'soloParent']);
         $user = $request->user();
         
         // Preload households where residents are heads to ensure we have all household data
@@ -59,7 +59,8 @@ class ResidentController extends Controller
                         ->from('households')
                         ->where('purok_id', $purokId)
                         ->whereNotNull('head_resident_id');
-                });
+                })
+                ->orWhere('purok_id', $purokId); // Unassigned residents with direct purok_id
             });
         }
 
@@ -205,6 +206,19 @@ class ResidentController extends Controller
                 // OR if resident is head, use the headHousehold we already loaded
                 $householdToUse = $resident->household ?? ($isHeadOfHousehold ? $headHousehold : null);
                 
+                // Resolve purok for display - from household or direct resident purok_id (with fallback lookup)
+                $purokData = null;
+                $purokId = $householdToUse?->purok_id ?? $resident->purok_id ?? null;
+                if ($purokId) {
+                    $purokModel = ($householdToUse && $householdToUse->purok) ? $householdToUse->purok : ($resident->purok ?? null);
+                    if (!$purokModel) {
+                        $purokModel = \App\Models\Purok::find($purokId);
+                    }
+                    if ($purokModel) {
+                        $purokData = ['id' => $purokModel->id, 'name' => $purokModel->name];
+                    }
+                }
+
                 if ($householdToUse) {
                     $householdData = [
                         'id' => $householdToUse->id,
@@ -215,10 +229,7 @@ class ResidentController extends Controller
                                 : ($householdToUse->head_name ?? 'N/A')),
                         'address' => $householdToUse->address ?? 'N/A',
                         'purok_id' => $householdToUse->purok_id,
-                        'purok' => $householdToUse->purok ? [
-                            'id' => $householdToUse->purok->id,
-                            'name' => $householdToUse->purok->name,
-                        ] : null,
+                        'purok' => $purokData,
                     ];
                 }
                 
@@ -245,6 +256,7 @@ class ResidentController extends Controller
                     'photo_path' => $resident->photo_path ?? null,
                     'photo_url' => $resident->photo_url ?? null,
                     'household' => $householdData,
+                    'purok' => $purokData,
                 ];
             } catch (\Exception $e) {
                 // Log error and return basic resident data
@@ -277,6 +289,7 @@ class ResidentController extends Controller
                     'photo_path' => $resident->photo_path ?? null,
                     'photo_url' => $resident->photo_url ?? null,
                     'household' => null,
+                    'purok' => null,
                 ];
             }
             
@@ -536,9 +549,11 @@ class ResidentController extends Controller
         }
 
         // Format the response for the frontend with all fields
+        $purokId = $resident->purok_id ?? ($resident->household?->purok_id ?? null);
         $formattedResident = [
             'id' => $resident->id,
             'household_id' => $resident->household_id,
+            'purok_id' => $purokId,
             'first_name' => $resident->first_name,
             'middle_name' => $resident->middle_name,
             'last_name' => $resident->last_name,

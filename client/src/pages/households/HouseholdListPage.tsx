@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, Toast, ToastContainer, Badge } from 'react-bootstrap'
-import { listHouseholds, deleteHousehold } from '../../services/households.service'
+import { listHouseholds, deleteHousehold, getHouseholdsListCached, setHouseholdsListCached, clearHouseholdsListCache } from '../../services/households.service'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useNavigate } from 'react-router-dom'
 import { usePuroks } from '../../context/PurokContext'
@@ -25,7 +25,7 @@ const HouseholdListPage = React.memo(() => {
 
   // Manual state management
   const [householdsData, setHouseholdsData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
+  const [isLoading, setIsLoading] = useState(true)
 
   // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -63,8 +63,9 @@ const HouseholdListPage = React.memo(() => {
 
   // Manual data fetching - depends on debouncedSearch, not inputValue
   const loadHouseholds = useCallback(
-    async (overrideSearch?: string, overridePage?: number) => {
-      setIsLoading(true)
+    async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKey?: string) => {
+      if (showLoading) setIsLoading(true)
+      const key = cacheKey ?? `households:${overrideSearch !== undefined ? overrideSearch : debouncedSearch}:${overridePage !== undefined ? overridePage : page}:${effectivePurokId}`
       try {
         const data = await listHouseholds({
           search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
@@ -72,13 +73,12 @@ const HouseholdListPage = React.memo(() => {
           purok_id: effectivePurokId || undefined,
           per_page: 15,
         })
-        // Set data immediately - no delays
         setHouseholdsData(data)
+        setHouseholdsListCached(key, data)
       } catch (err) {
         console.error('Failed to load households:', err)
       } finally {
-        // Clear loading state immediately when data is ready
-        setIsLoading(false)
+        if (showLoading) setIsLoading(false)
       }
     },
     [debouncedSearch, page, effectivePurokId]
@@ -86,8 +86,22 @@ const HouseholdListPage = React.memo(() => {
 
   // Load data on mount and when dependencies change
   useEffect(() => {
-    loadHouseholds()
-  }, [loadHouseholds])
+    const key = `households:${debouncedSearch}:${page}:${effectivePurokId}`
+    const cached = getHouseholdsListCached(key)
+    if (cached != null) {
+      setHouseholdsData(cached)
+      setIsLoading(false)
+      // Refetch in background to keep data fresh
+      loadHouseholds(undefined, undefined, false, key).catch(() => {})
+      return
+    }
+    loadHouseholds(undefined, undefined, true, key)
+  }, [loadHouseholds, debouncedSearch, page, effectivePurokId])
+
+  // When households page is visited, refresh dashboard so cards stay in sync
+  useEffect(() => {
+    refreshDashboard().catch(() => {})
+  }, [])
 
   const items = useMemo(() => {
     if (!householdsData?.data?.data) return []
@@ -110,18 +124,54 @@ const HouseholdListPage = React.memo(() => {
 
   const handleDelete = useCallback(async () => {
     if (showDelete == null) return
+    const deletedId = showDelete
+    const previousData = householdsData
+    
     try {
-      await deleteHousehold(showDelete)
+      // Optimistically remove the item from the list immediately
+      setHouseholdsData((prev: any) => {
+        if (!prev?.data?.data) return prev
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            data: prev.data.data.filter((h: any) => h.id !== deletedId),
+            total: Math.max(0, prev.data.total - 1)
+          }
+        }
+      })
+      setShowDelete(null)
+      
+      // Clear list cache so reload gets fresh data
+      clearHouseholdsListCache()
+      
+      // Delete from backend
+      const deleteResponse = await deleteHousehold(deletedId)
+      
+      if (!deleteResponse.success) {
+        throw new Error(deleteResponse.message || 'Delete failed')
+      }
+      
+      // Small delay to ensure backend has processed the deletion before refreshing dashboard
+      await new Promise(resolve => setTimeout(resolve, 200))
+      
+      // Refresh dashboard to update counts - ensure it completes before showing success
       await refreshDashboard()
       setToast({ show: true, message: 'Household deleted', variant: 'success' })
-      setShowDelete(null)
-      // Reload data after successful deletion
-      loadHouseholds()
+      
+      // Only reload if we need to fix pagination (e.g. deleted last item on page)
+      // Otherwise, optimistic update is sufficient - reloading too fast can restore deleted items
+      const remainingOnPage = householdsData?.data?.data?.length ? householdsData.data.data.length - 1 : 0
+      if (remainingOnPage === 0 && page > 1) {
+        // Deleted last item on page, go to previous page
+        setPage(page - 1)
+      }
     } catch (e: any) {
-      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
-      setShowDelete(null)
+      // If delete fails, restore previous data
+      setHouseholdsData(previousData)
+      setToast({ show: true, message: e?.response?.data?.message || e?.message || 'Delete failed', variant: 'danger' })
     }
-  }, [showDelete, refreshDashboard, loadHouseholds])
+  }, [showDelete, refreshDashboard, loadHouseholds, householdsData])
 
   // Handle search input change - only updates input value, not search query
   // Search query is updated via debounce effect above

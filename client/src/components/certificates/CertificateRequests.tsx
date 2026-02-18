@@ -5,7 +5,9 @@ import {
   InputGroup, 
   Modal, 
   Alert,
-  Pagination
+  Pagination,
+  Toast,
+  ToastContainer
 } from 'react-bootstrap'
 import { 
   Plus, 
@@ -13,7 +15,8 @@ import {
   Filter, 
   CheckCircle, 
   XCircle, 
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { 
@@ -62,6 +65,11 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
   })
   const [residentSearchTerm, setResidentSearchTerm] = useState('')
   const [filteredResidents, setFilteredResidents] = useState<any[]>([])
+  const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({
+    show: false,
+    message: '',
+    variant: 'success'
+  })
 
   // Debounce input value to search query (300ms delay)
   useEffect(() => {
@@ -175,9 +183,28 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
       setShowActionModal(false)
       setSelectedRequest(null)
       setRemarks('')
+      
+      // Show success toast
+      const actionMessages = {
+        approve: 'Certificate request approved successfully',
+        reject: 'Certificate request rejected',
+        release: 'Certificate released successfully',
+        delete: 'Certificate request deleted successfully'
+      }
+      setToast({
+        show: true,
+        message: actionMessages[actionType],
+        variant: 'success'
+      })
+      
       fetchRequests()
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to perform action:', error)
+      setToast({
+        show: true,
+        message: error?.response?.data?.message || `Failed to ${actionType} certificate request`,
+        variant: 'danger'
+      })
     }
   }
 
@@ -319,6 +346,7 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
                             setShowActionModal(true)
                           }}
                           disabled={request.status !== 'pending'}
+                          title="Approve Request"
                         >
                           <CheckCircle size={14} />
                         </ButtonComponent>
@@ -331,6 +359,7 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
                             setShowActionModal(true)
                           }}
                           disabled={!['pending', 'approved'].includes(request.status)}
+                          title="Reject Request"
                         >
                           <XCircle size={14} />
                         </ButtonComponent>
@@ -343,8 +372,22 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
                             setShowActionModal(true)
                           }}
                           disabled={request.status !== 'approved'}
+                          title="Release Certificate"
                         >
                           <Clock size={14} />
+                        </ButtonComponent>
+                        <ButtonComponent
+                          size="sm"
+                          variant="danger"
+                          onClick={() => {
+                            setSelectedRequest(request)
+                            setActionType('delete')
+                            setShowActionModal(true)
+                          }}
+                          disabled={request.status !== 'pending'}
+                          title="Delete Request"
+                        >
+                          <Trash2 size={14} />
                         </ButtonComponent>
                       </div>
                     ) : (
@@ -568,8 +611,9 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
           )}
           
           {actionType === 'delete' && (
-            <Alert variant="warning">
-              Are you sure you want to delete this certificate request? This action cannot be undone.
+            <Alert variant="danger">
+              <strong>Warning:</strong> Are you sure you want to permanently delete this certificate request? 
+              This action cannot be undone and the request record will be removed from the system.
             </Alert>
           )}
         </Modal.Body>
@@ -597,6 +641,26 @@ export default function CertificateRequests({ certificateType }: CertificateRequ
           </ButtonComponent>
         </Modal.Footer>
       </Modal>
+
+      {/* Toast Notification */}
+      <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999 }}>
+        <Toast 
+          show={toast.show} 
+          onClose={() => setToast({ ...toast, show: false })}
+          delay={3000}
+          autohide
+          bg={toast.variant}
+        >
+          <Toast.Header>
+            <strong className="me-auto">
+              {toast.variant === 'success' ? 'Success' : 'Error'}
+            </strong>
+          </Toast.Header>
+          <Toast.Body className="text-white">
+            {toast.message}
+          </Toast.Body>
+        </Toast>
+      </ToastContainer>
     </div>
   )
 }

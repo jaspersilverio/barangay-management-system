@@ -14,6 +14,7 @@ use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
 
@@ -56,7 +57,8 @@ class CertificateRequestController extends Controller
             $query->whereDate('requested_at', '<=', $request->date_to);
         }
 
-        $requests = $query->orderBy('requested_at', 'desc')
+        $requests = $query->orderByRaw('COALESCE(requested_at, created_at) DESC')
+            ->orderBy('id', 'desc')
             ->paginate($request->get('per_page', 15));
 
         return response()->json([
@@ -88,7 +90,8 @@ class CertificateRequestController extends Controller
             'certificate_type' => $request->certificate_type,
             'purpose' => $request->purpose,
             'additional_requirements' => $request->additional_requirements,
-            'status' => 'pending'
+            'status' => 'pending',
+            'requested_at' => now()
         ]);
 
         // Reload to get relationships
@@ -152,7 +155,27 @@ class CertificateRequestController extends Controller
             ], 400);
         }
 
+        // Load relationships for notification
+        $certificateRequest->load(['resident']);
+        
+        // Store info before deletion for notification
+        $certificateType = ucwords(str_replace('_', ' ', $certificateRequest->certificate_type));
+        $residentName = $certificateRequest->resident ? $certificateRequest->resident->full_name : 'Unknown Resident';
+        $purpose = $certificateRequest->purpose;
+
         $certificateRequest->delete();
+
+        // Create system notification about the deletion
+        try {
+            NotificationController::createSystemNotification(
+                'Certificate Request Deleted',
+                "Certificate request ({$certificateType}) for {$residentName} has been deleted. Purpose: " . substr($purpose, 0, 50) . (strlen($purpose) > 50 ? '...' : ''),
+                'certificate_request_deleted'
+            );
+        } catch (\Exception $e) {
+            // Log but don't fail the delete operation
+            Log::warning('Failed to create notification for certificate request deletion: ' . $e->getMessage());
+        }
 
         return response()->json([
             'success' => true,

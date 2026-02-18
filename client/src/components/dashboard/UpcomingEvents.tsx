@@ -11,9 +11,8 @@ const CACHE_KEY = 'upcomingEvents'
 
 export default function UpcomingEvents() {
   const navigate = useNavigate()
-  const cached = getDashboardCached<Event[]>(CACHE_KEY)
-  const [events, setEvents] = useState<Event[] | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [events, setEvents] = useState<Event[] | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -21,9 +20,25 @@ export default function UpcomingEvents() {
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<Event[]>(CACHE_KEY)
     if (cached != null) {
       setEvents(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchEvents = async () => {
+        try {
+          const response = await getEvents(true) // Get upcoming events only
+          if (response.success) {
+            setEvents(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            setError(response.message || 'Failed to fetch events')
+          }
+        } catch (err: any) {
+          setError(err?.response?.data?.message || 'Events unavailable')
+        }
+      }
+      fetchEvents()
       return
     }
     const fetchEvents = async () => {

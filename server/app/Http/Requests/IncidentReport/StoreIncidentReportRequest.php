@@ -40,7 +40,7 @@ class StoreIncidentReportRequest extends FormRequest
             'incident_time' => ['required', 'date_format:H:i'],
             'location' => ['required', 'string', 'max:255'],
             'persons_involved' => ['nullable', 'string'], // Will be stored as JSON
-            'reporting_officer_id' => ['required', 'exists:users,id'],
+            'reporting_officer_id' => ['nullable', 'exists:users,id'],
             'status' => ['sometimes', 'in:Recorded,Monitoring,Resolved'],
             'notes' => ['nullable', 'string'],
         ];

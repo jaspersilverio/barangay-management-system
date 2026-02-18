@@ -71,6 +71,7 @@ class IncidentReportController extends Controller
         try {
             $data = $request->validated();
             $data['created_by'] = Auth::id();
+            $data['reporting_officer_id'] = $data['reporting_officer_id'] ?? Auth::id();
 
             // If created by staff, set status to pending for approval
             $user = Auth::user();

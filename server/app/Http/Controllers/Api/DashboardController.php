@@ -135,11 +135,19 @@ class DashboardController extends Controller
             $residentsByPurok = $residentsByPurokQuery->orderBy('name')
                 ->get()
                 ->map(function ($purok) {
-                    // Use a single optimized query to get residents count
-                    $residentsCount = DB::table('residents')
-                        ->join('households', 'residents.household_id', '=', 'households.id')
-                        ->where('households.purok_id', $purok->id)
-                        ->whereNull('residents.deleted_at')
+                    // Count residents: in households in this purok, OR unassigned with direct purok_id, OR heads of households in this purok
+                    $residentsCount = Resident::withoutGlobalScopes()
+                        ->whereNull('deleted_at')
+                        ->where(function ($q) use ($purok) {
+                            $q->whereHas('household', fn ($h) => $h->where('purok_id', $purok->id))
+                                ->orWhere(fn ($q2) => $q2->whereNull('household_id')->where('purok_id', $purok->id))
+                                ->orWhereIn('id', function ($sub) use ($purok) {
+                                    $sub->select('head_resident_id')
+                                        ->from('households')
+                                        ->where('purok_id', $purok->id)
+                                        ->whereNotNull('head_resident_id');
+                                });
+                        })
                         ->count();
 
                     return [
@@ -148,8 +156,8 @@ class DashboardController extends Controller
                     ];
                 });
 
-            // Get households by purok
-            $householdsByPurokQuery = Purok::withCount('households');
+            // Get households by purok - use explicit count to match household list
+            $householdsByPurokQuery = Purok::query();
 
             if ($user->isPurokLeader()) {
                 $householdsByPurokQuery->where('id', $user->assigned_purok_id);
@@ -158,11 +166,21 @@ class DashboardController extends Controller
             $householdsByPurok = $householdsByPurokQuery->orderBy('name')
                 ->get()
                 ->map(function ($purok) {
+                    $count = Household::where('purok_id', $purok->id)->count();
                     return [
                         'purok' => $purok->name,
-                        'count' => (int) $purok->households_count
+                        'count' => (int) $count
                     ];
-                });
+                })
+                ->all();
+
+            // Include "Unassigned" if admin and there are households with null purok_id
+            if (!$user->isPurokLeader()) {
+                $unassignedCount = Household::whereNull('purok_id')->count();
+                if ($unassignedCount > 0) {
+                    $householdsByPurok[] = ['purok' => 'Unassigned', 'count' => (int) $unassignedCount];
+                }
+            }
 
             // Get vaccination summary
             $vaccinationQuery = Vaccination::query();

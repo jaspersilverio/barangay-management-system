@@ -7,15 +7,28 @@ import SummaryCard from './SummaryCard'
 const CACHE_KEY = 'beneficiariesSummary'
 
 export default function BeneficiariesSummaryCard() {
-  const cached = getDashboardCached<BeneficiariesSummary>(CACHE_KEY)
-  const [data, setData] = useState<BeneficiariesSummary | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState<BeneficiariesSummary | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<BeneficiariesSummary>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
+      // Still refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        try {
+          const response = await getBeneficiariesSummary()
+          if (response.success) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          }
+        } catch (err) {
+          // Silent fail - keep showing cached data
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

@@ -1,5 +1,20 @@
 import api from './api'
 
+/** Session cache so list shows immediately when navigating back (no loading) */
+const householdsListCache: Record<string, any> = {}
+
+export function getHouseholdsListCached(key: string): any | undefined {
+  return householdsListCache[key]
+}
+
+export function setHouseholdsListCached(key: string, data: any): void {
+  householdsListCache[key] = data
+}
+
+export function clearHouseholdsListCache(): void {
+  Object.keys(householdsListCache).forEach((k) => delete householdsListCache[k])
+}
+
 export type HouseholdPayload = {
 	address: string
 	property_type: string
@@ -12,6 +27,7 @@ export type HouseholdOption = {
 	id: number
 	head_of_household: string
 	address: string
+	purok_id?: number
 	purok_name: string
 	label: string
 }

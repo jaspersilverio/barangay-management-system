@@ -8,15 +8,31 @@ const PRIMARY_COLOR = 'var(--color-primary)' // blue-500
 const CACHE_KEY = 'ageDistribution'
 
 export default function AgeDistributionChart() {
-  const cached = getDashboardCached<AgeDistribution>(CACHE_KEY)
-  const [data, setData] = useState<AgeDistribution | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState<AgeDistribution | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<AgeDistribution>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        try {
+          setError(null)
+          const response = await getAgeDistribution()
+          if (response.success) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            setError(response.message || 'Failed to fetch age distribution data')
+          }
+        } catch (err: any) {
+          setError(err?.response?.data?.message || 'Age distribution data unavailable')
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

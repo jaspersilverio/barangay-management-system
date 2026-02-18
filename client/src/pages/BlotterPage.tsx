@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useDashboard } from '../context/DashboardContext';
 import { 
   Search, 
   RefreshCw,
@@ -21,6 +22,7 @@ import { exportBlottersCsv } from '../services/reports.service';
 
 const BlotterPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
+  const { refreshData: refreshDashboard } = useDashboard();
   const canDelete = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'purok_leader';
   const [blotters, setBlotters] = useState<Blotter[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,9 +77,9 @@ const BlotterPage: React.FC = () => {
   }, [searchInput]);
 
   // Load blotters
-  const loadBlotters = async () => {
+  const loadBlotters = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const response = await blotterService.getBlotters(filters);
       
       // Set data immediately - no delays
@@ -92,7 +94,7 @@ const BlotterPage: React.FC = () => {
       console.error('Error loading blotters:', error);
     } finally {
       // Clear loading state immediately when data is ready
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -147,15 +149,41 @@ const BlotterPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!deleteBlotter) return;
+    const deletedId = deleteBlotter.id;
+    const previousBlotters = [...blotters];
+    const previousPagination = { ...pagination };
 
     try {
-      await blotterService.deleteBlotter(deleteBlotter.id);
-      await loadBlotters();
-      await loadStatistics();
+      // Optimistically remove the item from the list immediately
+      setBlotters(prev => prev.filter(b => b.id !== deletedId));
+      setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
       setShowDeleteModal(false);
       setDeleteBlotter(null);
+      
+      // Delete from backend
+      await blotterService.deleteBlotter(deletedId);
+      
+      // Refresh dashboard to update counts - await to ensure it completes
+      await refreshDashboard();
+      
+      // Reload statistics silently (doesn't affect list)
+      loadStatistics().catch(() => {});
+      
+      // Only reload list if we need to fix pagination (e.g. deleted last item on page)
+      // Otherwise, optimistic update is sufficient - reloading too fast can restore deleted items
+      const remainingOnPage = blotters.length - 1;
+      if (remainingOnPage === 0 && pagination.current_page > 1) {
+        // Deleted last item on page, go to previous page
+        setFilters(prev => ({ ...prev, page: prev.page - 1 }));
+      }
     } catch (error) {
       console.error('Error deleting blotter:', error);
+      // If delete fails, restore previous state
+      setBlotters(previousBlotters);
+      setPagination(previousPagination);
+      // Reload to sync with server
+      loadBlotters(false);
+      loadStatistics();
     }
   };
 
@@ -166,8 +194,9 @@ const BlotterPage: React.FC = () => {
     setSelectedBlotter(null);
   };
 
-  const handleModalSuccess = () => {
+  const handleModalSuccess = async () => {
     handleModalClose();
+    await refreshDashboard();
     loadBlotters();
     loadStatistics();
   };

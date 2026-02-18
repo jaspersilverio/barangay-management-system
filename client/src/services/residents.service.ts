@@ -1,5 +1,20 @@
 import api from './api'
 
+/** Session cache so list shows immediately when navigating back (no loading) */
+const residentsListCache: Record<string, any> = {}
+
+export function getResidentsListCached(key: string): any | undefined {
+  return residentsListCache[key]
+}
+
+export function setResidentsListCached(key: string, data: any): void {
+  residentsListCache[key] = data
+}
+
+export function clearResidentsListCache(): void {
+  Object.keys(residentsListCache).forEach((k) => delete residentsListCache[k])
+}
+
 export type ResidentPayload = {
   household_id?: number | null // Optional - can create unassigned residents
   first_name: string
@@ -22,10 +37,11 @@ export type ResidentPayload = {
   educational_attainment?: string | null
   is_pwd: boolean
   is_pregnant?: boolean
+  is_solo_parent?: boolean
   resident_status?: 'active' | 'deceased' | 'transferred' | 'inactive'
   remarks?: string | null
   photo?: File
-  purok_id?: string | number
+  purok_id?: number | null // Required for unassigned residents (no household)
 }
 
 export async function listResidents(params: { 
@@ -95,6 +111,16 @@ export async function createResident(payload: ResidentPayload) {
   if (!isEmpty(payload.resident_status)) formData.append('resident_status', payload.resident_status!)
   if (!isEmpty(payload.remarks)) formData.append('remarks', payload.remarks!)
   
+  // Add purok_id for unassigned residents (required by backend when no household)
+  if (payload.purok_id !== null && payload.purok_id !== undefined) {
+    formData.append('purok_id', payload.purok_id.toString())
+  }
+  
+  // Add is_solo_parent if provided
+  if (payload.is_solo_parent !== undefined) {
+    formData.append('is_solo_parent', payload.is_solo_parent ? '1' : '0')
+  }
+  
   // Add photo if provided
   if (payload.photo) {
     formData.append('photo', payload.photo)
@@ -130,6 +156,10 @@ export async function updateResident(id: number | string, payload: Partial<Resid
     } else {
       formData.append('household_id', '')
     }
+  }
+  // Add purok_id for unassigned residents
+  if (payload.purok_id !== null && payload.purok_id !== undefined) {
+    formData.append('purok_id', payload.purok_id.toString())
   }
   if (payload.first_name !== undefined) formData.append('first_name', payload.first_name)
   if (payload.middle_name !== undefined) {
@@ -245,12 +275,23 @@ export async function updateResident(id: number | string, payload: Partial<Resid
   // Use POST with _method=PUT (method spoofing) so Laravel routes correctly and PHP parses the body.
   formData.append('_method', 'PUT')
   
-  const res = await api.post(`/residents/${id}`, formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  })
-  return res.data as { success: boolean; data: any; message: string | null; errors: any }
+  try {
+    const res = await api.post(`/residents/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return res.data as { success: boolean; data: any; message: string | null; errors: any }
+  } catch (error: any) {
+    // Log the error details for debugging
+    console.error('Resident update error:', {
+      message: error?.response?.data?.message,
+      errors: error?.response?.data?.errors,
+      status: error?.response?.status,
+      payload: Object.fromEntries(formData.entries())
+    })
+    throw error
+  }
 }
 
 export async function deleteResident(id: number | string) {

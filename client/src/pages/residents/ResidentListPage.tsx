@@ -1,18 +1,20 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast, Badge } from 'react-bootstrap'
-import { listResidents, deleteResident, createResident, updateResident } from '../../services/residents.service'
+import { listResidents, deleteResident, createResident, updateResident, getResident, getResidentsListCached, setResidentsListCached, clearResidentsListCache } from '../../services/residents.service'
 import { createHousehold } from '../../services/households.service'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
 import type { ResidentFormValues } from '../../components/residents/ResidentFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
+import { useDashboard } from '../../context/DashboardContext'
 import { useNavigate } from 'react-router-dom'
 
 const ResidentListPage = React.memo(() => {
   const navigate = useNavigate()
   const { puroks } = usePuroks()
   const { user } = useAuth()
+  const { refreshData: refreshDashboard } = useDashboard()
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
@@ -25,10 +27,12 @@ const ResidentListPage = React.memo(() => {
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
   const [editingId, setEditingId] = useState<null | number>(null)
+  const [editingResidentData, setEditingResidentData] = useState<any>(null)
+  const [loadingResidentForEdit, setLoadingResidentForEdit] = useState<number | null>(null)
 
   // Manual state management
   const [residentsData, setResidentsData] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
+  const [isLoading, setIsLoading] = useState(true)
   const [isError, setIsError] = useState(false)
   const [error, setError] = useState<any>(null)
 
@@ -70,31 +74,45 @@ const ResidentListPage = React.memo(() => {
   }, [inputValue])
 
   // Manual data fetching - depends on debouncedSearch, not inputValue
-  const loadResidents = useCallback(async (overrideSearch?: string, overridePage?: number) => {
-    setIsLoading(true)
+  const loadResidents = useCallback(async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKey?: string) => {
+    if (showLoading) setIsLoading(true)
     setIsError(false)
     setError(null)
+    const key = cacheKey ?? `residents:${overrideSearch !== undefined ? overrideSearch : debouncedSearch}:${overridePage !== undefined ? overridePage : page}:${effectivePurokId}`
     try {
       const data = await listResidents({
         search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
         page: overridePage !== undefined ? overridePage : page,
         purok_id: effectivePurokId || undefined
       })
-      // Set data immediately - no delays
       setResidentsData(data)
+      setResidentsListCached(key, data)
     } catch (err) {
       setIsError(true)
       setError(err)
     } finally {
-      // Clear loading state immediately when data is ready
-      setIsLoading(false)
+      if (showLoading) setIsLoading(false)
     }
   }, [debouncedSearch, page, effectivePurokId])
 
   // Load data on mount and when dependencies change
   useEffect(() => {
-    loadResidents()
-  }, [loadResidents])
+    const key = `residents:${debouncedSearch}:${page}:${effectivePurokId}`
+    const cached = getResidentsListCached(key)
+    if (cached != null) {
+      setResidentsData(cached)
+      setIsLoading(false)
+      // Refetch in background to keep data fresh
+      loadResidents(undefined, undefined, false, key).catch(() => {})
+      return
+    }
+    loadResidents(undefined, undefined, true, key)
+  }, [loadResidents, debouncedSearch, page, effectivePurokId])
+
+  // When residents page is visited, refresh dashboard so cards stay in sync (e.g. list empty but cards showed old count)
+  useEffect(() => {
+    refreshDashboard().catch(() => {})
+  }, [])
 
   // Auto-remove highlight after 5 seconds and scroll to highlighted row
   useEffect(() => {
@@ -165,17 +183,51 @@ const ResidentListPage = React.memo(() => {
 
   const handleDelete = useCallback(async () => {
     if (showDelete == null) return
+    const deletedId = showDelete
+    const previousData = residentsData
+    
     try {
-      await deleteResident(showDelete)
+      // Optimistically remove the item from the list immediately
+      setResidentsData((prev: any) => {
+        if (!prev?.data?.data) return prev
+        return {
+          ...prev,
+          data: {
+            ...prev.data,
+            data: prev.data.data.filter((r: any) => r.id !== deletedId),
+            total: Math.max(0, prev.data.total - 1)
+          }
+        }
+      })
+      setShowDelete(null)
+      
+      // Clear list cache so reload gets fresh data
+      clearResidentsListCache()
+      
+      // Delete from backend
+      const deleteResponse = await deleteResident(deletedId)
+      
+      if (!deleteResponse.success) {
+        throw new Error(deleteResponse.message || 'Delete failed')
+      }
+      
+      // Refresh dashboard to update counts - ensure it completes before showing success
+      await refreshDashboard()
       setToast({ show: true, message: 'Resident deleted', variant: 'success' })
-      setShowDelete(null)
-      // Reload data after successful deletion
-      loadResidents()
+      
+      // Only reload if we need to fix pagination (e.g. deleted last item on page)
+      // Otherwise, optimistic update is sufficient - reloading too fast can restore deleted items
+      const remainingOnPage = residentsData?.data?.data?.length ? residentsData.data.data.length - 1 : 0
+      if (remainingOnPage === 0 && page > 1) {
+        // Deleted last item on page, go to previous page
+        setPage(page - 1)
+      }
     } catch (e: any) {
-      setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
-      setShowDelete(null)
+      // If delete fails, restore previous data
+      setResidentsData(previousData)
+      setToast({ show: true, message: e?.response?.data?.message || e?.message || 'Delete failed', variant: 'danger' })
     }
-  }, [showDelete, loadResidents])
+  }, [showDelete, loadResidents, refreshDashboard, residentsData])
 
   // Handle search input change - only updates input value, not search query
   // Search query is updated via debounce effect above
@@ -230,11 +282,25 @@ const ResidentListPage = React.memo(() => {
   const handleHideForm = useCallback(() => {
     setShowForm(false)
     setEditingId(null)
+    setEditingResidentData(null)
   }, [])
 
-  const handleEdit = useCallback((id: number) => {
+  const handleEdit = useCallback(async (id: number) => {
     setEditingId(id)
-    setShowForm(true)
+    setLoadingResidentForEdit(id)
+    try {
+      const res = await getResident(id)
+      if (res.success && res.data) {
+        setEditingResidentData(res.data)
+        setShowForm(true)
+      } else {
+        setToast({ show: true, message: 'Failed to load resident details', variant: 'danger' })
+      }
+    } catch (err: any) {
+      setToast({ show: true, message: err?.response?.data?.message || 'Failed to load resident details', variant: 'danger' })
+    } finally {
+      setLoadingResidentForEdit(null)
+    }
   }, [])
 
   const handleShowDelete = useCallback((id: number) => {
@@ -540,9 +606,9 @@ const ResidentListPage = React.memo(() => {
 
                         {/* Purok */}
                         <td>
-                          {resident.household?.purok?.name ? (
+                          {(resident.purok?.name ?? resident.household?.purok?.name) ? (
                             <Badge bg="info" className="rounded-pill">
-                              {resident.household.purok.name}
+                              {resident.purok?.name ?? resident.household?.purok?.name}
                             </Badge>
                           ) : (
                             <span className="text-muted">-</span>
@@ -645,10 +711,15 @@ const ResidentListPage = React.memo(() => {
                                 <Button
                                   size="sm"
                                   onClick={() => handleEdit(resident.id)}
+                                  disabled={loadingResidentForEdit === resident.id}
                                   className="btn-action btn-action-edit"
                                   title="Edit Resident"
                                 >
-                                  <i className="fas fa-edit"></i>
+                                  {loadingResidentForEdit === resident.id ? (
+                                    <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                                  ) : (
+                                    <i className="fas fa-edit"></i>
+                                  )}
                                   Edit
                                 </Button>
                                 <Button
@@ -774,41 +845,48 @@ const ResidentListPage = React.memo(() => {
 
       <ResidentFormModal
         show={showForm}
-        initial={(() => {
-          if (!editingId) return undefined
-          const r = items.find((i: any) => i.id === editingId)
-          if (!r) return undefined
+        initial={editingResidentData ? (() => {
+          const r = editingResidentData
+          const purokId = r.purok_id ?? r.household?.purok_id
           return {
-            household_id: r.household_id,
-            first_name: r.first_name,
-            middle_name: r.middle_name || '',
-            last_name: r.last_name,
-            suffix: r.suffix || null,
-            sex: r.sex,
-            birthdate: r.birthdate,
-            place_of_birth: r.place_of_birth || null,
-            nationality: r.nationality || null,
-            religion: r.religion || null,
-            contact_number: r.contact_number || null,
-            email: r.email || null,
-            valid_id_type: r.valid_id_type || null,
-            valid_id_number: r.valid_id_number || null,
-            civil_status: r.civil_status || 'single',
-            relationship_to_head: r.relationship_to_head,
-            occupation_status: r.occupation_status,
-            employer_workplace: r.employer_workplace || null,
-            educational_attainment: r.educational_attainment || null,
+            household_id: r.household_id ?? null,
+            purok_id: purokId != null ? String(purokId) : null,
+            first_name: r.first_name ?? '',
+            middle_name: r.middle_name ?? '',
+            last_name: r.last_name ?? '',
+            suffix: r.suffix ?? null,
+            sex: r.sex ?? 'male',
+            birthdate: r.birthdate ?? '',
+            place_of_birth: r.place_of_birth ?? null,
+            nationality: r.nationality ?? 'Filipino',
+            religion: r.religion ?? null,
+            contact_number: r.contact_number ?? null,
+            email: r.email ?? null,
+            valid_id_type: r.valid_id_type ?? null,
+            valid_id_number: r.valid_id_number ?? null,
+            civil_status: r.civil_status ?? 'single',
+            relationship_to_head: r.relationship_to_head ?? null,
+            occupation_status: r.occupation_status ?? 'other',
+            employer_workplace: r.employer_workplace ?? null,
+            educational_attainment: r.educational_attainment ?? null,
             is_pwd: !!r.is_pwd,
             is_pregnant: !!r.is_pregnant,
             is_solo_parent: !!r.is_solo_parent,
-            resident_status: r.resident_status || 'active',
-            remarks: r.remarks || null,
-            photo_url: r.photo_url || null,
+            resident_status: r.resident_status ?? 'active',
+            remarks: r.remarks ?? null,
+            photo_url: r.photo_url ?? null,
           }
-        })()}
+        })() : undefined}
         onSubmit={async (values: ResidentFormValues & { photo?: File }) => {
           try {
-            // Handle optional purok_id for purok leaders
+            // Determine purok_id based on assignment mode
+            let purokIdToSend: number | null = null
+            if (values.assignment_mode === 'unassigned' && values.purok_id) {
+              purokIdToSend = typeof values.purok_id === 'string' ? parseInt(values.purok_id) : values.purok_id
+            } else if (values.assignment_mode === 'new_household' && values.new_household_purok_id) {
+              purokIdToSend = typeof values.new_household_purok_id === 'string' ? parseInt(values.new_household_purok_id) : values.new_household_purok_id
+            }
+            
             const payload: any = {
               household_id: values.household_id ? Number(values.household_id) : null,
               first_name: values.first_name,
@@ -835,7 +913,8 @@ const ResidentListPage = React.memo(() => {
               resident_status: values.resident_status || 'active',
               remarks: values.remarks ?? null,
               photo: values.photo ?? undefined,
-              // purok_id is handled by backend based on household
+              // Include purok_id for unassigned residents (required by backend)
+              purok_id: purokIdToSend,
             }
 
             if (editingId) {
@@ -846,6 +925,7 @@ const ResidentListPage = React.memo(() => {
               setToast({ show: true, message: 'Resident updated', variant: 'success' })
               setShowForm(false)
               setEditingId(null)
+              setEditingResidentData(null)
               // Reload data after successful update
               await loadResidents()
             } else {
@@ -881,6 +961,7 @@ const ResidentListPage = React.memo(() => {
                     // Still reload to show the resident (even if unassigned)
                     setShowForm(false)
                     setEditingId(null)
+                    setEditingResidentData(null)
                     setInputValue('')
                     setDebouncedSearch('')
                     setPage(1)
@@ -893,6 +974,7 @@ const ResidentListPage = React.memo(() => {
                 setToast({ show: true, message: 'Resident created', variant: 'success' })
                 setShowForm(false)
                 setEditingId(null)
+                setEditingResidentData(null)
 
                 // Clear search and reset to page 1 to ensure new resident is visible
                 setInputValue('')
@@ -914,7 +996,10 @@ const ResidentListPage = React.memo(() => {
               }
             }
           } catch (e: any) {
-            setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
+            setToast({ show: true, message: e?.response?.data?.message || e?.message || 'Save failed', variant: 'danger' })
+            // Re-throw the error so the form modal knows not to reset the form
+            // This keeps the user's input data when there's an error
+            throw e
           }
         }}
         onHide={handleHideForm}

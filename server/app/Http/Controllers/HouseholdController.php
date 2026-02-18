@@ -12,13 +12,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class HouseholdController extends Controller
 {
     public function index(Request $request)
     {
         $query = Household::with(['purok', 'headResident'])
-            ->selectRaw('households.*, (SELECT COUNT(*) FROM residents WHERE residents.deleted_at IS NULL AND (residents.household_id = households.id OR residents.id = households.head_resident_id)) as residents_count');
+            ->selectRaw('households.*, (SELECT COUNT(*) FROM residents WHERE residents.deleted_at IS NULL AND residents.household_id = households.id AND residents.id != households.head_resident_id) as residents_count');
         $user = $request->user();
 
         // Role-based filtering
@@ -249,6 +250,17 @@ class HouseholdController extends Controller
             Resident::where('household_id', $household->id)->delete();
         }
         $household->delete();
+        
+        // Clear dashboard caches so summary reflects the deletion immediately
+        $purokSuffix = $user->assigned_purok_id ?? 'admin';
+        Cache::forget('dashboard_summary_' . $user->id . '_' . $purokSuffix);
+        Cache::forget('dashboard_analytics_' . $user->id . '_' . $purokSuffix);
+        // Also clear for admin users who might be viewing the dashboard
+        if ($purokSuffix !== 'admin') {
+            Cache::forget('dashboard_summary_' . $user->id . '_admin');
+            Cache::forget('dashboard_analytics_' . $user->id . '_admin');
+        }
+        
         return $this->respondSuccess(null, 'Household deleted');
     }
 
@@ -326,12 +338,14 @@ class HouseholdController extends Controller
 
         // Transform the response for dropdown
         $formattedHouseholds = $households->map(function ($household) {
+            $purokName = $household->purok ? $household->purok->name : 'Unknown Purok';
             return [
                 'id' => $household->id,
                 'head_of_household' => $household->head_name,
                 'address' => $household->address,
-                'purok_name' => $household->purok ? $household->purok->name : 'Unknown Purok',
-                'label' => "{$household->head_name} – {$household->address} ({$household->purok->name})",
+                'purok_id' => $household->purok_id,
+                'purok_name' => $purokName,
+                'label' => "{$household->head_name} – {$household->address} ({$purokName})",
             ];
         });
 

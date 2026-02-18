@@ -13,15 +13,31 @@ const DEFAULT_COLOR = 'var(--color-text-muted)'
 const CACHE_KEY = 'beneficiariesSummary'
 
 export default function BeneficiariesChart() {
-  const cached = getDashboardCached<BeneficiariesSummary>(CACHE_KEY)
-  const [data, setData] = useState<BeneficiariesSummary | null>(cached ?? null)
-  const [loading, setLoading] = useState(!cached)
+  const [data, setData] = useState<BeneficiariesSummary | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    const cached = getDashboardCached<BeneficiariesSummary>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
+      // Refetch in background to ensure data is fresh
+      const fetchData = async () => {
+        try {
+          setError(null)
+          const response = await getBeneficiariesSummary()
+          if (response.success) {
+            setData(response.data)
+            setDashboardCached(CACHE_KEY, response.data)
+          } else {
+            setError(response.message || 'Failed to fetch beneficiaries data')
+          }
+        } catch (err: any) {
+          setError(err?.response?.data?.message || 'Beneficiaries data unavailable')
+        }
+      }
+      fetchData()
       return
     }
     const fetchData = async () => {

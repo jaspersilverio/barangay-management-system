@@ -77,9 +77,9 @@ const IncidentReportsPage: React.FC = () => {
   }, [inputValue]);
 
   // Load incident reports - depends on debouncedSearch, not inputValue
-  const loadIncidentReports = useCallback(async (overrideSearch?: string, overridePage?: number) => {
+  const loadIncidentReports = useCallback(async (overrideSearch?: string, overridePage?: number, showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const params: IncidentReportListParams = {
         search: overrideSearch !== undefined ? overrideSearch : debouncedSearch || undefined,
         status: statusFilter || undefined,
@@ -101,7 +101,7 @@ const IncidentReportsPage: React.FC = () => {
     } catch (error) {
       console.error('Error loading incident reports:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   }, [debouncedSearch, statusFilter, startDate, endDate, page]);
 
@@ -175,14 +175,38 @@ const IncidentReportsPage: React.FC = () => {
 
   const handleConfirmDelete = async () => {
     if (!deleteIncidentReportId) return;
+    const deletedId = deleteIncidentReportId;
+    const previousReports = [...incidentReports];
+    const previousPagination = { ...pagination };
 
     try {
-      await deleteIncidentReport(deleteIncidentReportId);
-      await loadIncidentReports();
+      // Optimistically remove the item from the list immediately
+      setIncidentReports(prev => prev.filter(r => r.id !== deletedId));
+      setPagination(prev => ({ ...prev, total: Math.max(0, prev.total - 1) }));
       setShowDeleteModal(false);
       setDeleteIncidentReportId(null);
-    } catch (error) {
+      
+      // Delete from backend
+      const deleteResponse = await deleteIncidentReport(deletedId);
+      
+      if (!deleteResponse.success) {
+        throw new Error(deleteResponse.message || 'Delete failed');
+      }
+      
+      // Only reload if we need to fix pagination (e.g. deleted last item on page)
+      // Otherwise, optimistic update is sufficient - reloading too fast can restore deleted items
+      const remainingOnPage = incidentReports.length - 1;
+      if (remainingOnPage === 0 && pagination.current_page > 1) {
+        // Deleted last item on page, go to previous page
+        setPage(pagination.current_page - 1);
+      }
+    } catch (error: any) {
       console.error('Error deleting incident report:', error);
+      // If delete fails, restore previous state
+      setIncidentReports(previousReports);
+      setPagination(previousPagination);
+      // Reload to sync with server
+      loadIncidentReports(undefined, undefined, false);
     }
   };
 

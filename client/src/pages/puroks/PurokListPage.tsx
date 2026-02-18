@@ -31,8 +31,8 @@ export default function PurokListPage() {
     return () => clearTimeout(timeoutId)
   }, [searchInput])
 
-  const load = useCallback(async () => {
-    setLoading(true)
+  const load = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
       const res = await getPuroks({ search: debouncedSearch, page, per_page: 15 })
       // Set data immediately - no delays
@@ -43,7 +43,7 @@ export default function PurokListPage() {
       console.error('Failed to load puroks:', err)
     } finally {
       // Clear loading state immediately when data is ready
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
   }, [debouncedSearch, page])
 
@@ -263,14 +263,24 @@ export default function PurokListPage() {
         confirmText="Delete"
         onConfirm={async () => {
           if (!deletingId) return
+          const deletedId = deletingId
           try {
-            await deletePurok(deletingId)
-            setToast({ show: true, message: 'Purok deleted', variant: 'success' })
-            await load()
-          } catch (e: any) {
-            setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
-          } finally {
+            // Optimistically remove the item from the list immediately
+            setItems(prev => prev.filter(p => p.id !== deletedId))
             setDeletingId(null)
+            
+            // Delete from backend
+            await deletePurok(deletedId)
+            setToast({ show: true, message: 'Purok deleted', variant: 'success' })
+            
+            // Reload silently in background without showing loading state
+            load(false).catch(err => {
+              console.error('Failed to reload after delete:', err)
+            })
+          } catch (e: any) {
+            // If delete fails, reload silently to restore the item
+            setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
+            load(false)
           }
         }}
         onHide={() => setDeletingId(null)}

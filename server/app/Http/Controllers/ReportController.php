@@ -712,7 +712,7 @@ class ReportController extends Controller
             // Add UTF-8 BOM for Excel compatibility
             fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
 
-            // Write CSV headers (same style as vaccination export)
+            // CSV headers
             $headers = [
                 'No',
                 'Case No.',
@@ -728,10 +728,9 @@ class ReportController extends Controller
             ];
             $this->writeCsvRow($handle, $headers);
 
-            // Process each blotter record
-            $rowNumber = 1;
+            // Rows
             foreach ($blotters as $blotter) {
-                $row = $this->buildBlotterRow($blotter, $rowNumber++);
+                $row = $this->buildBlotterRow($blotter);
                 $this->writeCsvRow($handle, $row);
             }
         } finally {
@@ -743,10 +742,9 @@ class ReportController extends Controller
      * Build a CSV row for a blotter record
      *
      * @param Blotter $blotter
-     * @param int $rowNumber
      * @return array
      */
-    private function buildBlotterRow($blotter, int $rowNumber): array
+    private function buildBlotterRow($blotter): array
     {
         // Complainant
         $complainantName = 'N/A';
