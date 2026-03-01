@@ -339,29 +339,9 @@
 
 <body>
     {{-- ==================== PAGE HEADER (CERTIFICATE-STYLE) ==================== --}}
-    @php
-        $gdAvailable = extension_loaded('gd');
-        $showLogo = false;
-        $logoSrc = null;
-
-        if (
-            $gdAvailable &&
-            !empty($barangay_info['logo_base64']) &&
-            str_starts_with($barangay_info['logo_base64'], 'data:')
-        ) {
-            $showLogo = true;
-            $logoSrc = $barangay_info['logo_base64'];
-        }
-    @endphp
-
     <div class="certificate-header">
-        {{-- Logo at the very top --}}
         <div class="header-logo-container">
-            @if ($showLogo && $logoSrc)
-                <img src="{{ $logoSrc }}" alt="Barangay Seal" class="header-logo">
-            @else
-                <div class="logo-placeholder">B</div>
-            @endif
+            <div class="logo-placeholder">B</div>
         </div>
 
         {{-- Government hierarchy text --}}
@@ -515,29 +495,21 @@
 
     {{-- Total Records Count --}}
     <div style="text-align: right; font-size: 9pt; margin-top: 10px; font-weight: bold;">
-        Total Records: {{ $vaccinations->count() }}
+        @if(!empty($records_limited) && !empty($total_records))
+            Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records. Apply filters to narrow results.
+        @else
+            Total Records: {{ $vaccinations->count() }}
+        @endif
     </div>
 
-    {{-- ==================== SIGNATURE SECTION ==================== --}}
-    @php
-        $gdAvailable = extension_loaded('gd');
-        $hasSignature =
-            $gdAvailable &&
-            !empty($noted_by['signature_base64']) &&
-            str_starts_with($noted_by['signature_base64'], 'data:');
-    @endphp
+    {{-- Signature section (text only for faster PDF) --}}
     <div class="signature-section">
         <table class="signature-table">
             <tr>
                 <td style="width: 100%; text-align: right;">
                     <div class="signature-block" style="text-align: right; margin-left: auto;">
                         <div class="signature-label">Noted by:</div>
-                        @if ($hasSignature)
-                            <img src="{{ $noted_by['signature_base64'] }}" alt="Signature"
-                                style="max-width: 150px; max-height: 60px; display: block; margin-left: auto; margin-bottom: 5px;">
-                        @else
-                            <div class="signature-line" style="margin-left: auto;"></div>
-                        @endif
+                        <div class="signature-line" style="margin-left: auto;"></div>
                         <div class="signature-name">{{ $noted_by['name'] ?? 'BARANGAY CAPTAIN' }}</div>
                         <div class="signature-position">{{ $noted_by['position'] ?? 'Punong Barangay' }}</div>
                     </div>

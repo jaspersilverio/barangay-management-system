@@ -1,5 +1,45 @@
 import api from './api'
 
+const householdsReportCache: Record<string, unknown> = {}
+const residentsReportCache: Record<string, unknown> = {}
+let puroksReportCache: unknown[] | null = null
+
+export function getHouseholdsReportCached<T = unknown>(key: string): T | undefined {
+  return householdsReportCache[key] as T | undefined
+}
+
+export function setHouseholdsReportCached(key: string, value: unknown): void {
+  householdsReportCache[key] = value
+}
+
+export function clearHouseholdsReportCache(): void {
+  Object.keys(householdsReportCache).forEach((k) => delete householdsReportCache[k])
+}
+
+export function getResidentsReportCached<T = unknown>(key: string): T | undefined {
+  return residentsReportCache[key] as T | undefined
+}
+
+export function setResidentsReportCached(key: string, value: unknown): void {
+  residentsReportCache[key] = value
+}
+
+export function clearResidentsReportCache(): void {
+  Object.keys(residentsReportCache).forEach((k) => delete residentsReportCache[k])
+}
+
+export function getPuroksReportCached(): unknown[] | null {
+  return puroksReportCache
+}
+
+export function setPuroksReportCached(data: unknown[]): void {
+  puroksReportCache = data
+}
+
+export function clearPuroksReportCache(): void {
+  puroksReportCache = null
+}
+
 export type HouseholdReport = {
   id: number
   address: string

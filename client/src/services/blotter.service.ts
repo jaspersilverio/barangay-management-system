@@ -1,5 +1,28 @@
 import api from './api';
 
+/** Session cache so blotter list/stats show immediately when navigating back (no loading) */
+const blotterPageCache: Record<string, unknown> = {};
+
+export function getBlottersListCached<T = unknown>(key: string): T | undefined {
+  return blotterPageCache[key] as T | undefined;
+}
+
+export function setBlottersListCached(key: string, value: unknown): void {
+  blotterPageCache[key] = value;
+}
+
+export function getBlotterStatsCached<T = unknown>(key: string): T | undefined {
+  return blotterPageCache[key] as T | undefined;
+}
+
+export function setBlotterStatsCached(key: string, value: unknown): void {
+  blotterPageCache[key] = value;
+}
+
+export function clearBlotterPageCache(): void {
+  Object.keys(blotterPageCache).forEach((k) => delete blotterPageCache[k]);
+}
+
 export interface Blotter {
   id: number;
   case_number: string;
@@ -15,12 +38,13 @@ export interface Blotter {
   respondent_age?: number;
   respondent_address?: string;
   respondent_contact?: string;
-  official_id?: number;
+  assigned_official_name?: string;
+  assigned_official_display?: string;
   incident_date: string;
   incident_time: string;
   incident_location: string;
   description: string;
-  status: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
+  status: 'ongoing' | 'resolved';
   approved_by?: number;
   rejected_by?: number;
   approved_at?: string;
@@ -62,11 +86,6 @@ export interface Blotter {
     contact_number?: string;
     address?: string;
   };
-  official?: {
-    id: number;
-    name: string;
-    email?: string;
-  };
   creator?: {
     id: number;
     name: string;
@@ -100,12 +119,12 @@ export interface CreateBlotterData {
   respondent_contact?: string;
   
   // Other fields
-  official_id?: number;
+  assigned_official_name?: string;
   incident_date: string;
   incident_time: string;
   incident_location: string;
   description: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
+  status?: 'resolved';
   resolution?: string;
   attachments?: File[];
 }
@@ -128,12 +147,12 @@ export interface UpdateBlotterData {
   respondent_contact?: string;
   
   // Other fields
-  official_id?: number;
+  assigned_official_name?: string;
   incident_date?: string;
   incident_time?: string;
   incident_location?: string;
   description?: string;
-  status?: 'pending' | 'approved' | 'rejected' | 'Open' | 'Ongoing' | 'Resolved';
+  status?: 'resolved';
   resolution?: string;
   attachments?: File[];
 }
@@ -149,7 +168,6 @@ export interface BlotterFilters {
 
 export interface BlotterStatistics {
   total: number;
-  open: number;
   ongoing: number;
   resolved: number;
   this_month: number;
@@ -238,17 +256,14 @@ export const blotterService = {
       }
       
       // Other fields
-      if (data.official_id) {
-        formData.append('official_id', data.official_id.toString());
+      if (data.assigned_official_name) {
+        formData.append('assigned_official_name', data.assigned_official_name);
       }
       formData.append('incident_date', data.incident_date);
       formData.append('incident_time', data.incident_time);
       formData.append('incident_location', data.incident_location);
       formData.append('description', data.description);
       
-      if (data.status) {
-        formData.append('status', data.status);
-      }
       if (data.resolution) {
         formData.append('resolution', data.resolution);
       }
@@ -270,41 +285,65 @@ export const blotterService = {
   // Update blotter
   async updateBlotter(id: number, data: UpdateBlotterData): Promise<Blotter> {
     const formData = new FormData();
-    
-    if (data.complainant_id) {
-      formData.append('complainant_id', data.complainant_id.toString());
+
+    // Booleans (backend needs these for resident/non-resident logic)
+    if (data.complainant_is_resident !== undefined) {
+      formData.append('complainant_is_resident', data.complainant_is_resident ? '1' : '0');
     }
-    if (data.respondent_id) {
-      formData.append('respondent_id', data.respondent_id.toString());
+    if (data.respondent_is_resident !== undefined) {
+      formData.append('respondent_is_resident', data.respondent_is_resident ? '1' : '0');
     }
-    if (data.official_id !== undefined) {
-      formData.append('official_id', data.official_id?.toString() || '');
+
+    // Only append complainant_id when present (integer); required_if when complainant_is_resident is true
+    if (data.complainant_id != null && data.complainant_id !== '' && Number.isInteger(Number(data.complainant_id))) {
+      formData.append('complainant_id', String(data.complainant_id));
     }
-    if (data.incident_date) {
-      formData.append('incident_date', data.incident_date);
+    if (data.complainant_full_name !== undefined) formData.append('complainant_full_name', data.complainant_full_name ?? '');
+    // Laravel: integer, nullable - do not send empty string
+    if (data.complainant_age !== undefined && data.complainant_age !== null && data.complainant_age !== '') {
+      const age = Number(data.complainant_age);
+      if (!Number.isNaN(age) && age >= 1 && age <= 120) formData.append('complainant_age', String(age));
     }
-    if (data.incident_time) {
-      formData.append('incident_time', data.incident_time);
+    if (data.complainant_address !== undefined) formData.append('complainant_address', data.complainant_address ?? '');
+    if (data.complainant_contact !== undefined) formData.append('complainant_contact', data.complainant_contact ?? '');
+
+    if (data.respondent_id != null && data.respondent_id !== '' && Number.isInteger(Number(data.respondent_id))) {
+      formData.append('respondent_id', String(data.respondent_id));
     }
-    if (data.incident_location) {
-      formData.append('incident_location', data.incident_location);
+    if (data.respondent_full_name !== undefined) formData.append('respondent_full_name', data.respondent_full_name ?? '');
+    if (data.respondent_age !== undefined && data.respondent_age !== null && data.respondent_age !== '') {
+      const age = Number(data.respondent_age);
+      if (!Number.isNaN(age) && age >= 1 && age <= 120) formData.append('respondent_age', String(age));
     }
-    if (data.description) {
-      formData.append('description', data.description);
+    if (data.respondent_address !== undefined) formData.append('respondent_address', data.respondent_address ?? '');
+    if (data.respondent_contact !== undefined) formData.append('respondent_contact', data.respondent_contact ?? '');
+
+    if (data.assigned_official_name !== undefined) {
+      formData.append('assigned_official_name', data.assigned_official_name ?? '');
     }
-    if (data.status) {
-      formData.append('status', data.status);
+    // Laravel: date_format:Y-m-d - only send non-empty
+    if (data.incident_date !== undefined && data.incident_date !== null && String(data.incident_date).trim() !== '') {
+      formData.append('incident_date', String(data.incident_date));
     }
-    if (data.resolution !== undefined) {
-      formData.append('resolution', data.resolution || '');
+    // Laravel: date_format:H:i (HH:MM) - normalize so HH:MM:SS from API is sent as HH:MM
+    if (data.incident_time !== undefined && data.incident_time !== null && String(data.incident_time).trim() !== '') {
+      const t = String(data.incident_time).trim();
+      formData.append('incident_time', t.length >= 5 ? t.substring(0, 5) : t);
     }
-    if (data.attachments) {
+    if (data.incident_location !== undefined) formData.append('incident_location', data.incident_location ?? '');
+    if (data.description !== undefined) formData.append('description', data.description ?? '');
+    if (data.status !== undefined) formData.append('status', data.status);
+    if (data.resolution !== undefined) formData.append('resolution', data.resolution ?? '');
+    if (data.attachments?.length) {
       data.attachments.forEach((file) => {
         formData.append('attachments[]', file);
       });
     }
 
-    const response = await api.put(`/blotters/${id}`, formData, {
+    // PHP does not parse FormData for PUT requests. Use POST with _method=PUT so Laravel receives the body.
+    formData.append('_method', 'PUT');
+
+    const response = await api.post(`/blotters/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },

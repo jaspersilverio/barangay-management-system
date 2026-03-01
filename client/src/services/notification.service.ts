@@ -1,5 +1,19 @@
 import api from './api'
 
+const notificationsListCache: Record<string, unknown> = {}
+
+export function getNotificationsListCached<T = unknown>(key: string): T | undefined {
+  return notificationsListCache[key] as T | undefined
+}
+
+export function setNotificationsListCached(key: string, value: unknown): void {
+  notificationsListCache[key] = value
+}
+
+export function clearNotificationsListCache(): void {
+  Object.keys(notificationsListCache).forEach((k) => delete notificationsListCache[k])
+}
+
 export type Notification = {
   id: number
   user_id: number | null

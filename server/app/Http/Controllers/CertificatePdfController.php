@@ -8,6 +8,7 @@ use App\Models\Resident;
 use App\Models\User;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
@@ -209,7 +210,12 @@ class CertificatePdfController extends Controller
         try {
             Log::info('Starting PDF download', ['certificate_id' => $id]);
 
-            $certificate = IssuedCertificate::find($id);
+            $user = Auth::user();
+            $query = IssuedCertificate::query();
+            if ($user && ($user->isAdmin() || $user->isCaptain())) {
+                $query->withTrashed();
+            }
+            $certificate = $query->find($id);
 
             if (!$certificate) {
                 Log::warning('Certificate not found for download', ['certificate_id' => $id]);
@@ -365,7 +371,12 @@ class CertificatePdfController extends Controller
         try {
             Log::info('Starting PDF preview', ['certificate_id' => $id]);
 
-            $certificate = IssuedCertificate::find($id);
+            $user = Auth::user();
+            $query = IssuedCertificate::query();
+            if ($user && ($user->isAdmin() || $user->isCaptain())) {
+                $query->withTrashed();
+            }
+            $certificate = $query->find($id);
 
             if (!$certificate) {
                 Log::warning('Certificate not found for preview', ['certificate_id' => $id]);

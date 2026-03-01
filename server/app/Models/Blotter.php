@@ -10,6 +10,9 @@ class Blotter extends Model
 {
     use SoftDeletes;
 
+    public const STATUS_ONGOING = 'ongoing';
+    public const STATUS_RESOLVED = 'resolved';
+
     protected $fillable = [
         'case_number',
         'complainant_id',
@@ -25,6 +28,7 @@ class Blotter extends Model
         'respondent_address',
         'respondent_contact',
         'official_id',
+        'assigned_official_name',
         'incident_date',
         'incident_time',
         'incident_location',
@@ -39,6 +43,8 @@ class Blotter extends Model
         'approved_at',
         'rejected_at',
         'rejection_remarks',
+        'resolved_by',
+        'resolved_at',
     ];
 
     protected $casts = [
@@ -51,12 +57,13 @@ class Blotter extends Model
         'respondent_age' => 'integer',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
+        'resolved_at' => 'datetime',
     ];
 
     /**
      * Accessors to append to array/JSON (so list API returns complainant/respondent names).
      */
-    protected $appends = ['complainant_name', 'respondent_name', 'complainant_type', 'respondent_type'];
+    protected $appends = ['complainant_name', 'respondent_name', 'complainant_type', 'respondent_type', 'assigned_official_display'];
 
     /**
      * Get the complainant (resident who filed the complaint)
@@ -115,12 +122,22 @@ class Blotter extends Model
     }
 
     /**
+     * Get the user who resolved this blotter
+     */
+    public function resolver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
+    /**
      * Generate case number automatically
      */
     public static function generateCaseNumber(): string
     {
         $year = date('Y');
-        $lastCase = static::where('case_number', 'like', "BLOTTER-{$year}-%")
+        // Include soft-deleted records because case_number is unique at DB level.
+        $lastCase = static::withTrashed()
+            ->where('case_number', 'like', "BLOTTER-{$year}-%")
             ->orderBy('case_number', 'desc')
             ->first();
 
@@ -139,7 +156,7 @@ class Blotter extends Model
      */
     public function scopeByStatus($query, $status)
     {
-        return $query->where('status', $status);
+        return $query->whereRaw('LOWER(status) = ?', [strtolower((string) $status)]);
     }
 
     /**
@@ -212,6 +229,14 @@ class Blotter extends Model
     public function getRespondentTypeAttribute(): string
     {
         return $this->respondent_is_resident ? 'Resident' : 'Non-Resident';
+    }
+
+    /**
+     * Get assigned official display name.
+     */
+    public function getAssignedOfficialDisplayAttribute(): ?string
+    {
+        return $this->assigned_official_name;
     }
 
     /**

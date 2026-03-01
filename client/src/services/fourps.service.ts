@@ -1,5 +1,19 @@
 import api from './api'
 
+const fourpsListCache: Record<string, unknown> = {}
+
+export function getFourPsListCached<T = unknown>(key: string): T | undefined {
+  return fourpsListCache[key] as T | undefined
+}
+
+export function setFourPsListCached(key: string, value: unknown): void {
+  fourpsListCache[key] = value
+}
+
+export function clearFourPsListCache(): void {
+  Object.keys(fourpsListCache).forEach((k) => delete fourpsListCache[k])
+}
+
 export type FourPsPayload = {
   household_id: number
   four_ps_number: string

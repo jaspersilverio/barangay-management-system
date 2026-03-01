@@ -1,7 +1,14 @@
-import { useState, useEffect } from 'react'
-import { getNotifications, markAsRead, markAllAsRead, type Notification } from '../services/notification.service'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import {
+  getNotifications,
+  markAsRead,
+  markAllAsRead,
+  getNotificationsListCached,
+  setNotificationsListCached,
+  type Notification
+} from '../services/notification.service'
 import { formatDistanceToNow } from 'date-fns'
-import { Check, CheckCheck, Filter, RefreshCw } from 'lucide-react'
+import { Check, CheckCheck, Filter } from 'lucide-react'
 import Button from '../components/ui/Button'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -9,61 +16,82 @@ import LoadingSkeleton from '../components/ui/LoadingSkeleton'
 
 type FilterType = 'all' | 'unread' | 'read'
 
+type CachedNotifications = { data: Notification[]; pagination?: typeof defaultPagination }
+const defaultPagination = { current_page: 1, last_page: 1, per_page: 15, total: 0 }
+
 export default function Notifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [filter, setFilter] = useState<FilterType>('all')
-  const [pagination, setPagination] = useState({
-    current_page: 1,
-    last_page: 1,
-    per_page: 15,
-    total: 0
-  })
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState(defaultPagination)
 
-  const fetchNotifications = async (page = 1) => {
-    try {
-      setLoading(true)
-      setError(null)
-      const response = await getNotifications({
-        filter,
-        per_page: 15,
-        page
-      })
+  const listKey = useMemo(() => `notifications:${filter}:${page}`, [filter, page])
 
-      if (response.success) {
-        setNotifications(response.data)
-        if (response.pagination) {
-          setPagination(response.pagination)
-        }
-      } else {
-        setError('Failed to fetch notifications')
+  const fetchNotifications = useCallback(
+    async (overridePage?: number, showLoading = true, cacheKeyArg?: string) => {
+      const pageNum = overridePage ?? page
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch notifications')
-    } finally {
-      setLoading(false)
+      try {
+        const response = await getNotifications({
+          filter,
+          per_page: 15,
+          page: pageNum
+        })
+        if (response.success) {
+          setNotifications(response.data)
+          if (response.pagination) setPagination(response.pagination)
+          setNotificationsListCached(k, { data: response.data, pagination: response.pagination })
+        } else {
+          setError('Failed to fetch notifications')
+        }
+      } catch {
+        setError('Failed to fetch notifications')
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [filter, page, listKey]
+  )
+
+  const prevFilterRef = useRef(filter)
+  useEffect(() => {
+    if (prevFilterRef.current !== filter) {
+      prevFilterRef.current = filter
+      setPage(1)
+      return
     }
-  }
+  }, [filter])
 
   useEffect(() => {
-    fetchNotifications(1)
-  }, [filter])
+    const cached = getNotificationsListCached<CachedNotifications>(listKey)
+    if (cached != null) {
+      setNotifications(cached.data)
+      if (cached.pagination) setPagination(cached.pagination)
+      setLoading(false)
+      fetchNotifications(undefined, false, listKey).catch(() => {})
+      return
+    }
+    fetchNotifications(undefined, true, listKey)
+  }, [listKey, fetchNotifications])
 
   const handleMarkAsRead = async (id: number) => {
     try {
       const response = await markAsRead(id)
       if (response.success) {
-        setNotifications(prev => 
-          prev.map(notification => 
-            notification.id === id 
-              ? { ...notification, is_read: true }
-              : notification
+        setNotifications(prev =>
+          prev.map(notification =>
+            notification.id === id ? { ...notification, is_read: true } : notification
           )
         )
       }
-    } catch (err: any) {
-      console.error('Failed to mark notification as read:', err)
+    } catch {
+      // Optionally show toast
     }
   }
 
@@ -71,12 +99,12 @@ export default function Notifications() {
     try {
       const response = await markAllAsRead()
       if (response.success) {
-        setNotifications(prev => 
+        setNotifications(prev =>
           prev.map(notification => ({ ...notification, is_read: true }))
         )
       }
-    } catch (err: any) {
-      console.error('Failed to mark all notifications as read:', err)
+    } catch {
+      // Optionally show toast
     }
   }
 
@@ -141,16 +169,6 @@ export default function Notifications() {
           </div>
           
           <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchNotifications(pagination.current_page)}
-              disabled={loading}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-            
             {unreadCount > 0 && (
               <Button
                 variant="outline"
@@ -218,7 +236,7 @@ export default function Notifications() {
             <div className="text-center py-8">
               <div className="text-red-500 text-4xl mb-4">⚠️</div>
               <p className="text-red-600 mb-4">{error}</p>
-              <Button onClick={() => fetchNotifications()}>Try Again</Button>
+              <Button onClick={() => fetchNotifications(undefined, true)}>Try Again</Button>
             </div>
           </Card>
         ) : notifications.length === 0 ? (
@@ -286,7 +304,7 @@ export default function Notifications() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchNotifications(pagination.current_page - 1)}
+            onClick={() => setPage(pagination.current_page - 1)}
             disabled={pagination.current_page === 1 || loading}
           >
             Previous
@@ -299,7 +317,7 @@ export default function Notifications() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => fetchNotifications(pagination.current_page + 1)}
+            onClick={() => setPage(pagination.current_page + 1)}
             disabled={pagination.current_page === pagination.last_page || loading}
           >
             Next

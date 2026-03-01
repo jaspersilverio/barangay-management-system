@@ -1,11 +1,18 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter } from 'lucide-react'
-import { listSoloParents, type SoloParent } from '../../services/solo-parents.service'
+import {
+  listSoloParents,
+  getSoloParentsListCached,
+  setSoloParentsListCached,
+  type SoloParent
+} from '../../services/solo-parents.service'
 import { exportSoloParentsCsv } from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../services/api'
+
+const REPORT_LIST_KEY_PREFIX = 'reports:solo:'
 
 export default function SoloParentsReport() {
   const { puroks } = usePuroks()
@@ -16,8 +23,6 @@ export default function SoloParentsReport() {
   const [soloParents, setSoloParents] = useState<SoloParent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -30,36 +35,58 @@ export default function SoloParentsReport() {
 
   const effectivePurokId = role === 'admin' ? filters.purok_id : (assignedPurokId ? String(assignedPurokId) : '')
 
-  useEffect(() => {
-    loadReport()
-  }, [filters, currentPage])
+  const listKey = useMemo(
+    () => `${REPORT_LIST_KEY_PREFIX}${filters.search}:${effectivePurokId}:${filters.status}:${currentPage}`,
+    [filters.search, effectivePurokId, filters.status, currentPage]
+  )
 
-  const loadReport = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await listSoloParents({
-        search: filters.search || undefined,
-        purok_id: effectivePurokId || undefined,
-        status: filters.status || undefined,
-        page: currentPage,
-        per_page: filters.per_page || 15
-      })
-
-      if (response.success) {
-        setSoloParents(response.data.data || [])
-        setTotalPages(response.data.last_page || 1)
-        setTotal(response.data.total || 0)
-      } else {
-        setError(response.message || 'Failed to load solo parents report')
+  const loadReport = useCallback(
+    async (showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load solo parents report')
-    } finally {
+      try {
+        const response = await listSoloParents({
+          search: filters.search || undefined,
+          purok_id: effectivePurokId || undefined,
+          status: filters.status || undefined,
+          page: currentPage,
+          per_page: filters.per_page || 15
+        })
+        if (response.success) {
+          const data = response.data.data || []
+          const lastPage = response.data.last_page || 1
+          const totalCount = response.data.total || 0
+          setSoloParents(data)
+          setTotalPages(lastPage)
+          setTotal(totalCount)
+          setSoloParentsListCached(k, { data, last_page: lastPage, total: totalCount })
+        } else {
+          setError(response.message || 'Failed to load solo parents report')
+        }
+      } catch {
+        setError('Failed to load solo parents report')
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [filters.search, filters.status, filters.per_page, effectivePurokId, currentPage, listKey]
+  )
+
+  useEffect(() => {
+    const cached = getSoloParentsListCached<{ data: SoloParent[]; last_page: number; total: number }>(listKey)
+    if (cached != null) {
+      setSoloParents(cached.data)
+      setTotalPages(cached.last_page)
+      setTotal(cached.total)
       setLoading(false)
+      loadReport(false, listKey).catch(() => {})
+      return
     }
-  }
+    loadReport(true, listKey)
+  }, [listKey, loadReport])
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -67,11 +94,8 @@ export default function SoloParentsReport() {
   }
 
   const handleExport = async (type: 'pdf' | 'csv') => {
+    setError(null)
     try {
-      setExporting(true)
-      setExportType(type)
-      setError(null)
-
       if (type === 'csv') {
         // CSV export - use dedicated CSV export function
         await exportSoloParentsCsv({
@@ -105,13 +129,9 @@ export default function SoloParentsReport() {
 
         setError(null)
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to export ${type}`
       setError(errorMessage)
-      console.error('Export error:', err)
-    } finally {
-      setExporting(false)
-      setExportType(null)
     }
   }
 
@@ -293,22 +313,20 @@ export default function SoloParentsReport() {
       {/* Export Buttons */}
       <Row className="mb-4">
         <Col>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 align-items-center">
             <Button
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+              Export PDF
             </Button>
             <Button
               variant="outline-success"
               onClick={() => handleExport('csv')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
+              Export CSV
             </Button>
           </div>
         </Col>

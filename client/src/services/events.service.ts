@@ -1,5 +1,19 @@
 import api from './api'
 
+const eventsListCache: Record<string, unknown> = {}
+
+export function getEventsListCached<T = unknown>(key: string): T | undefined {
+  return eventsListCache[key] as T | undefined
+}
+
+export function setEventsListCached(key: string, value: unknown): void {
+  eventsListCache[key] = value
+}
+
+export function clearEventsListCache(): void {
+  Object.keys(eventsListCache).forEach((k) => delete eventsListCache[k])
+}
+
 export type Event = {
   id: number
   title: string

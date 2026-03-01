@@ -304,22 +304,7 @@
         <table class="header-table">
             <tr>
                 <td class="header-left">
-                    @php
-                        $showLogo = false;
-                        $logoSrc = null;
-                        $gdAvailable = extension_loaded('gd');
-                        
-                        if ($gdAvailable && !empty($barangay_info['logo_base64'])) {
-                            $showLogo = true;
-                            $logoSrc = $barangay_info['logo_base64'];
-                        }
-                    @endphp
-                    
-                    @if ($showLogo && $logoSrc)
-                        <img src="{{ $logoSrc }}" alt="Logo" class="header-logo">
-                    @else
-                        <div class="logo-placeholder">B</div>
-                    @endif
+                    <div class="logo-placeholder">B</div>
                 </td>
                 <td class="header-center">
                     <div class="header-text-row">Republic of the Philippines</div>
@@ -470,7 +455,11 @@
 
     {{-- Total Records Count --}}
     <div style="text-align: right; font-size: 9pt; margin-top: 10px; font-weight: bold;">
-        Total Records: {{ $certificates->count() }}
+        @if(!empty($records_limited) && !empty($total_records))
+            Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records. Apply filters to narrow results.
+        @else
+            Total Records: {{ $certificates->count() }}
+        @endif
     </div>
 
     {{-- ==================== SIGNATURE SECTION ==================== --}}

@@ -2,13 +2,19 @@ import { useEffect, useState } from 'react'
 import { Gift } from 'lucide-react'
 import { getBeneficiariesSummary, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { BeneficiariesSummary } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import SummaryCard from './SummaryCard'
 
 const CACHE_KEY = 'beneficiariesSummary'
 
+function getCached() {
+  return getDashboardCached<BeneficiariesSummary>(CACHE_KEY) ?? null
+}
+
 export default function BeneficiariesSummaryCard() {
-  const [data, setData] = useState<BeneficiariesSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<BeneficiariesSummary | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -16,39 +22,34 @@ export default function BeneficiariesSummaryCard() {
     if (cached != null) {
       setData(cached)
       setLoading(false)
-      // Still refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        try {
-          const response = await getBeneficiariesSummary()
-          if (response.success) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          }
-        } catch (err) {
-          // Silent fail - keep showing cached data
-        }
-      }
-      fetchData()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchData = async () => {
       try {
         setError(null)
         const response = await getBeneficiariesSummary()
+        if (cancelled) return
         if (response.success) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch beneficiaries data')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Beneficiaries data unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Beneficiaries data unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   if (loading) {
     return (

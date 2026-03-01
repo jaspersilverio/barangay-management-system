@@ -1,5 +1,19 @@
 import api from './api'
 
+const soloParentsListCache: Record<string, unknown> = {}
+
+export function getSoloParentsListCached<T = unknown>(key: string): T | undefined {
+  return soloParentsListCache[key] as T | undefined
+}
+
+export function setSoloParentsListCached(key: string, value: unknown): void {
+  soloParentsListCache[key] = value
+}
+
+export function clearSoloParentsListCache(): void {
+  Object.keys(soloParentsListCache).forEach((k) => delete soloParentsListCache[k])
+}
+
 export type SoloParentPayload = {
   resident_id: number
   eligibility_reason: 'death_of_spouse' | 'abandonment' | 'legally_separated' | 'unmarried_parent' | 'spouse_incapacitated'

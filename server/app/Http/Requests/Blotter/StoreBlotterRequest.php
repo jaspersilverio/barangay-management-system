@@ -58,12 +58,11 @@ class StoreBlotterRequest extends FormRequest
             'respondent_contact' => ['nullable', 'string', 'max:20'],
 
             // Other fields
-            'official_id' => ['nullable', 'exists:users,id'],
+            'assigned_official_name' => ['nullable', 'string', 'max:255'],
             'incident_date' => ['required', 'date_format:Y-m-d', 'before_or_equal:today'],
             'incident_time' => ['required', 'date_format:H:i'],
             'incident_location' => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
-            'status' => ['sometimes', 'in:Open,Ongoing,Resolved'],
             'resolution' => ['nullable', 'string'],
             'attachments' => ['nullable', 'array'],
             'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:10240'],
@@ -98,7 +97,7 @@ class StoreBlotterRequest extends FormRequest
             'respondent_address.required_if' => 'Respondent address is required for non-residents.',
             'respondent_contact.max' => 'Respondent contact cannot exceed 20 characters.',
 
-            'official_id.exists' => 'The selected official does not exist.',
+            'assigned_official_name.max' => 'Assigned official name cannot exceed 255 characters.',
             'incident_date.required' => 'Incident date is required.',
             'incident_date.date_format' => 'The incident date must be in YYYY-MM-DD format.',
             'incident_date.before_or_equal' => 'Incident date cannot be in the future.',
@@ -107,7 +106,6 @@ class StoreBlotterRequest extends FormRequest
             'incident_location.required' => 'Incident location is required.',
             'incident_location.max' => 'Incident location cannot exceed 255 characters.',
             'description.required' => 'Description is required.',
-            'status.in' => 'Status must be Open, Ongoing, or Resolved.',
             'attachments.*.file' => 'Each attachment must be a valid file.',
             'attachments.*.mimes' => 'Attachments must be images, PDFs, or documents.',
             'attachments.*.max' => 'Each attachment cannot exceed 10MB.',

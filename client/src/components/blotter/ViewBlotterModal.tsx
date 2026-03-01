@@ -16,13 +16,11 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
 }) => {
   if (!blotter) return null;
 
+  const normalizeStatus = (status?: string) => (status || '').toLowerCase();
+  const statusLabel = normalizeStatus(blotter.status) === 'resolved' ? 'Resolved' : 'Ongoing';
+
   const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Open': return 'warning';
-      case 'Ongoing': return 'info';
-      case 'Resolved': return 'success';
-      default: return 'secondary';
-    }
+    return normalizeStatus(status) === 'resolved' ? 'success' : 'warning';
   };
 
   const formatDate = (dateString: string) => {
@@ -115,7 +113,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
             <div className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Case Status</h5>
               <Badge bg={getStatusBadgeVariant(blotter.status)} className="fs-6">
-                {blotter.status}
+                {statusLabel}
               </Badge>
             </div>
           </Col>
@@ -255,26 +253,17 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
         </Row>
 
         {/* Assigned Official */}
-        {blotter.official && (
-          <Row className="mb-4">
-            <Col md={12}>
-              <h5 className="text-primary mb-3">
-                <User className="me-2" size={20} />
-                Assigned Official
-              </h5>
-              <div className="border rounded p-3 bg-brand-surface">
-                <Row>
-                  <Col md={6}>
-                    <strong>Name:</strong> {blotter.official.name}
-                  </Col>
-                  <Col md={6}>
-                    <strong>Email:</strong> {blotter.official.email || 'N/A'}
-                  </Col>
-                </Row>
-              </div>
-            </Col>
-          </Row>
-        )}
+        <Row className="mb-4">
+          <Col md={12}>
+            <h5 className="text-primary mb-3">
+              <User className="me-2" size={20} />
+              Assigned Official
+            </h5>
+            <div className="border rounded p-3 bg-brand-surface">
+              <strong>Name:</strong> {blotter.assigned_official_display || 'Unassigned'}
+            </div>
+          </Col>
+        </Row>
 
         {/* Attachments */}
         {blotter.attachments && blotter.attachments.length > 0 && (
@@ -336,7 +325,7 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
                 <Col md={6}>
                   <strong>Status:</strong> 
                   <Badge bg={getStatusBadgeVariant(blotter.status)} className="ms-2">
-                    {blotter.status}
+                    {statusLabel}
                   </Badge>
                 </Col>
               </Row>

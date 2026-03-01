@@ -35,7 +35,7 @@ return new class extends Migration
             $table->time('incident_time');
             $table->string('incident_location', 255);
             $table->text('description');
-            $table->enum('status', ['Open', 'Ongoing', 'Resolved'])->default('Open');
+            $table->enum('status', ['ongoing', 'resolved'])->default('ongoing');
             $table->text('resolution')->nullable();
             $table->json('attachments')->nullable();
             $table->foreignId('created_by')->constrained('users')->onDelete('cascade');

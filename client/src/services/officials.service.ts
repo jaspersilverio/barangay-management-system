@@ -1,9 +1,26 @@
 import api from './api'
 
+/** Session cache so officials/personnel lists show immediately when navigating back (no loading) */
+const officialsListCache: Record<string, unknown> = {}
+
+export function getOfficialsListCached<T = unknown>(key: string): T | undefined {
+  return officialsListCache[key] as T | undefined
+}
+
+export function setOfficialsListCached(key: string, value: unknown): void {
+  officialsListCache[key] = value
+}
+
+export function clearOfficialsListCache(): void {
+  Object.keys(officialsListCache).forEach((k) => delete officialsListCache[k])
+}
+
 export interface Official {
   id: number
   user_id?: number
-  name: string
+  name?: string
+  first_name?: string
+  last_name?: string
   category?: string
   position: string
   term_start?: string
@@ -39,7 +56,6 @@ export interface CreateOfficialData {
   contact?: string
   email?: string
   address?: string
-  purok_id?: number
   photo?: File
   active?: boolean
   // Appointed officials (tanod, bhw, staff)
@@ -140,7 +156,6 @@ export async function createOfficial(data: CreateOfficialData) {
     if (data.birthdate) formData.append('birthdate', data.birthdate)
     if (data.email) formData.append('email', data.email)
     if (data.address) formData.append('address', data.address)
-    if (data.purok_id) formData.append('purok_id', data.purok_id.toString())
     formData.append('position', data.position ?? '')
   }
   if (data.official_type !== 'appointed') {
@@ -190,12 +205,21 @@ export async function updateOfficial(id: number, data: Partial<CreateOfficialDat
   }
   if (data.name !== undefined) formData.append('name', data.name)
   if (data.category !== undefined) formData.append('category', data.category)
+  // Official/SK enhanced fields (required for update to persist)
+  if (data.first_name !== undefined) formData.append('first_name', data.first_name ?? '')
+  if (data.middle_name !== undefined) formData.append('middle_name', data.middle_name ?? '')
+  if (data.last_name !== undefined) formData.append('last_name', data.last_name ?? '')
+  if (data.suffix !== undefined) formData.append('suffix', data.suffix ?? '')
+  if (data.sex !== undefined) formData.append('sex', data.sex ?? '')
+  if (data.birthdate !== undefined) formData.append('birthdate', data.birthdate ?? '')
+  if (data.email !== undefined) formData.append('email', data.email ?? '')
+  if (data.address !== undefined) formData.append('address', data.address ?? '')
   if (data.position !== undefined) formData.append('position', data.position ?? '')
   if (data.term_start !== undefined) formData.append('term_start', data.term_start || '')
   if (data.term_end !== undefined) formData.append('term_end', data.term_end || '')
   if (data.contact !== undefined) formData.append('contact', data.contact || '')
   if (data.active !== undefined) formData.append('active', data.active.toString())
-  
+
   // Add photo if provided (File object)
   if (data.photo) {
     if (data.photo instanceof File) {

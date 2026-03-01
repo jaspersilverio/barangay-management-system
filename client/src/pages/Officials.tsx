@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Button, Alert } from 'react-bootstrap'
 import { useAuth } from '../context/AuthContext'
 import OfficialList from '../components/officials/OfficialList'
 import OfficialForm from '../components/officials/OfficialForm'
 import OfficialCard from '../components/officials/OfficialCard'
-import { 
+import {
   type Official,
   type CreateOfficialData,
   getOfficials,
@@ -12,16 +12,21 @@ import {
   updateOfficial,
   deleteOfficial,
   toggleOfficialActive,
+  getOfficialsListCached,
+  setOfficialsListCached,
   OFFICIAL_POSITION_OPTIONS
 } from '../services/officials.service'
 
+const CACHE_PREFIX = 'officials:official'
+
+function cacheKey(search: string, position: string, active: boolean | null): string {
+  return `${CACHE_PREFIX}:${search}:${position}:${active === null ? '' : String(active)}`
+}
+
 export default function Officials() {
   const { user } = useAuth()
-  // Only admin can manage (create/edit/delete) officials
-  // All authenticated users can view officials
   const canManage = user?.role === 'admin'
 
-  // State
   const [officials, setOfficials] = useState<Official[]>([])
   const [selectedOfficial, setSelectedOfficial] = useState<Official | null>(null)
   const [loading, setLoading] = useState(true)
@@ -30,47 +35,57 @@ export default function Officials() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Filters
   const [filters, setFilters] = useState({
     search: '',
     position: '',
     active: null as boolean | null
   })
 
-  // Load officials
-  const loadOfficials = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const params: any = {
-        category: 'official' // Always filter by official category
-      }
-      if (filters.search) params.search = filters.search
-      if (filters.position) params.position = filters.position
-      if (filters.active !== null) params.active = filters.active
+  const key = useMemo(
+    () => cacheKey(filters.search, filters.position, filters.active),
+    [filters.search, filters.position, filters.active]
+  )
 
-      const response = await getOfficials(params)
-      
-      if (response.success) {
-        // Set data immediately - no delays
-        const officialsData = response.data.data || []
-        setOfficials(officialsData)
-      } else {
-        setError(response.message || 'Failed to load officials')
+  const loadOfficials = useCallback(
+    async (showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? key
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
       }
-    } catch (error) {
-      console.error('Error loading officials:', error)
-      setError('Failed to load officials')
-    } finally {
-      // Clear loading state immediately when data is ready
-      setLoading(false)
-    }
-  }
+      try {
+        const params: Record<string, string | boolean> = { category: 'official' }
+        if (filters.search) params.search = filters.search
+        if (filters.position) params.position = filters.position
+        if (filters.active !== null) params.active = filters.active
+
+        const response = await getOfficials(params)
+        if (response.success) {
+          const officialsData = response.data?.data ?? []
+          setOfficials(officialsData)
+          setOfficialsListCached(k, officialsData)
+        } else {
+          setError(response.message || 'Failed to load officials')
+        }
+      } catch {
+        setError('Failed to load officials')
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [filters, key]
+  )
 
   useEffect(() => {
-    loadOfficials()
-  }, [filters])
+    const cached = getOfficialsListCached<Official[]>(key)
+    if (cached != null) {
+      setOfficials(cached)
+      setLoading(false)
+      loadOfficials(false, key).catch(() => {})
+      return
+    }
+    loadOfficials(true, key)
+  }, [key, loadOfficials])
 
   // Handle form submission
   const handleFormSubmit = async (data: CreateOfficialData) => {
@@ -101,23 +116,19 @@ export default function Officials() {
         setSuccess(selectedOfficial ? 'Official updated successfully' : 'Official created successfully')
         setShowForm(false)
         setSelectedOfficial(null)
-        // Reload officials to get updated data including new photo URLs
-        await loadOfficials()
+        await loadOfficials(false)
       } else {
         setError(response.message || 'Failed to save official')
       }
-    } catch (error: any) {
-      console.error('Error saving official:', error)
-      
-      // Handle validation errors
-      if (error.response?.status === 422 && error.response?.data?.errors) {
-        const validationErrors = error.response.data.errors
-        const errorMessages = Object.values(validationErrors).flat().join(', ')
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { errors?: Record<string, string[]>; message?: string } } }).response : undefined
+      if (res?.status === 422 && res?.data?.errors) {
+        const errorMessages = Object.values(res.data.errors).flat().join(', ')
         setError(`Validation errors: ${errorMessages}`)
-      } else if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to perform this action.')
+      } else if (res?.status === 403) {
+        setError(res?.data?.message || 'You do not have permission to perform this action.')
       } else {
-        setError(error.response?.data?.message || 'Failed to save official')
+        setError(res?.data?.message || 'Failed to save official')
       }
     } finally {
       setFormLoading(false)
@@ -149,13 +160,9 @@ export default function Officials() {
       } else {
         setError(response.message || 'Failed to delete official')
       }
-    } catch (error: any) {
-      console.error('Error deleting official:', error)
-      if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to delete officials.')
-      } else {
-        setError(error.response?.data?.message || 'Failed to delete official')
-      }
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { message?: string } } }).response : undefined
+      setError(res?.status === 403 ? (res?.data?.message || 'You do not have permission to delete officials.') : (res?.data?.message || 'Failed to delete official'))
     }
   }
 
@@ -180,13 +187,9 @@ export default function Officials() {
       } else {
         setError(response.message || 'Failed to update official status')
       }
-    } catch (error: any) {
-      console.error('Error updating official status:', error)
-      if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to change official status.')
-      } else {
-        setError(error.response?.data?.message || 'Failed to update official status')
-      }
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { message?: string } } }).response : undefined
+      setError(res?.status === 403 ? (res?.data?.message || 'You do not have permission to change official status.') : (res?.data?.message || 'Failed to update official status'))
     }
   }
 
@@ -234,18 +237,20 @@ export default function Officials() {
           <h2 className="mb-1 text-brand-primary">Barangay Officials</h2>
           <p className="text-brand-muted mb-0">Manage barangay officials and their information</p>
         </div>
-        {canManage && (
-          <Button 
-            variant="primary" 
-            onClick={() => {
-              setSelectedOfficial(null)
-              setShowForm(true)
-            }}
-            className="btn-brand-primary"
-          >
-            ➕ Add Official
-          </Button>
-        )}
+        <div className="d-flex align-items-center gap-2">
+          {canManage && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSelectedOfficial(null)
+                setShowForm(true)
+              }}
+              className="btn-brand-primary"
+            >
+              ➕ Add Official
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Alerts */}

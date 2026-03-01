@@ -1,20 +1,26 @@
 import { useEffect, useState, useMemo } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts'
 import { getBeneficiariesSummary, getDashboardCached, setDashboardCached, type BeneficiariesSummary } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { Gift } from 'lucide-react'
 
 const CATEGORY_COLORS: Record<string, string> = {
-  '4Ps': 'var(--color-primary)',           // blue
-  'Solo Parent': 'var(--color-accent)',    // green
-  'Senior Citizens': 'var(--color-warning)', // yellow
-  'PWD': '#8B5CF6',                         // purple
+  '4Ps': 'var(--color-primary)',
+  'Solo Parent': 'var(--color-accent)',
+  'Senior Citizens': 'var(--color-warning)',
+  'PWD': '#8B5CF6',
 }
 const DEFAULT_COLOR = 'var(--color-text-muted)'
 const CACHE_KEY = 'beneficiariesSummary'
 
+function getCached() {
+  return getDashboardCached<BeneficiariesSummary>(CACHE_KEY) ?? null
+}
+
 export default function BeneficiariesChart() {
-  const [data, setData] = useState<BeneficiariesSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<BeneficiariesSummary | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,42 +28,34 @@ export default function BeneficiariesChart() {
     if (cached != null) {
       setData(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        try {
-          setError(null)
-          const response = await getBeneficiariesSummary()
-          if (response.success) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            setError(response.message || 'Failed to fetch beneficiaries data')
-          }
-        } catch (err: any) {
-          setError(err?.response?.data?.message || 'Beneficiaries data unavailable')
-        }
-      }
-      fetchData()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchData = async () => {
       try {
         setError(null)
         const response = await getBeneficiariesSummary()
+        if (cancelled) return
         if (response.success) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch beneficiaries data')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Beneficiaries data unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Beneficiaries data unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const chartData = useMemo(() => {
     if (!data || !data.categories) return []

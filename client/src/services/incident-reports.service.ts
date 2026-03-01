@@ -1,5 +1,20 @@
 import api from './api';
 
+/** Session cache so incident reports list shows immediately when navigating back (no loading) */
+const incidentReportsListCache: Record<string, unknown> = {};
+
+export function getIncidentReportsListCached<T = unknown>(key: string): T | undefined {
+  return incidentReportsListCache[key] as T | undefined;
+}
+
+export function setIncidentReportsListCached(key: string, value: unknown): void {
+  incidentReportsListCache[key] = value;
+}
+
+export function clearIncidentReportsPageCache(): void {
+  Object.keys(incidentReportsListCache).forEach((k) => delete incidentReportsListCache[k]);
+}
+
 export interface IncidentReport {
   id: number;
   incident_title: string;
@@ -257,8 +272,7 @@ export const exportIncidentReportsToPdf = async (
     window.URL.revokeObjectURL(url);
 
     return { success: true, message: 'PDF exported successfully' };
-  } catch (error: unknown) {
-    console.error('PDF export failed:', error);
+  } catch {
     throw new Error('Failed to export PDF');
   }
 };

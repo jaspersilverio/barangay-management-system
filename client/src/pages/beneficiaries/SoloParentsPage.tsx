@@ -7,6 +7,8 @@ import {
   updateSoloParent, 
   deleteSoloParent,
   generateSoloParentCertificate,
+  getSoloParentsListCached,
+  setSoloParentsListCached,
   type SoloParent,
   type SoloParentPayload 
 } from '../../services/solo-parents.service'
@@ -15,6 +17,10 @@ import { useAuth } from '../../context/AuthContext'
 import SoloParentFormModal from '../../components/beneficiaries/SoloParentFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import type { SoloParentFormValues } from '../../components/beneficiaries/SoloParentFormModal'
+
+function soloCacheKey(search: string, purok: string, status: string, p: number): string {
+  return `solo:${search}:${purok}:${status}:${p}`
+}
 
 export default function SoloParentsPage() {
   const { puroks } = usePuroks()
@@ -53,30 +59,27 @@ export default function SoloParentsPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // Debounce input value to search query (300ms delay)
-  useEffect(() => {
-    // Clear any pending debounce when input changes
-    if (debounceTimeoutRef.current) {
-      window.clearTimeout(debounceTimeoutRef.current)
-    }
+  const listKey = useMemo(
+    () => soloCacheKey(debouncedSearch, effectivePurokId, statusFilter, page),
+    [debouncedSearch, effectivePurokId, statusFilter, page]
+  )
 
+  useEffect(() => {
+    if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
     const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(searchInput)
-      setPage(1) // Reset to first page when search changes
+      setPage(1)
     }, 300)
-
     debounceTimeoutRef.current = timeoutId
-
     return () => {
-      if (debounceTimeoutRef.current) {
-        window.clearTimeout(debounceTimeoutRef.current)
-      }
+      if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
     }
   }, [searchInput])
 
   const loadSoloParents = useCallback(
-    async (overrideSearch?: string, overridePage?: number) => {
-      setIsLoading(true)
+    async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) setIsLoading(true)
       try {
         const data = await listSoloParents({ 
           search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
@@ -86,19 +89,26 @@ export default function SoloParentsPage() {
           per_page: 15 
         })
         setSoloParentsData(data)
-      } catch (err) {
-        console.error('Error loading solo parents:', err)
+        setSoloParentsListCached(k, data)
+      } catch {
         setToast({ show: true, message: 'Failed to load solo parents', variant: 'danger' })
       } finally {
-        setIsLoading(false)
+        if (showLoading) setIsLoading(false)
       }
     },
-    [debouncedSearch, page, effectivePurokId, statusFilter]
+    [debouncedSearch, page, effectivePurokId, statusFilter, listKey]
   )
 
   useEffect(() => {
-    loadSoloParents()
-  }, [loadSoloParents])
+    const cached = getSoloParentsListCached<any>(listKey)
+    if (cached != null) {
+      setSoloParentsData(cached)
+      setIsLoading(false)
+      loadSoloParents(undefined, undefined, false, listKey).catch(() => {})
+      return
+    }
+    loadSoloParents(undefined, undefined, true, listKey)
+  }, [listKey, loadSoloParents])
 
   const items = useMemo(() => {
     if (!soloParentsData?.data?.data) return []
@@ -135,8 +145,8 @@ export default function SoloParentsPage() {
       setShowForm(false)
       setEditingId(null)
       loadSoloParents()
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to save solo parent'
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to save solo parent'
       setToast({ show: true, message: errorMessage, variant: 'danger' })
       throw err
     }
@@ -149,8 +159,8 @@ export default function SoloParentsPage() {
       setToast({ show: true, message: 'Solo parent deleted successfully', variant: 'success' })
       setShowDelete(null)
       loadSoloParents()
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to delete solo parent'
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to delete solo parent'
       setToast({ show: true, message: errorMessage, variant: 'danger' })
       setShowDelete(null)
     }
@@ -163,25 +173,15 @@ export default function SoloParentsPage() {
     // Page reset is handled in debounce effect
   }, [])
 
-  // Manual search trigger for Enter key or Search button
   const handleSearchSubmit = useCallback(() => {
-    // Cancel any pending debounced search to avoid duplicate requests
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current)
       debounceTimeoutRef.current = null
     }
-
-    const searchTerm = searchInput
-    setDebouncedSearch(searchTerm)
+    setDebouncedSearch(searchInput)
     setPage(1)
-    // Trigger an immediate search using the latest input value
-    loadSoloParents(searchTerm, 1)
-
-    // Ensure the input keeps focus after triggering search
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-  }, [searchInput, loadSoloParents])
+    if (searchInputRef.current) searchInputRef.current.focus()
+  }, [searchInput])
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -212,8 +212,8 @@ export default function SoloParentsPage() {
       window.URL.revokeObjectURL(url)
       setToast({ show: true, message: 'Certificate generated successfully', variant: 'success' })
       setShowCertificate(null)
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to generate certificate'
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to generate certificate'
       setToast({ show: true, message: errorMessage, variant: 'danger' })
       setShowCertificate(null)
     }
@@ -251,17 +251,17 @@ export default function SoloParentsPage() {
           <p className="text-brand-muted mb-0">Manage solo parent beneficiaries and certificates</p>
         </div>
         {canManage && (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingId(null)
-              setShowForm(true)
-            }}
-            className="btn-brand-primary d-flex align-items-center gap-2"
-          >
-            <Plus size={18} />
-            Register Solo Parent
-          </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingId(null)
+                setShowForm(true)
+              }}
+              className="btn-brand-primary d-flex align-items-center gap-2"
+            >
+              <Plus size={18} />
+              Register Solo Parent
+            </Button>
         )}
       </div>
 

@@ -1,6 +1,29 @@
 import api from './api'
 import type { Vaccination, VaccinationPayload, VaccinationFilters, VaccinationStatistics, ApiEnvelope } from '../types'
 
+/** Session cache so vaccination list/stats show immediately when navigating back (no loading) */
+const vaccinationsCache: Record<string, unknown> = {}
+
+export function getVaccinationsListCached<T = unknown>(key: string): T | undefined {
+  return vaccinationsCache[key] as T | undefined
+}
+
+export function setVaccinationsListCached(key: string, value: unknown): void {
+  vaccinationsCache[key] = value
+}
+
+export function getVaccinationStatsCached<T = unknown>(key: string): T | undefined {
+  return vaccinationsCache[key] as T | undefined
+}
+
+export function setVaccinationStatsCached(key: string, value: unknown): void {
+  vaccinationsCache[key] = value
+}
+
+export function clearVaccinationsPageCache(): void {
+  Object.keys(vaccinationsCache).forEach((k) => delete vaccinationsCache[k])
+}
+
 export async function getVaccinations(filters: VaccinationFilters = {}) {
   const res = await api.get('/vaccinations', { params: filters })
   return res.data as ApiEnvelope<{

@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { Nav, Tab } from 'react-bootstrap'
-import { CheckCircle, Clock } from 'lucide-react'
+import { CheckCircle, Clock, Archive } from 'lucide-react'
 import CertificateRequests from '../components/certificates/CertificateRequests'
 import IssuedCertificates from '../components/certificates/IssuedCertificates'
 import CertificateStatistics from '../components/certificates/CertificateStatistics'
+import { useAuth } from '../context/AuthContext'
 
 export default function Certificates() {
   const [activeTab, setActiveTab] = useState('requests')
+  const { user } = useAuth()
+  const canViewArchive = user?.role === 'admin' || user?.role === 'captain'
 
   return (
     <div className="page-container">
@@ -36,6 +39,14 @@ export default function Certificates() {
                 Issued Certificates
               </Nav.Link>
             </Nav.Item>
+            {canViewArchive && (
+              <Nav.Item>
+                <Nav.Link eventKey="archive" className="d-flex align-items-center gap-2">
+                  <Archive size={16} />
+                  Archive
+                </Nav.Link>
+              </Nav.Item>
+            )}
           </Nav>
 
           <Tab.Content>
@@ -45,6 +56,34 @@ export default function Certificates() {
             <Tab.Pane eventKey="issued">
               <IssuedCertificates />
             </Tab.Pane>
+            {canViewArchive && (
+              <Tab.Pane eventKey="archive">
+                <Tab.Container defaultActiveKey="archive-requests">
+                  <Nav variant="pills" className="mb-3">
+                    <Nav.Item>
+                      <Nav.Link eventKey="archive-requests" className="d-flex align-items-center gap-2">
+                        <Clock size={14} />
+                        Archived Requests
+                      </Nav.Link>
+                    </Nav.Item>
+                    <Nav.Item>
+                      <Nav.Link eventKey="archive-issued" className="d-flex align-items-center gap-2">
+                        <CheckCircle size={14} />
+                        Archived Issued
+                      </Nav.Link>
+                    </Nav.Item>
+                  </Nav>
+                  <Tab.Content>
+                    <Tab.Pane eventKey="archive-requests">
+                      <CertificateRequests archived />
+                    </Tab.Pane>
+                    <Tab.Pane eventKey="archive-issued">
+                      <IssuedCertificates archived />
+                    </Tab.Pane>
+                  </Tab.Content>
+                </Tab.Container>
+              </Tab.Pane>
+            )}
           </Tab.Content>
         </Tab.Container>
       </div>

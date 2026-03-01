@@ -11,8 +11,8 @@ import {
 } from 'recharts'
 import { getMonthlyRegistrations, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { MonthlyRegistrations } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 
-// Sample data for demonstration when API doesn't return data
 const sampleData: MonthlyRegistrations = [
   { month: 'Jan', households: 5, residents: 12 },
   { month: 'Feb', households: 3, residents: 8 },
@@ -30,45 +30,41 @@ const sampleData: MonthlyRegistrations = [
 
 const CACHE_KEY = 'monthlyRegistrations'
 
+function getCached() {
+  return getDashboardCached<MonthlyRegistrations>(CACHE_KEY) ?? null
+}
+
 export default function MonthlyRegistrationsChart() {
-  const [data, setData] = useState<MonthlyRegistrations>(sampleData)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<MonthlyRegistrations>(() => getCached() ?? sampleData)
+  const [loading, setLoading] = useState(() => getCached() == null)
 
   useEffect(() => {
     const cached = getDashboardCached<MonthlyRegistrations>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        try {
-          const response = await getMonthlyRegistrations()
-          if (response.success && response.data && response.data.length > 0) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          }
-        } catch (err: any) {
-          console.warn('Monthly registrations API not available, using sample data:', err)
-        }
-      }
-      fetchData()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchData = async () => {
       try {
         const response = await getMonthlyRegistrations()
+        if (cancelled) return
         if (response.success && response.data && response.data.length > 0) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         }
-      } catch (err: any) {
-        console.warn('Monthly registrations API not available, using sample data:', err)
+      } catch {
+        // Keep sample data on error
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   if (loading) {
     return (

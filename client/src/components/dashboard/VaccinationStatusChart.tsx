@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react'
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
 import { getVaccinationSummary, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { VaccinationSummary } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { Syringe } from 'lucide-react'
 
 const COLORS = {
@@ -13,55 +14,50 @@ const COLORS = {
 
 const CACHE_KEY = 'vaccinationSummary'
 
+function getCached() {
+  return getDashboardCached<VaccinationSummary>(CACHE_KEY) ?? null
+}
+
 const VaccinationStatusChart = React.memo(() => {
-  const [data, setData] = useState<VaccinationSummary | null>(null)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<VaccinationSummary | null>(() => getCached())
   const [isError, setIsError] = useState(false)
-  const [error, setError] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<unknown>(null)
+  const [isLoading, setIsLoading] = useState(() => getCached() == null)
 
   useEffect(() => {
     const cached = getDashboardCached<VaccinationSummary>(CACHE_KEY)
     if (cached != null) {
       setData(cached)
       setIsLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        setIsError(false)
-        try {
-          const response = await getVaccinationSummary()
-          if (response.success) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            throw new Error(response.message || 'Failed to fetch vaccination data')
-          }
-        } catch (err) {
-          setIsError(true)
-          setError(err)
-        }
-      }
-      fetchData()
       return
     }
+    setIsLoading(true)
+    let cancelled = false
+    setIsError(false)
     const fetchData = async () => {
-      setIsError(false)
       try {
         const response = await getVaccinationSummary()
+        if (cancelled) return
         if (response.success) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
-          throw new Error(response.message || 'Failed to fetch vaccination data')
+          setError(new Error(response.message || 'Failed to fetch vaccination data'))
+          setIsError(true)
         }
       } catch (err) {
-        setIsError(true)
-        setError(err)
+        if (!cancelled) {
+          setError(err)
+          setIsError(true)
+        }
       } finally {
-        setIsLoading(false)
+        if (!cancelled) setIsLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const chartData = useMemo(() => {
     if (!data) return []
@@ -138,7 +134,7 @@ const VaccinationStatusChart = React.memo(() => {
           <div className="text-center text-red-600">
             <Syringe className="w-12 h-12 mx-auto mb-2 text-red-400" />
             <p className="text-sm">Error loading vaccination data</p>
-            <p className="text-xs text-gray-500 mt-1">{error?.message || 'Unknown error'}</p>
+            <p className="text-xs text-gray-500 mt-1">{error instanceof Error ? error.message : 'Unknown error'}</p>
           </div>
         </div>
       </div>

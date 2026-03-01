@@ -18,7 +18,23 @@ class IssuedCertificateController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = Auth::user();
+        $archived = $request->filled('archived') && $request->boolean('archived');
+
+        if ($archived) {
+            if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only Barangay Captain or Admin can view archived issued certificates'
+                ], 403);
+            }
+        }
+
         $query = IssuedCertificate::with(['resident', 'issuedBy', 'certificateRequest']);
+
+        if ($archived) {
+            $query->onlyTrashed();
+        }
 
         // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
@@ -186,37 +202,30 @@ class IssuedCertificateController extends Controller
 
     public function destroy(IssuedCertificate $issuedCertificate): JsonResponse
     {
-        // Load relationships for notification
-        $issuedCertificate->load(['resident']);
-        
-        // Store certificate info before deletion for notification
-        $certificateNumber = $issuedCertificate->certificate_number;
-        $certificateType = ucwords(str_replace('_', ' ', $issuedCertificate->certificate_type));
-        $residentName = $issuedCertificate->resident ? $issuedCertificate->resident->full_name : 'Unknown Resident';
-        $deletedBy = Auth::user() ? Auth::user()->name : 'System';
-        
-        // Delete PDF file if exists
-        if ($issuedCertificate->pdf_path && Storage::disk('public')->exists($issuedCertificate->pdf_path)) {
-            Storage::disk('public')->delete($issuedCertificate->pdf_path);
-        }
-
         $issuedCertificate->delete();
-
-        // Create system notification about the deletion
-        try {
-            NotificationController::createSystemNotification(
-                'Certificate Deleted',
-                "Certificate {$certificateNumber} ({$certificateType}) for {$residentName} has been deleted by {$deletedBy}",
-                'certificate_deleted'
-            );
-        } catch (\Exception $e) {
-            // Log but don't fail the delete operation
-            Log::warning('Failed to create notification for certificate deletion: ' . $e->getMessage());
-        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Certificate deleted successfully'
+            'message' => 'Archived successfully'
+        ]);
+    }
+
+    public function restore(int $id): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can restore archived issued certificates'
+            ], 403);
+        }
+
+        $issuedCertificate = IssuedCertificate::onlyTrashed()->findOrFail($id);
+        $issuedCertificate->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Restored successfully'
         ]);
     }
 

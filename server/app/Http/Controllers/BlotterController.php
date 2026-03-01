@@ -11,8 +11,8 @@ use App\Http\Controllers\NotificationController;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -27,7 +27,6 @@ class BlotterController extends Controller
             $query = Blotter::withoutTrashed()->with([
                 'complainant:id,first_name,last_name,middle_name',
                 'respondent:id,first_name,last_name,middle_name',
-                'official:id,name',
                 'creator:id,name',
                 'updater:id,name',
                 'approver:id,name',
@@ -97,14 +96,10 @@ class BlotterController extends Controller
             $data['case_number'] = Blotter::generateCaseNumber();
             $data['created_by'] = Auth::id();
 
-            // If created by staff, set status to pending for approval
-            $user = Auth::user();
-            if ($user && $user->isStaff()) {
-                $data['status'] = 'pending';
-            } else {
-                // Admin/purok_leader can set status directly (default to 'Open' if not set)
-                $data['status'] = $data['status'] ?? 'Open';
-            }
+            // Status lifecycle is backend-controlled: all new cases start as ongoing
+            $data['status'] = Blotter::STATUS_ONGOING;
+
+            $data['assigned_official_name'] = $data['assigned_official_name'] ?? null;
 
             // Handle resident/non-resident logic
             // For residents, clear non-resident fields
@@ -147,22 +142,10 @@ class BlotterController extends Controller
             $blotter->load([
                 'complainant:id,first_name,last_name,middle_name',
                 'respondent:id,first_name,last_name,middle_name',
-                'official:id,name',
                 'creator:id,name'
             ]);
 
-            // If created by staff (pending status), notify captain for approval
-            if ($blotter->status === 'pending') {
-                NotificationController::notifyCaptainForApproval(
-                    'blotter',
-                    $blotter->case_number . ' - ' . $blotter->complainant_name . ' vs ' . $blotter->respondent_name,
-                    $blotter->id,
-                    $blotter->created_by
-                );
-            } else {
-                // Create notification for new blotter case (admin/purok_leader created)
-                $this->createBlotterNotification($blotter, 'created');
-            }
+            $this->createBlotterNotification($blotter, 'created');
 
             Log::info('Blotter case created', ['case_number' => $blotter->case_number, 'id' => $blotter->id]);
 
@@ -189,7 +172,6 @@ class BlotterController extends Controller
             $blotter = Blotter::with([
                 'complainant:id,first_name,last_name,middle_name,contact_number,address',
                 'respondent:id,first_name,last_name,middle_name,contact_number,address',
-                'official:id,name,email',
                 'creator:id,name',
                 'updater:id,name'
             ])->findOrFail($id);
@@ -217,6 +199,35 @@ class BlotterController extends Controller
             $blotter = Blotter::findOrFail($id);
             $data = $request->validated();
             $data['updated_by'] = Auth::id();
+            $oldStatus = $blotter->status;
+            $oldAssignedOfficialName = $blotter->assigned_official_name;
+
+            // Only captain/admin can resolve, and only from ongoing -> resolved
+            if (array_key_exists('status', $data)) {
+                $user = Auth::user();
+                if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Only Barangay Captain or Admin can mark blotter cases as resolved'
+                    ], 403);
+                }
+
+                if (strtolower((string) $blotter->status) !== Blotter::STATUS_ONGOING) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Only ongoing blotter cases can be marked as resolved'
+                    ], 400);
+                }
+
+                if ($data['status'] === Blotter::STATUS_RESOLVED) {
+                    if (Schema::hasColumn('blotters', 'resolved_at')) {
+                        $data['resolved_at'] = now();
+                    }
+                    if (Schema::hasColumn('blotters', 'resolved_by')) {
+                        $data['resolved_by'] = Auth::id();
+                    }
+                }
+            }
 
             // Handle resident/non-resident logic
             if (isset($data['complainant_is_resident'])) {
@@ -241,6 +252,10 @@ class BlotterController extends Controller
                 }
             }
 
+            if (array_key_exists('assigned_official_name', $data)) {
+                $data['assigned_official_name'] = $data['assigned_official_name'] ?: null;
+            }
+
             // Handle new file attachments
             if ($request->hasFile('attachments')) {
                 $newAttachments = [];
@@ -259,14 +274,10 @@ class BlotterController extends Controller
                 $data['attachments'] = array_merge($existingAttachments, $newAttachments);
             }
 
-            $oldStatus = $blotter->status;
-            $oldOfficialId = $blotter->official_id;
-
             $blotter->update($data);
             $blotter->load([
                 'complainant:id,first_name,last_name,middle_name',
                 'respondent:id,first_name,last_name,middle_name',
-                'official:id,name',
                 'creator:id,name',
                 'updater:id,name'
             ]);
@@ -276,7 +287,9 @@ class BlotterController extends Controller
                 $this->createBlotterNotification($blotter, 'status_changed', $oldStatus);
             }
 
-            if (isset($data['official_id']) && $data['official_id'] !== $oldOfficialId) {
+            $assignmentChanged = array_key_exists('assigned_official_name', $data)
+                && $data['assigned_official_name'] !== $oldAssignedOfficialName;
+            if ($assignmentChanged) {
                 $this->createBlotterNotification($blotter, 'assigned');
             }
 
@@ -338,9 +351,8 @@ class BlotterController extends Controller
         try {
             $stats = [
                 'total' => Blotter::count(),
-                'open' => Blotter::byStatus('Open')->count(),
-                'ongoing' => Blotter::byStatus('Ongoing')->count(),
-                'resolved' => Blotter::byStatus('Resolved')->count(),
+                'ongoing' => Blotter::byStatus(Blotter::STATUS_ONGOING)->count(),
+                'resolved' => Blotter::byStatus(Blotter::STATUS_RESOLVED)->count(),
                 'this_month' => Blotter::whereMonth('created_at', date('m'))
                     ->whereYear('created_at', date('Y'))
                     ->count(),
@@ -403,15 +415,14 @@ class BlotterController extends Controller
         // Approve the blotter
         $blotter->approve($user);
         
-        // Move to 'Open' status after approval (becomes official record)
-        $blotter->status = 'Open';
+        // Move to ongoing after approval
+        $blotter->status = Blotter::STATUS_ONGOING;
         $blotter->save();
 
         // Reload relationships
         $blotter->load([
             'complainant:id,first_name,last_name,middle_name',
             'respondent:id,first_name,last_name,middle_name',
-            'official:id,name',
             'creator:id,name',
             'approver:id,name'
         ]);
@@ -480,7 +491,6 @@ class BlotterController extends Controller
         $blotter->load([
             'complainant:id,first_name,last_name,middle_name',
             'respondent:id,first_name,last_name,middle_name',
-            'official:id,name',
             'creator:id,name',
             'rejector:id,name'
         ]);
@@ -530,7 +540,7 @@ class BlotterController extends Controller
                     break;
 
                 case 'assigned':
-                    $officialName = $blotter->official ? $blotter->official->name : 'Unassigned';
+                    $officialName = $blotter->assigned_official_display ?? 'Unassigned';
                     $title = 'Blotter Case Assigned';
                     $message = "Blotter case {$blotter->case_number} has been assigned to {$officialName}";
                     break;
@@ -552,15 +562,6 @@ class BlotterController extends Controller
                 'user_id' => null // System-wide notification
             ]);
 
-            // If there's an assigned official, also notify them specifically
-            if ($blotter->official_id && $event !== 'assigned') {
-                Notification::create([
-                    'title' => $title,
-                    'message' => $message,
-                    'type' => 'blotter',
-                    'user_id' => $blotter->official_id
-                ]);
-            }
         } catch (\Exception $e) {
             Log::error('Error creating blotter notification: ' . $e->getMessage());
         }

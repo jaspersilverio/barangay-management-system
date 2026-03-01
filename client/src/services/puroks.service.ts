@@ -1,5 +1,20 @@
 import api from './api'
 
+/** Session cache so purok list shows immediately when navigating back (no loading) */
+const puroksListCache: Record<string, unknown> = {}
+
+export function getPuroksListCached<T = unknown>(key: string): T | undefined {
+  return puroksListCache[key] as T | undefined
+}
+
+export function setPuroksListCached(key: string, value: unknown): void {
+  puroksListCache[key] = value
+}
+
+export function clearPuroksListCache(): void {
+  Object.keys(puroksListCache).forEach((k) => delete puroksListCache[k])
+}
+
 export type Purok = {
   id: number
   name: string

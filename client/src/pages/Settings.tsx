@@ -1,8 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Nav, Tab, Modal } from 'react-bootstrap'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Settings as SettingsIcon, Building, Cog, Phone, Users, UserPlus, Shield, UserCheck, ArrowRight, Key, UserCog, RotateCcw, Eye, CheckCircle } from 'lucide-react'
-import { getSettings, updatePreferences, updateEmergency, type Settings, type SystemPreferences, type EmergencySettings, type EmergencyContact, type EvacuationCenter } from '../services/settings.service'
+import {
+  getSettings,
+  updatePreferences,
+  updateEmergency,
+  getSettingsCached,
+  setSettingsCached,
+  type Settings,
+  type SystemPreferences,
+  type EmergencySettings,
+  type EmergencyContact,
+  type EvacuationCenter
+} from '../services/settings.service'
 import { getBarangayInfo, saveBarangayInfo, type BarangayInfo } from '../services/barangay-info.service'
 import { getUsers } from '../services/users.service'
 
@@ -55,9 +66,43 @@ export default function Settings() {
   const [loadingStats, setLoadingStats] = useState(false)
   const [hasBarangayInfo, setHasBarangayInfo] = useState(false)
 
+  const loadSettings = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true)
+      setError(null)
+    }
+    try {
+      const response = await getSettings()
+      if (response.success) {
+        setSettings(response.data)
+        setPreferences(response.data.system_preferences || { per_page: 10, date_format: 'YYYY-MM-DD', theme: 'light' })
+        setEmergency(response.data.emergency || { contact_numbers: [], evacuation_centers: [] })
+        setSettingsCached(response.data)
+      } else {
+        setError(response.message || 'Failed to load settings')
+      }
+    } catch {
+      setError('Failed to load settings')
+    } finally {
+      if (showLoading) setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    const cached = getSettingsCached()
+    if (cached != null) {
+      setSettings(cached)
+      setPreferences(cached.system_preferences || { per_page: 10, date_format: 'YYYY-MM-DD', theme: 'light' })
+      setEmergency(cached.emergency || { contact_numbers: [], evacuation_centers: [] })
+      setLoading(false)
+      loadSettings(false).catch(() => {})
+      return
+    }
+    loadSettings(true)
+  }, [loadSettings])
+
   useEffect(() => {
     loadBarangayInfo()
-    loadSettings()
     loadUserStats()
   }, [])
 
@@ -93,30 +138,8 @@ export default function Settings() {
 
         setHasBarangayInfo(!!(response.data.barangay_name || response.data.municipality || response.data.province))
       }
-    } catch (err: any) {
-      console.error('Failed to load barangay info:', err)
+    } catch {
       // Don't set error - allow form to work even if load fails
-    }
-  }
-
-  const loadSettings = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await getSettings()
-
-      if (response.success) {
-        setSettings(response.data)
-        setPreferences(response.data.system_preferences || { per_page: 10, date_format: 'YYYY-MM-DD', theme: 'light' })
-        setEmergency(response.data.emergency || { contact_numbers: [], evacuation_centers: [] })
-      } else {
-        setError(response.message || 'Failed to load settings')
-      }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load settings')
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -145,8 +168,8 @@ export default function Settings() {
           staff: staffResponse.success ? staffResponse.data.total || 0 : 0
         })
       }
-    } catch (err) {
-      console.error('Failed to load user stats:', err)
+    } catch {
+      // Optionally handle
     } finally {
       setLoadingStats(false)
     }

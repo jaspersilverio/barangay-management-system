@@ -4,7 +4,6 @@ import { X, FileText, User, MapPin } from 'lucide-react';
 import { type CreateBlotterData } from '../../services/blotter.service';
 import blotterService from '../../services/blotter.service';
 import { residentsService } from '../../services/residents.service';
-import { officialsService } from '../../services/officials.service';
 
 interface AddBlotterModalProps {
   show: boolean;
@@ -17,12 +16,6 @@ interface Resident {
   first_name: string;
   last_name: string;
   middle_name?: string;
-}
-
-interface Official {
-  id: number;
-  name: string;
-  position: string;
 }
 
 const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
@@ -43,40 +36,37 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     respondent_age: undefined,
     respondent_address: '',
     respondent_contact: '',
-    official_id: undefined,
+    assigned_official_name: '',
     incident_date: '',
     incident_time: '',
     incident_location: '',
     description: '',
-    status: 'Open',
     resolution: '',
     attachments: []
   });
 
   const [residents, setResidents] = useState<Resident[]>([]);
-  const [officials, setOfficials] = useState<Official[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Separate input values for each search field
-  const [complainantInput, setComplainantInput] = useState('');
+  const [complainantSearchTerm, setComplainantSearchTerm] = useState('');
+  const [selectedComplainant, setSelectedComplainant] = useState<Resident | null>(null);
+  const [showComplainantOptions, setShowComplainantOptions] = useState(false);
   const [respondentInput, setRespondentInput] = useState('');
-  const [officialInput, setOfficialInput] = useState('');
+  const [assignedOfficialName, setAssignedOfficialName] = useState('');
   
   // Debounced search terms
   const [debouncedComplainant, setDebouncedComplainant] = useState('');
   const [debouncedRespondent, setDebouncedRespondent] = useState('');
-  const [debouncedOfficial, setDebouncedOfficial] = useState('');
 
   // Separate filtered results for each field
   const [filteredComplainants, setFilteredComplainants] = useState<Resident[]>([]);
   const [filteredRespondents, setFilteredRespondents] = useState<Resident[]>([]);
-  const [filteredOfficials, setFilteredOfficials] = useState<Official[]>([]);
 
   useEffect(() => {
     if (show) {
       loadResidents();
-      loadOfficials();
       resetForm();
       
       // Check for pre-filled data from incident report conversion
@@ -104,10 +94,10 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
   // Debounce complainant search
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedComplainant(complainantInput);
+      setDebouncedComplainant(complainantSearchTerm);
     }, 300);
     return () => clearTimeout(timer);
-  }, [complainantInput]);
+  }, [complainantSearchTerm]);
 
   // Debounce respondent search
   useEffect(() => {
@@ -116,14 +106,6 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     }, 300);
     return () => clearTimeout(timer);
   }, [respondentInput]);
-
-  // Debounce official search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedOfficial(officialInput);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [officialInput]);
 
   // Filter complainants based on debounced term
   useEffect(() => {
@@ -135,11 +117,6 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     filterRespondents();
   }, [debouncedRespondent, residents]);
 
-  // Filter officials based on debounced term
-  useEffect(() => {
-    filterOfficials();
-  }, [debouncedOfficial, officials]);
-
   const loadResidents = async () => {
     try {
       const response = await residentsService.getResidents({});
@@ -147,16 +124,6 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     } catch (error) {
       console.error('Error loading residents:', error);
       setResidents([]);
-    }
-  };
-
-  const loadOfficials = async () => {
-    try {
-      const response = await officialsService.getOfficials();
-      setOfficials(response.data || []);
-    } catch (error) {
-      console.error('Error loading officials:', error);
-      setOfficials([]);
     }
   };
 
@@ -196,23 +163,6 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
     setFilteredRespondents(filtered);
   };
 
-  const filterOfficials = () => {
-    if (!debouncedOfficial || debouncedOfficial.length < 1) {
-      setFilteredOfficials([]);
-      return;
-    }
-
-    if (!Array.isArray(officials)) {
-      setFilteredOfficials([]);
-      return;
-    }
-
-    const filtered = officials.filter(official =>
-      official.name.toLowerCase().includes(debouncedOfficial.toLowerCase())
-    );
-    setFilteredOfficials(filtered);
-  };
-
   const resetForm = () => {
     setFormData({
       complainant_is_resident: true,
@@ -227,21 +177,21 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       respondent_age: undefined,
       respondent_address: '',
       respondent_contact: '',
-      official_id: undefined,
+      assigned_official_name: '',
       incident_date: '',
       incident_time: '',
       incident_location: '',
       description: '',
-      status: 'Open',
       resolution: '',
       attachments: []
     });
-    setComplainantInput('');
+    setComplainantSearchTerm('');
+    setSelectedComplainant(null);
+    setShowComplainantOptions(false);
     setRespondentInput('');
-    setOfficialInput('');
+    setAssignedOfficialName('');
     setDebouncedComplainant('');
     setDebouncedRespondent('');
-    setDebouncedOfficial('');
     setErrors({});
   };
 
@@ -269,15 +219,17 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
   };
 
   const handleComplainantSearchChange = (value: string) => {
-    setComplainantInput(value);
+    setComplainantSearchTerm(value);
+    setSelectedComplainant(null);
+    setFormData(prev => ({
+      ...prev,
+      complainant_id: undefined
+    }));
+    setShowComplainantOptions(Boolean(value.trim()));
   };
 
   const handleRespondentSearchChange = (value: string) => {
     setRespondentInput(value);
-  };
-
-  const handleOfficialSearchChange = (value: string) => {
-    setOfficialInput(value);
   };
 
   const selectResident = (type: 'complainant' | 'respondent', resident: Resident) => {
@@ -286,23 +238,16 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       [`${type}_id`]: resident.id
     }));
     
-    const fullName = `${resident.first_name} ${resident.last_name}`;
+    const fullName = `${resident.first_name} ${resident.middle_name ? `${resident.middle_name} ` : ''}${resident.last_name}`;
     if (type === 'complainant') {
-      setComplainantInput(fullName);
-      setDebouncedComplainant(fullName);
+      setSelectedComplainant(resident);
+      setComplainantSearchTerm('');
+      setDebouncedComplainant('');
+      setShowComplainantOptions(false);
     } else {
       setRespondentInput(fullName);
       setDebouncedRespondent(fullName);
     }
-  };
-
-  const selectOfficial = (official: Official) => {
-    setFormData(prev => ({
-      ...prev,
-      official_id: official.id
-    }));
-    setOfficialInput(official.name);
-    setDebouncedOfficial(official.name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -400,8 +345,8 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       }
 
       // Other fields
-      if (formData.official_id) {
-        formDataToSend.append('official_id', formData.official_id.toString());
+      if (assignedOfficialName.trim()) {
+        formDataToSend.append('assigned_official_name', assignedOfficialName.trim());
       }
       
       // Date and time - always send (required)
@@ -413,9 +358,6 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
       }
       if (formData.description) {
         formDataToSend.append('description', formData.description);
-      }
-      if (formData.status) {
-        formDataToSend.append('status', formData.status);
       }
       if (formData.resolution) {
         formDataToSend.append('resolution', formData.resolution);
@@ -509,20 +451,31 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                     <Form.Control
                       type="text"
                       placeholder="Search residents..."
-                      value={complainantInput}
+                      value={
+                        selectedComplainant
+                          ? `${selectedComplainant.first_name} ${selectedComplainant.middle_name ? `${selectedComplainant.middle_name} ` : ''}${selectedComplainant.last_name}`
+                          : complainantSearchTerm
+                      }
                       onChange={(e) => handleComplainantSearchChange(e.target.value)}
                     />
-                    {debouncedComplainant && filteredComplainants.length > 0 && (
+                    {showComplainantOptions && !selectedComplainant && debouncedComplainant && filteredComplainants.length > 0 && (
                       <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                         {filteredComplainants.map(resident => (
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                            style={{ color: '#212529', backgroundColor: 'white' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f8f9fa';
+                              e.currentTarget.style.color = '#212529';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'white';
+                              e.currentTarget.style.color = '#212529';
+                            }}
                             onClick={() => selectResident('complainant', resident)}
                           >
-                            {resident.first_name} {resident.last_name}
+                            {resident.first_name} {resident.middle_name ? `${resident.middle_name} ` : ''}{resident.last_name}
                           </div>
                         ))}
                       </div>
@@ -652,8 +605,15 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
+                            style={{ color: '#212529', backgroundColor: 'white' }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.backgroundColor = '#f8f9fa';
+                              e.currentTarget.style.color = '#212529';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.backgroundColor = 'white';
+                              e.currentTarget.style.color = '#212529';
+                            }}
                             onClick={() => selectResident('respondent', resident)}
                           >
                             {resident.first_name} {resident.last_name}
@@ -749,39 +709,15 @@ const AddBlotterModal: React.FC<AddBlotterModalProps> = ({
                   <Form.Label>Assigned Official</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Search officials..."
-                    value={officialInput}
-                    onChange={(e) => handleOfficialSearchChange(e.target.value)}
+                    placeholder="Enter assigned official"
+                    value={assignedOfficialName}
+                    onChange={(e) => setAssignedOfficialName(e.target.value)}
                   />
-                  {debouncedOfficial && filteredOfficials.length > 0 && (
-                    <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      {filteredOfficials.map(official => (
-                        <div
-                          key={official.id}
-                          className="p-2 border-bottom cursor-pointer"
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                          onClick={() => selectOfficial(official)}
-                        >
-                          {official.name} - {official.position}
-                        </div>
-                      ))}
-                    </div>
+                  {errors.assigned_official_name && (
+                    <Form.Text className="text-danger">
+                      {errors.assigned_official_name}
+                    </Form.Text>
                   )}
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Open">Open</option>
-                    <option value="Ongoing">Ongoing</option>
-                    <option value="Resolved">Resolved</option>
-                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>

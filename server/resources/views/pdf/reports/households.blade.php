@@ -204,19 +204,10 @@
 </head>
 
 <body>
-    <!-- Header: Logo left, text centered -->
-    @php
-        $gdAvailable = extension_loaded('gd');
-        $showLogo = $gdAvailable && !empty($barangay_info['logo_base64'] ?? null) && str_starts_with($barangay_info['logo_base64'] ?? '', 'data:');
-        $logoSrc = $showLogo ? ($barangay_info['logo_base64'] ?? null) : null;
-    @endphp
+    <!-- Header: placeholder only for faster PDF -->
     <div class="report-header">
         <div class="report-header-logo">
-            @if ($showLogo && $logoSrc)
-                <img src="{{ $logoSrc }}" alt="Barangay Seal">
-            @else
-                <div class="logo-placeholder">B</div>
-            @endif
+            <div class="logo-placeholder">B</div>
         </div>
         <div class="report-header-text">
             <div class="line">Republic of the Philippines</div>
@@ -267,6 +258,9 @@
                 @endforelse
             </tbody>
         </table>
+        @if(!empty($records_limited) && !empty($total_records))
+            <div style="margin-top: 10px; font-size: 9pt; color: #666;">Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records. Apply filters to narrow results.</div>
+        @endif
     </div>
 
 

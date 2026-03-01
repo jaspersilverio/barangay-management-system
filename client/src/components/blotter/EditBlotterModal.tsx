@@ -4,7 +4,6 @@ import { X, FileText, User, MapPin, Trash2 } from 'lucide-react';
 import { type Blotter, type UpdateBlotterData } from '../../services/blotter.service';
 import blotterService from '../../services/blotter.service';
 import { residentsService } from '../../services/residents.service';
-import { officialsService } from '../../services/officials.service';
 
 interface EditBlotterModalProps {
   show: boolean;
@@ -18,12 +17,6 @@ interface Resident {
   first_name: string;
   last_name: string;
   middle_name?: string;
-}
-
-interface Official {
-  id: number;
-  name: string;
-  position: string;
 }
 
 const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
@@ -45,41 +38,36 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     respondent_age: undefined,
     respondent_address: '',
     respondent_contact: '',
-    official_id: undefined,
+    assigned_official_name: '',
     incident_date: '',
     incident_time: '',
     incident_location: '',
     description: '',
-    status: 'Open',
     resolution: '',
     attachments: []
   });
 
   const [residents, setResidents] = useState<Resident[]>([]);
-  const [officials, setOfficials] = useState<Official[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Separate input values for each search field
   const [complainantInput, setComplainantInput] = useState('');
   const [respondentInput, setRespondentInput] = useState('');
-  const [officialInput, setOfficialInput] = useState('');
+  const [assignedOfficialName, setAssignedOfficialName] = useState('');
   
   // Debounced search terms
   const [debouncedComplainant, setDebouncedComplainant] = useState('');
   const [debouncedRespondent, setDebouncedRespondent] = useState('');
-  const [debouncedOfficial, setDebouncedOfficial] = useState('');
 
   // Separate filtered results for each field
   const [filteredComplainants, setFilteredComplainants] = useState<Resident[]>([]);
   const [filteredRespondents, setFilteredRespondents] = useState<Resident[]>([]);
-  const [filteredOfficials, setFilteredOfficials] = useState<Official[]>([]);
   const [existingAttachments, setExistingAttachments] = useState<any[]>([]);
 
   useEffect(() => {
     if (show && blotter) {
       loadResidents();
-      loadOfficials();
       populateForm();
     }
   }, [show, blotter]);
@@ -100,14 +88,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     return () => clearTimeout(timer);
   }, [respondentInput]);
 
-  // Debounce official search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedOfficial(officialInput);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [officialInput]);
-
   // Filter complainants based on debounced term
   useEffect(() => {
     filterComplainants();
@@ -118,11 +98,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     filterRespondents();
   }, [debouncedRespondent, residents]);
 
-  // Filter officials based on debounced term
-  useEffect(() => {
-    filterOfficials();
-  }, [debouncedOfficial, officials]);
-
   const loadResidents = async () => {
     try {
       const response = await residentsService.getResidents({});
@@ -130,16 +105,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     } catch (error) {
       console.error('Error loading residents:', error);
       setResidents([]);
-    }
-  };
-
-  const loadOfficials = async () => {
-    try {
-      const response = await officialsService.getOfficials();
-      setOfficials(response.data || []);
-    } catch (error) {
-      console.error('Error loading officials:', error);
-      setOfficials([]);
     }
   };
 
@@ -159,12 +124,11 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
       respondent_age: blotter.respondent_age,
       respondent_address: blotter.respondent_address || '',
       respondent_contact: blotter.respondent_contact || '',
-      official_id: blotter.official_id,
+      assigned_official_name: blotter.assigned_official_name || '',
       incident_date: blotter.incident_date ? new Date(blotter.incident_date).toISOString().split('T')[0] : '',
-      incident_time: blotter.incident_time,
+      incident_time: blotter.incident_time ? String(blotter.incident_time).substring(0, 5) : '', // H:i (backend returns HH:MM:SS)
       incident_location: blotter.incident_location,
       description: blotter.description,
-      status: blotter.status,
       resolution: blotter.resolution || '',
       attachments: []
     });
@@ -176,14 +140,11 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     const respondentName = blotter.respondent_is_resident && blotter.respondent
       ? `${blotter.respondent.first_name} ${blotter.respondent.last_name}`
       : blotter.respondent_full_name || '';
-    const officialName = blotter.official ? blotter.official.name : '';
-    
     setComplainantInput(complainantName);
     setRespondentInput(respondentName);
-    setOfficialInput(officialName);
+    setAssignedOfficialName(blotter.assigned_official_name || '');
     setDebouncedComplainant(complainantName);
     setDebouncedRespondent(respondentName);
-    setDebouncedOfficial(officialName);
 
     setExistingAttachments(blotter.attachments || []);
     setErrors({});
@@ -225,23 +186,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     setFilteredRespondents(filtered);
   };
 
-  const filterOfficials = () => {
-    if (!debouncedOfficial || debouncedOfficial.length < 1) {
-      setFilteredOfficials([]);
-      return;
-    }
-
-    if (!Array.isArray(officials)) {
-      setFilteredOfficials([]);
-      return;
-    }
-
-    const filtered = officials.filter(official =>
-      official.name.toLowerCase().includes(debouncedOfficial.toLowerCase())
-    );
-    setFilteredOfficials(filtered);
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     
@@ -273,33 +217,22 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     setRespondentInput(value);
   };
 
-  const handleOfficialSearchChange = (value: string) => {
-    setOfficialInput(value);
-  };
-
   const selectResident = (type: 'complainant' | 'respondent', resident: Resident) => {
     setFormData(prev => ({
       ...prev,
       [`${type}_id`]: resident.id
     }));
-    
+
     const fullName = `${resident.first_name} ${resident.last_name}`;
     if (type === 'complainant') {
       setComplainantInput(fullName);
       setDebouncedComplainant(fullName);
+      setFilteredComplainants([]); // close dropdown after selection
     } else {
       setRespondentInput(fullName);
       setDebouncedRespondent(fullName);
+      setFilteredRespondents([]); // close dropdown after selection
     }
-  };
-
-  const selectOfficial = (official: Official) => {
-    setFormData(prev => ({
-      ...prev,
-      official_id: official.id
-    }));
-    setOfficialInput(official.name);
-    setDebouncedOfficial(official.name);
   };
 
   const removeExistingAttachment = (index: number) => {
@@ -314,25 +247,11 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
     setErrors({});
 
     try {
-      const formDataToSend = new FormData();
-      
-      // Add all form fields
-      Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'attachments' && Array.isArray(value)) {
-          value.forEach((file, index) => {
-            formDataToSend.append(`attachments[${index}]`, file);
-          });
-        } else if (value !== undefined && value !== null && value !== '') {
-          formDataToSend.append(key, value.toString());
-        }
-      });
-
-      // Add existing attachments
-      existingAttachments.forEach((attachment, index) => {
-        formDataToSend.append(`existing_attachments[${index}]`, JSON.stringify(attachment));
-      });
-
-      await blotterService.updateBlotter(blotter.id, formDataToSend as any);
+      const payload: UpdateBlotterData = {
+        ...formData,
+        assigned_official_name: assignedOfficialName.trim(),
+      };
+      await blotterService.updateBlotter(blotter.id, payload);
       onSuccess();
       onHide();
     } catch (error: any) {
@@ -418,8 +337,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                             onClick={() => selectResident('complainant', resident)}
                           >
                             {resident.first_name} {resident.last_name}
@@ -552,8 +469,6 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                           <div
                             key={resident.id}
                             className="p-2 border-bottom cursor-pointer"
-                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                             onClick={() => selectResident('respondent', resident)}
                           >
                             {resident.first_name} {resident.last_name}
@@ -649,39 +564,15 @@ const EditBlotterModal: React.FC<EditBlotterModalProps> = ({
                   <Form.Label>Assigned Official</Form.Label>
                   <Form.Control
                     type="text"
-                    placeholder="Search officials..."
-                    value={officialInput}
-                    onChange={(e) => handleOfficialSearchChange(e.target.value)}
+                    placeholder="Enter assigned official"
+                    value={assignedOfficialName}
+                    onChange={(e) => setAssignedOfficialName(e.target.value)}
                   />
-                  {debouncedOfficial && filteredOfficials.length > 0 && (
-                    <div className="border rounded mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                      {filteredOfficials.map(official => (
-                        <div
-                          key={official.id}
-                          className="p-2 border-bottom cursor-pointer"
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                          onClick={() => selectOfficial(official)}
-                        >
-                          {official.name} - {official.position}
-                        </div>
-                      ))}
-                    </div>
+                  {errors.assigned_official_name && (
+                    <Form.Text className="text-danger">
+                      {errors.assigned_official_name}
+                    </Form.Text>
                   )}
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group>
-                  <Form.Label>Status</Form.Label>
-                  <Form.Select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleInputChange}
-                  >
-                    <option value="Open">Open</option>
-                    <option value="Ongoing">Ongoing</option>
-                    <option value="Resolved">Resolved</option>
-                  </Form.Select>
                 </Form.Group>
               </Col>
             </Row>

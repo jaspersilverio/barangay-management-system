@@ -22,7 +22,23 @@ class CertificateRequestController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
+        $user = Auth::user();
+        $archived = $request->filled('archived') && $request->boolean('archived');
+
+        if ($archived) {
+            if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only Barangay Captain or Admin can view archived certificate requests'
+                ], 403);
+            }
+        }
+
         $query = CertificateRequest::with(['resident', 'requestedBy', 'approvedBy', 'releasedBy']);
+
+        if ($archived) {
+            $query->onlyTrashed();
+        }
 
         // Filter by status
         if ($request->has('status') && $request->status !== 'all') {
@@ -148,38 +164,30 @@ class CertificateRequestController extends Controller
 
     public function destroy(CertificateRequest $certificateRequest): JsonResponse
     {
-        if ($certificateRequest->status !== 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cannot delete non-pending certificate request'
-            ], 400);
-        }
-
-        // Load relationships for notification
-        $certificateRequest->load(['resident']);
-        
-        // Store info before deletion for notification
-        $certificateType = ucwords(str_replace('_', ' ', $certificateRequest->certificate_type));
-        $residentName = $certificateRequest->resident ? $certificateRequest->resident->full_name : 'Unknown Resident';
-        $purpose = $certificateRequest->purpose;
-
         $certificateRequest->delete();
-
-        // Create system notification about the deletion
-        try {
-            NotificationController::createSystemNotification(
-                'Certificate Request Deleted',
-                "Certificate request ({$certificateType}) for {$residentName} has been deleted. Purpose: " . substr($purpose, 0, 50) . (strlen($purpose) > 50 ? '...' : ''),
-                'certificate_request_deleted'
-            );
-        } catch (\Exception $e) {
-            // Log but don't fail the delete operation
-            Log::warning('Failed to create notification for certificate request deletion: ' . $e->getMessage());
-        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Certificate request deleted successfully'
+            'message' => 'Archived successfully'
+        ]);
+    }
+
+    public function restore(int $id): JsonResponse
+    {
+        $user = Auth::user();
+        if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only Barangay Captain or Admin can restore archived certificate requests'
+            ], 403);
+        }
+
+        $certificateRequest = CertificateRequest::onlyTrashed()->findOrFail($id);
+        $certificateRequest->restore();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Restored successfully'
         ]);
     }
 

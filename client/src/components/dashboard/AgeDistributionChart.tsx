@@ -1,15 +1,20 @@
 import { useEffect, useState, useMemo } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { getAgeDistribution, getDashboardCached, setDashboardCached, type AgeDistribution } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { Users } from 'lucide-react'
 
-// Single color theme - using primary blue with varying opacity
-const PRIMARY_COLOR = 'var(--color-primary)' // blue-500
+const PRIMARY_COLOR = 'var(--color-primary)'
 const CACHE_KEY = 'ageDistribution'
 
+function getCached() {
+  return getDashboardCached<AgeDistribution>(CACHE_KEY) ?? null
+}
+
 export default function AgeDistributionChart() {
-  const [data, setData] = useState<AgeDistribution | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<AgeDistribution | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -17,42 +22,34 @@ export default function AgeDistributionChart() {
     if (cached != null) {
       setData(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        try {
-          setError(null)
-          const response = await getAgeDistribution()
-          if (response.success) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            setError(response.message || 'Failed to fetch age distribution data')
-          }
-        } catch (err: any) {
-          setError(err?.response?.data?.message || 'Age distribution data unavailable')
-        }
-      }
-      fetchData()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchData = async () => {
       try {
         setError(null)
         const response = await getAgeDistribution()
+        if (cancelled) return
         if (response.success) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch age distribution data')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Age distribution data unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Age distribution data unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const chartData = useMemo(() => {
     if (!data) return []

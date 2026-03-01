@@ -217,11 +217,11 @@ class DashboardController extends Controller
             }
 
             $activeBlotters = $blotterQuery->clone()
-                ->whereIn('status', ['Open', 'Ongoing'])
+                ->whereRaw('LOWER(status) = ?', ['ongoing'])
                 ->count();
 
             $resolvedThisMonth = $blotterQuery->clone()
-                ->where('status', 'Resolved')
+                ->whereRaw('LOWER(status) = ?', ['resolved'])
                 ->whereMonth('updated_at', $now->month)
                 ->whereYear('updated_at', $now->year)
                 ->count();
@@ -569,11 +569,11 @@ class DashboardController extends Controller
             }
 
             $activeBlotters = $blotterQuery->clone()
-                ->whereIn('status', ['Open', 'Ongoing'])
+                ->whereRaw('LOWER(status) = ?', ['ongoing'])
                 ->count();
 
             $resolvedThisMonth = $blotterQuery->clone()
-                ->where('status', 'Resolved')
+                ->whereRaw('LOWER(status) = ?', ['resolved'])
                 ->whereMonth('updated_at', $now->month)
                 ->whereYear('updated_at', $now->year)
                 ->count();
@@ -583,27 +583,20 @@ class DashboardController extends Controller
             for ($i = 5; $i >= 0; $i--) {
                 $month = $now->copy()->subMonths($i);
 
-                $openCount = $blotterQuery->clone()
-                    ->where('status', 'Open')
-                    ->whereMonth('created_at', $month->month)
-                    ->whereYear('created_at', $month->year)
-                    ->count();
-
                 $ongoingCount = $blotterQuery->clone()
-                    ->where('status', 'Ongoing')
+                    ->whereRaw('LOWER(status) = ?', ['ongoing'])
                     ->whereMonth('created_at', $month->month)
                     ->whereYear('created_at', $month->year)
                     ->count();
 
                 $resolvedCount = $blotterQuery->clone()
-                    ->where('status', 'Resolved')
+                    ->whereRaw('LOWER(status) = ?', ['resolved'])
                     ->whereMonth('updated_at', $month->month)
                     ->whereYear('updated_at', $month->year)
                     ->count();
 
                 $monthlyTrend->push([
                     'month' => $month->format('M'),
-                    'open' => $openCount,
                     'ongoing' => $ongoingCount,
                     'resolved' => $resolvedCount,
                 ]);

@@ -297,24 +297,10 @@
     </style>
 </head>
 <body>
-    {{-- ==================== PAGE HEADER (CERTIFICATE-STYLE) ==================== --}}
-    @php
-        $gdAvailable = extension_loaded('gd');
-        $showLogo = false;
-        $logoSrc = null;
-        if ($gdAvailable && !empty($barangay_info['logo_base64']) && str_starts_with($barangay_info['logo_base64'] ?? '', 'data:')) {
-            $showLogo = true;
-            $logoSrc = $barangay_info['logo_base64'];
-        }
-    @endphp
-
+    {{-- Header without logo/signature images for faster PDF generation --}}
     <div class="certificate-header">
         <div class="header-logo-container">
-            @if ($showLogo && $logoSrc)
-                <img src="{{ $logoSrc }}" alt="Barangay Seal" class="header-logo">
-            @else
-                <div class="logo-placeholder">B</div>
-            @endif
+            <div class="logo-placeholder">B</div>
         </div>
         <div class="gov-header">Republic of the Philippines</div>
         <div class="location-header">
@@ -365,11 +351,11 @@
                     <span class="summary-value">{{ number_format($summary['pending'] ?? 0) }}</span>
                 </td>
                 <td>
-                    <span class="summary-label">Ongoing/Open:</span>
+                    <span class="summary-label">Ongoing:</span>
                     <span class="summary-value">{{ number_format($summary['ongoing'] ?? 0) }}</span>
                 </td>
                 <td>
-                    <span class="summary-label">Resolved/Settled:</span>
+                    <span class="summary-label">Resolved:</span>
                     <span class="summary-value">{{ number_format($summary['resolved'] ?? 0) }}</span>
                 </td>
                 <td>
@@ -463,14 +449,12 @@
                     }
                     
                     // Status class
-                    $statusClass = 'status-pending';
-                    $status = strtolower($blotter->status ?? 'pending');
-                    if (in_array($status, ['resolved', 'settled', 'closed'])) {
+                    $statusClass = 'status-ongoing';
+                    $status = strtolower($blotter->status ?? 'ongoing');
+                    if ($status === 'resolved') {
                         $statusClass = 'status-resolved';
-                    } elseif (in_array($status, ['ongoing', 'open', 'under_investigation'])) {
+                    } elseif ($status === 'ongoing') {
                         $statusClass = 'status-ongoing';
-                    } elseif ($status === 'rejected') {
-                        $statusClass = 'status-rejected';
                     }
                 @endphp
                 <tr>
@@ -492,7 +476,7 @@
                     <td class="col-location">{{ $location }}</td>
                     <td class="col-nature">{{ $nature }}</td>
                     <td class="col-status {{ $statusClass }}">
-                        <strong>{{ ucfirst($blotter->status ?? 'Pending') }}</strong>
+                        <strong>{{ ucfirst($blotter->status ?? 'ongoing') }}</strong>
                     </td>
                     <td class="col-official">{{ $assignedTo }}</td>
                     <td class="col-reported">{{ $reportedDate }}</td>
@@ -507,14 +491,14 @@
 
     {{-- Total Records Count --}}
     <div style="text-align: right; font-size: 9pt; margin-top: 10px; font-weight: bold;">
-        Total Records: {{ $blotters->count() }}
+        @if(!empty($records_limited) && !empty($total_records))
+            Showing first {{ $records_limit ?? 500 }} of {{ number_format($total_records) }} records. Apply filters to narrow results.
+        @else
+            Total Records: {{ $blotters->count() }}
+        @endif
     </div>
 
-    {{-- ==================== SIGNATURE SECTION ==================== --}}
-    @php
-        $gdAvailable = extension_loaded('gd');
-        $hasSignature = $gdAvailable && !empty($noted_by['signature_base64']) && str_starts_with($noted_by['signature_base64'], 'data:');
-    @endphp
+    {{-- Signature section (text only for faster PDF) --}}
     <div class="signature-section">
         <table class="signature-table">
             <tr>
@@ -529,11 +513,7 @@
                 <td>
                     <div class="signature-block" style="text-align: right;">
                         <div class="signature-label">Noted by:</div>
-                        @if($hasSignature)
-                            <img src="{{ $noted_by['signature_base64'] }}" alt="Signature" style="max-width: 150px; max-height: 60px; display: block; margin-left: auto; margin-bottom: 5px;">
-                        @else
-                            <div class="signature-line" style="margin-left: auto;"></div>
-                        @endif
+                        <div class="signature-line" style="margin-left: auto;"></div>
                         <div class="signature-name">{{ $noted_by['name'] ?? 'BARANGAY CAPTAIN' }}</div>
                         <div class="signature-position">{{ $noted_by['position'] ?? 'Punong Barangay' }}</div>
                     </div>

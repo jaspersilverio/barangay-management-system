@@ -2,19 +2,24 @@ import { useEffect, useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { getBlotterSummary, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { BlotterSummary } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { FileText } from 'lucide-react'
 
 const COLORS = {
-  open: 'var(--color-warning)',     // amber-500
   ongoing: 'var(--color-primary)',  // blue-500
   resolved: 'var(--color-accent)'  // green-500
 }
 
 const CACHE_KEY = 'blotterSummary'
 
+function getCached() {
+  return getDashboardCached<BlotterSummary>(CACHE_KEY) ?? null
+}
+
 export default function BlotterTrendChart() {
-  const [data, setData] = useState<BlotterSummary | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [data, setData] = useState<BlotterSummary | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -22,42 +27,34 @@ export default function BlotterTrendChart() {
     if (cached != null) {
       setData(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchData = async () => {
-        try {
-          setError(null)
-          const response = await getBlotterSummary()
-          if (response.success) {
-            setData(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            setError(response.message || 'Failed to fetch blotter data')
-          }
-        } catch (err: any) {
-          setError(err?.response?.data?.message || 'Blotter data unavailable')
-        }
-      }
-      fetchData()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchData = async () => {
       try {
         setError(null)
         const response = await getBlotterSummary()
+        if (cancelled) return
         if (response.success) {
           setData(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch blotter data')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Blotter data unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Blotter data unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchData()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -162,15 +159,6 @@ export default function BlotterTrendChart() {
             />
             <Line
               type="monotone"
-              dataKey="open"
-              stroke={COLORS.open}
-              strokeWidth={2}
-              dot={{ fill: COLORS.open, strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: COLORS.open, strokeWidth: 2 }}
-              name="Open"
-            />
-            <Line
-              type="monotone"
               dataKey="ongoing"
               stroke={COLORS.ongoing}
               strokeWidth={2}
@@ -204,7 +192,7 @@ export default function BlotterTrendChart() {
           </div>
           <div>
             <div className="text-2xl font-bold text-blue-600">
-              {data.monthlyTrend.reduce((sum, month) => sum + month.open + month.ongoing + month.resolved, 0)}
+              {data.monthlyTrend.reduce((sum, month) => sum + month.ongoing + month.resolved, 0)}
             </div>
             <div className="text-xs text-gray-500">Total Cases (6 months)</div>
           </div>

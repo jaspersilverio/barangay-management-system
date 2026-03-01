@@ -6,6 +6,8 @@ import {
   createFourPsBeneficiary,
   updateFourPsBeneficiary,
   deleteFourPsBeneficiary,
+  getFourPsListCached,
+  setFourPsListCached,
   type FourPsBeneficiary,
   type FourPsPayload
 } from '../../services/fourps.service'
@@ -15,19 +17,22 @@ import FourPsFormModal from '../../components/beneficiaries/FourPsFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import type { FourPsFormValues } from '../../components/beneficiaries/FourPsFormModal'
 
+function cacheKey(search: string, purok: string, status: string, p: number): string {
+  return `4ps:${search}:${purok}:${status}:${p}`
+}
+
 export default function FourPsBeneficiariesPage() {
   const { puroks } = usePuroks()
   const { user } = useAuth()
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [statusFilter, setStatusFilter] = useState<string>('')
   const [page, setPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
+  const [isLoading, setIsLoading] = useState(true)
   const [beneficiariesData, setBeneficiariesData] = useState<any>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDelete, setShowDelete] = useState<null | number>(null)
@@ -38,7 +43,6 @@ export default function FourPsBeneficiariesPage() {
     variant: 'success'
   })
 
-  // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimeoutRef = useRef<number | null>(null)
 
@@ -51,30 +55,27 @@ export default function FourPsBeneficiariesPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // Debounce input value to search query (300ms delay)
-  useEffect(() => {
-    // Clear any pending debounce when input changes
-    if (debounceTimeoutRef.current) {
-      window.clearTimeout(debounceTimeoutRef.current)
-    }
+  const listKey = useMemo(
+    () => cacheKey(debouncedSearch, effectivePurokId, statusFilter, page),
+    [debouncedSearch, effectivePurokId, statusFilter, page]
+  )
 
+  useEffect(() => {
+    if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
     const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(searchInput)
-      setPage(1) // Reset to first page when search changes
+      setPage(1)
     }, 300)
-
     debounceTimeoutRef.current = timeoutId
-
     return () => {
-      if (debounceTimeoutRef.current) {
-        window.clearTimeout(debounceTimeoutRef.current)
-      }
+      if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
     }
   }, [searchInput])
 
   const loadBeneficiaries = useCallback(
-    async (overrideSearch?: string, overridePage?: number) => {
-      setIsLoading(true)
+    async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) setIsLoading(true)
       try {
         const data = await listFourPsBeneficiaries({
           search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
@@ -83,22 +84,27 @@ export default function FourPsBeneficiariesPage() {
           status: statusFilter || undefined,
           per_page: 15
         })
-        // Set data immediately - no delays
         setBeneficiariesData(data)
-      } catch (err) {
-        console.error('Error loading 4Ps beneficiaries:', err)
+        setFourPsListCached(k, data)
+      } catch {
         setToast({ show: true, message: 'Failed to load 4Ps beneficiaries', variant: 'danger' })
       } finally {
-        // Clear loading state immediately when data is ready
-        setIsLoading(false)
+        if (showLoading) setIsLoading(false)
       }
     },
-    [debouncedSearch, page, effectivePurokId, statusFilter]
+    [debouncedSearch, page, effectivePurokId, statusFilter, listKey]
   )
 
   useEffect(() => {
-    loadBeneficiaries()
-  }, [loadBeneficiaries])
+    const cached = getFourPsListCached<any>(listKey)
+    if (cached != null) {
+      setBeneficiariesData(cached)
+      setIsLoading(false)
+      loadBeneficiaries(undefined, undefined, false, listKey).catch(() => {})
+      return
+    }
+    loadBeneficiaries(undefined, undefined, true, listKey)
+  }, [listKey, loadBeneficiaries])
 
   const items = useMemo(() => {
     if (!beneficiariesData?.data?.data) return []
@@ -133,8 +139,8 @@ export default function FourPsBeneficiariesPage() {
       setShowForm(false)
       setEditingId(null)
       loadBeneficiaries()
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to save 4Ps beneficiary'
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to save 4Ps beneficiary'
       setToast({ show: true, message: errorMessage, variant: 'danger' })
       throw err
     }
@@ -147,8 +153,8 @@ export default function FourPsBeneficiariesPage() {
       setToast({ show: true, message: '4Ps beneficiary deleted successfully', variant: 'success' })
       setShowDelete(null)
       loadBeneficiaries()
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to delete 4Ps beneficiary'
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to delete 4Ps beneficiary'
       setToast({ show: true, message: errorMessage, variant: 'danger' })
       setShowDelete(null)
     }
@@ -161,25 +167,15 @@ export default function FourPsBeneficiariesPage() {
     // Page reset is handled in debounce effect
   }, [])
 
-  // Manual search trigger for Enter key or Search button
   const handleSearchSubmit = useCallback(() => {
-    // Cancel any pending debounced search to avoid duplicate requests
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current)
       debounceTimeoutRef.current = null
     }
-
-    const searchTerm = searchInput
-    setDebouncedSearch(searchTerm)
+    setDebouncedSearch(searchInput)
     setPage(1)
-    // Trigger an immediate search using the latest input value
-    loadBeneficiaries(searchTerm, 1)
-
-    // Ensure the input keeps focus after triggering search
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-  }, [searchInput, loadBeneficiaries])
+    if (searchInputRef.current) searchInputRef.current.focus()
+  }, [searchInput])
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -223,17 +219,17 @@ export default function FourPsBeneficiariesPage() {
           <p className="text-brand-muted mb-0">Pantawid Pamilyang Pilipino Program Monitoring</p>
         </div>
         {canManage && (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setEditingId(null)
-              setShowForm(true)
-            }}
-            className="btn-brand-primary d-flex align-items-center gap-2"
-          >
-            <Plus size={18} />
-            Register 4Ps Household
-          </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                setEditingId(null)
+                setShowForm(true)
+              }}
+              className="btn-brand-primary d-flex align-items-center gap-2"
+            >
+              <Plus size={18} />
+              Register 4Ps Household
+            </Button>
         )}
       </div>
 

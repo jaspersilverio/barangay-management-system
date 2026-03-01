@@ -147,12 +147,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/approval-queue/pending-count', [ApprovalQueueController::class, 'pendingCount']);
     });
 
-    // Certificate approval routes (captain and admin)
+    // Certificate approval and restore routes (captain and admin)
     Route::middleware('role:captain,admin')->group(function () {
         Route::post('/certificate-requests/{certificateRequest}/approve', [CertificateRequestController::class, 'approve']);
         Route::post('/certificate-requests/{certificateRequest}/reject', [CertificateRequestController::class, 'reject']);
         Route::post('/certificate-requests/{certificateRequest}/release', [CertificateRequestController::class, 'release']);
+        Route::post('/certificate-requests/{id}/restore', [CertificateRequestController::class, 'restore']);
         Route::post('/issued-certificates/{issuedCertificate}/invalidate', [IssuedCertificateController::class, 'invalidate']);
+        Route::post('/issued-certificates/{id}/restore', [IssuedCertificateController::class, 'restore']);
     });
 
     // Blotter approval routes (captain and admin only)

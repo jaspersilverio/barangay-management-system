@@ -31,6 +31,21 @@ class UpdateBlotterRequest extends FormRequest
                 'respondent_is_resident' => $this->input('respondent_is_resident') === '1' || $this->input('respondent_is_resident') === true,
             ]);
         }
+
+        // Treat empty strings as null for optional numeric/date fields so they pass nullable validation
+        $emptyToNull = [
+            'complainant_id', 'complainant_age', 'respondent_id', 'respondent_age',
+            'incident_date', 'incident_time',
+        ];
+        $merged = [];
+        foreach ($emptyToNull as $key) {
+            if ($this->has($key) && trim((string) $this->input($key)) === '') {
+                $merged[$key] = null;
+            }
+        }
+        if ($merged !== []) {
+            $this->merge($merged);
+        }
     }
 
     /**
@@ -58,12 +73,12 @@ class UpdateBlotterRequest extends FormRequest
             'respondent_contact' => ['sometimes', 'nullable', 'string', 'max:20'],
 
             // Other fields
-            'official_id' => ['sometimes', 'nullable', 'exists:users,id'],
+            'assigned_official_name' => ['sometimes', 'nullable', 'string', 'max:255'],
             'incident_date' => ['sometimes', 'date_format:Y-m-d', 'before_or_equal:today'],
             'incident_time' => ['sometimes', 'date_format:H:i'],
             'incident_location' => ['sometimes', 'string', 'max:255'],
             'description' => ['sometimes', 'string'],
-            'status' => ['sometimes', 'in:Open,Ongoing,Resolved'],
+            'status' => ['sometimes', 'in:resolved'],
             'resolution' => ['sometimes', 'nullable', 'string'],
             'attachments' => ['sometimes', 'nullable', 'array'],
             'attachments.*' => ['file', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'max:10240'], // 10MB max
@@ -97,11 +112,11 @@ class UpdateBlotterRequest extends FormRequest
             'respondent_contact.max' => 'Respondent contact cannot exceed 20 characters.',
 
             // Other messages
-            'official_id.exists' => 'The selected official does not exist.',
+            'assigned_official_name.max' => 'Assigned official name cannot exceed 255 characters.',
             'incident_date.before_or_equal' => 'Incident date cannot be in the future.',
             'incident_time.date_format' => 'Please enter a valid time format (HH:MM).',
             'incident_location.max' => 'Incident location cannot exceed 255 characters.',
-            'status.in' => 'Status must be Open, Ongoing, or Resolved.',
+            'status.in' => 'Status must be resolved.',
             'attachments.*.file' => 'Each attachment must be a valid file.',
             'attachments.*.mimes' => 'Attachments must be images, PDFs, or documents.',
             'attachments.*.max' => 'Each attachment cannot exceed 10MB.',

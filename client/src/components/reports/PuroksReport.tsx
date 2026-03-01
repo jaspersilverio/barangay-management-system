@@ -1,45 +1,54 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Button, Table, Badge, Alert } from 'react-bootstrap'
 import { Download, BarChart3, Users, Home, MapPin, Phone } from 'lucide-react'
-import { getPuroksReport, exportPuroksCsv, type PurokReport } from '../../services/reports.service'
+import {
+  getPuroksReport,
+  exportPuroksCsv,
+  getPuroksReportCached,
+  setPuroksReportCached,
+  type PurokReport
+} from '../../services/reports.service'
 import api from '../../services/api'
 
 export default function PuroksReport() {
   const [puroks, setPuroks] = useState<PurokReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
 
-  useEffect(() => {
-    loadReport()
-  }, [])
-
-  const loadReport = async () => {
-    try {
+  const loadReport = useCallback(async (showLoading = true) => {
+    if (showLoading) {
       setLoading(true)
       setError(null)
-      
+    }
+    try {
       const response = await getPuroksReport()
-      
       if (response.success) {
         setPuroks(response.data)
+        setPuroksReportCached(response.data)
       } else {
         setError(response.message || 'Failed to load puroks report')
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load puroks report')
+    } catch {
+      setError('Failed to load puroks report')
     } finally {
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const cached = getPuroksReportCached()
+    if (cached != null && cached.length > 0) {
+      setPuroks(cached as PurokReport[])
+      setLoading(false)
+      loadReport(false).catch(() => {})
+      return
+    }
+    loadReport(true)
+  }, [loadReport])
 
   const handleExport = async (type: 'pdf' | 'csv') => {
+    setError(null)
     try {
-      setExporting(true)
-      setExportType(type)
-      setError(null)
-
       if (type === 'csv') {
         // CSV export - use dedicated CSV export function
         await exportPuroksCsv()
@@ -63,13 +72,9 @@ export default function PuroksReport() {
 
         setError(null)
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to export ${type}`
       setError(errorMessage)
-      console.error('Export error:', err)
-    } finally {
-      setExporting(false)
-      setExportType(null)
     }
   }
 
@@ -124,22 +129,20 @@ export default function PuroksReport() {
       {/* Export Buttons */}
       <Row className="mb-4">
         <Col>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 align-items-center">
             <Button
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+              Export PDF
             </Button>
             <Button
               variant="outline-success"
               onClick={() => handleExport('csv')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
+              Export CSV
             </Button>
           </div>
         </Col>

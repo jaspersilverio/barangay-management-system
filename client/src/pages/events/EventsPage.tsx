@@ -1,11 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Container, Row, Col, Card, Button, Table, Badge } from 'react-bootstrap'
 import { Calendar, MapPin, Users } from 'lucide-react'
-import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
+import {
+  getEvents,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+  getEventsListCached,
+  setEventsListCached
+} from '../../services/events.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
 import EventFormModal from '../../components/events/EventFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useAuth } from '../../context/AuthContext'
+
+const EVENTS_LIST_KEY = 'events:all'
 
 export default function EventsPage() {
   const { user } = useAuth()
@@ -17,30 +26,35 @@ export default function EventsPage() {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null)
   const [deletingEvent, setDeletingEvent] = useState<Event | null>(null)
 
-  // Determine user permissions
   const canManage = user?.role === 'admin' || user?.role === 'purok_leader' || user?.role === 'staff'
 
-  useEffect(() => {
-    loadEvents()
-  }, [])
-
-  const loadEvents = async () => {
+  const loadEvents = useCallback(async (showLoading = true, cacheKey = EVENTS_LIST_KEY) => {
+    if (showLoading) setLoading(true)
     try {
-      setLoading(true)
-      const response = await getEvents(false) // Get all events, not just upcoming
+      const response = await getEvents(false)
       if (response.success) {
-        // Set data immediately - no delays
         setEvents(response.data)
+        setEventsListCached(cacheKey, response.data)
       } else {
         setError(response.message || 'Failed to fetch events')
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Events unavailable')
+    } catch {
+      setError('Events unavailable')
     } finally {
-      // Clear loading state immediately when data is ready
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const cached = getEventsListCached<Event[]>(EVENTS_LIST_KEY)
+    if (cached != null) {
+      setEvents(cached)
+      setLoading(false)
+      loadEvents(false, EVENTS_LIST_KEY).catch(() => {})
+      return
+    }
+    loadEvents(true, EVENTS_LIST_KEY)
+  }, [loadEvents])
 
   const handleCreateEvent = async (values: any) => {
     try {
@@ -57,11 +71,12 @@ export default function EventsPage() {
       if (response.success) {
         setEvents(prev => [response.data, ...prev])
         setShowForm(false)
+        loadEvents(false).catch(() => {})
       } else {
         setError(response.message || 'Failed to create event')
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to create event')
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to create event')
     }
   }
 
@@ -85,11 +100,12 @@ export default function EventsPage() {
         ))
         setShowForm(false)
         setEditingEvent(null)
+        loadEvents(false).catch(() => {})
       } else {
         setError(response.message || 'Failed to update event')
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to update event')
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to update event')
     }
   }
 
@@ -102,11 +118,12 @@ export default function EventsPage() {
         setEvents(prev => prev.filter(event => event.id !== deletingEvent.id))
         setShowDeleteConfirm(false)
         setDeletingEvent(null)
+        loadEvents(false).catch(() => {})
       } else {
         setError(response.message || 'Failed to delete event')
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to delete event')
+    } catch (err: unknown) {
+      setError((err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Failed to delete event')
     }
   }
 
@@ -160,17 +177,17 @@ export default function EventsPage() {
   return (
     <div className="page-container">
       {/* Page Header */}
-      <div className="page-header">
+      <div className="page-header d-flex justify-content-between align-items-start mb-4">
         <div className="page-title">
           <h2 className="mb-0 text-brand-primary">Events Management</h2>
           <p className="text-brand-muted mb-0">Manage barangay events and activities</p>
         </div>
         <div className="page-actions">
           {canManage && (
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               size="lg"
-              onClick={() => setShowForm(true)} 
+              onClick={() => setShowForm(true)}
               disabled={loading}
               className="btn-brand-primary"
             >

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { 
   Button, 
   Form, 
@@ -10,170 +10,116 @@ import {
   ToastContainer
 } from 'react-bootstrap'
 import { 
-  Plus, 
   Search, 
   Filter, 
   Eye, 
   Download,
   Printer,
   XCircle,
-  Trash2
+  Trash2,
+  RotateCcw
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { 
   getIssuedCertificates, 
-  createIssuedCertificate,
   invalidateCertificate,
   deleteIssuedCertificate,
+  restoreIssuedCertificate,
   downloadCertificatePdf,
   previewCertificatePdf,
   printCertificatePdf,
-  type IssuedCertificate as IssuedCertificateType,
-  type IssuedCertificateForm
+  getIssuedCertificatesListCached,
+  setIssuedCertificatesListCached,
+  type IssuedCertificate as IssuedCertificateType
 } from '../../services/certificate.service'
-import { getCertificateRequests } from '../../services/certificate.service'
-import { listResidents } from '../../services/residents.service'
 import LoadingSkeleton from '../ui/LoadingSkeleton'
 import Badge from '../ui/Badge'
 import ButtonComponent from '../ui/Button'
 
 interface IssuedCertificatesProps {
   certificateType?: 'barangay_clearance' | 'indigency' | 'residency' | 'business_permit_endorsement' | 'solo_parent'
+  archived?: boolean
 }
 
-export default function IssuedCertificates({ certificateType }: IssuedCertificatesProps = {}) {
+export default function IssuedCertificates({ certificateType, archived = false }: IssuedCertificatesProps = {}) {
   const [certificates, setCertificates] = useState<IssuedCertificateType[]>([])
-  const [residents, setResidents] = useState<any[]>([])
-  const [approvedRequests, setApprovedRequests] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [showInvalidateModal, setShowInvalidateModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showRestoreModal, setShowRestoreModal] = useState(false)
   const [selectedCertificate, setSelectedCertificate] = useState<IssuedCertificateType | null>(null)
-  // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState(certificateType || 'all')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [formData, setFormData] = useState<IssuedCertificateForm>({
-    certificate_request_id: 0,
-    resident_id: 0,
-    certificate_type: (certificateType as any) || 'barangay_clearance',
-    purpose: '',
-    valid_from: '',
-    valid_until: '',
-    signed_by: '',
-    signature_position: ''
-  })
-  const [residentSearchTerm, setResidentSearchTerm] = useState('')
-  const [filteredResidents, setFilteredResidents] = useState<any[]>([])
-  const [requestSearchTerm, setRequestSearchTerm] = useState('')
-  const [filteredRequests, setFilteredRequests] = useState<any[]>([])
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({
     show: false,
     message: '',
     variant: 'success'
   })
 
-  // Debounce input value to search query (300ms delay)
+  const listKey = useMemo(
+    () => `issued-certs:${archived ? 'archived:' : ''}${debouncedSearch}:${currentPage}:${statusFilter}:${typeFilter}`,
+    [archived, debouncedSearch, currentPage, statusFilter, typeFilter]
+  )
+
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(searchInput)
       setCurrentPage(1)
     }, 300)
-
     return () => clearTimeout(timeoutId)
   }, [searchInput])
 
-  useEffect(() => {
-    fetchCertificates()
-    fetchResidents()
-    fetchApprovedRequests()
-  }, [currentPage, debouncedSearch, statusFilter, typeFilter])
+  const fetchCertificates = useCallback(
+    async (showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) setLoading(true)
+      try {
+        const response = await getIssuedCertificates({
+          page: currentPage,
+          search: debouncedSearch || undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined,
+          certificate_type: typeFilter !== 'all' ? typeFilter : undefined,
+          per_page: 10,
+          archived: archived ? true : undefined
+        })
+        const list = response?.data?.data ?? []
+        const lastPage = response?.data?.last_page ?? 1
+        setCertificates(Array.isArray(list) ? list : [])
+        setTotalPages(lastPage)
+        if (!archived) {
+          setIssuedCertificatesListCached(k, { data: Array.isArray(list) ? list : [], last_page: lastPage })
+        }
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        if (archived && msg) {
+          setToast({ show: true, message: msg, variant: 'danger' })
+        }
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [currentPage, debouncedSearch, statusFilter, typeFilter, listKey, archived]
+  )
 
   useEffect(() => {
-    if (residents.length > 0) {
-      const filtered = residents.filter(resident =>
-        resident.full_name?.toLowerCase().includes(residentSearchTerm.toLowerCase()) ||
-        resident.first_name?.toLowerCase().includes(residentSearchTerm.toLowerCase()) ||
-        resident.last_name?.toLowerCase().includes(residentSearchTerm.toLowerCase())
-      )
-      setFilteredResidents(filtered)
+    if (archived) {
+      fetchCertificates(true, listKey)
+      return
     }
-  }, [residents, residentSearchTerm])
-
-  useEffect(() => {
-    if (approvedRequests.length > 0) {
-      const filtered = approvedRequests.filter(request =>
-        request.resident?.full_name?.toLowerCase().includes(requestSearchTerm.toLowerCase()) ||
-        request.certificate_type?.toLowerCase().includes(requestSearchTerm.toLowerCase()) ||
-        request.purpose?.toLowerCase().includes(requestSearchTerm.toLowerCase())
-      )
-      setFilteredRequests(filtered)
-    }
-  }, [approvedRequests, requestSearchTerm])
-
-  const fetchCertificates = async () => {
-    try {
-      setLoading(true)
-      const response = await getIssuedCertificates({
-        page: currentPage,
-        search: debouncedSearch || undefined,
-        status: statusFilter !== 'all' ? statusFilter : undefined,
-        certificate_type: typeFilter !== 'all' ? typeFilter : undefined,
-        per_page: 10
-      })
-      
-      setCertificates(response.data.data)
-      setTotalPages(response.data.last_page)
-    } catch (error) {
-      console.error('Failed to fetch issued certificates:', error)
-    } finally {
+    const cached = getIssuedCertificatesListCached<{ data: IssuedCertificateType[]; last_page: number }>(listKey)
+    if (cached != null) {
+      setCertificates(cached.data)
+      setTotalPages(cached.last_page)
       setLoading(false)
+      fetchCertificates(false, listKey).catch(() => {})
+      return
     }
-  }
-
-  const fetchResidents = async () => {
-    try {
-      const response = await listResidents({ page: 1, per_page: 1000 })
-      setResidents(response.data.data)
-    } catch (error) {
-      console.error('Failed to fetch residents:', error)
-    }
-  }
-
-  const fetchApprovedRequests = async () => {
-    try {
-      const response = await getCertificateRequests({ status: 'approved', per_page: 100 })
-      setApprovedRequests(response.data.data)
-    } catch (error) {
-      console.error('Failed to fetch approved requests:', error)
-    }
-  }
-
-  const handleCreateCertificate = async () => {
-    try {
-      await createIssuedCertificate(formData)
-      setShowCreateModal(false)
-      setFormData({
-        certificate_request_id: 0,
-        resident_id: 0,
-        certificate_type: 'barangay_clearance',
-        purpose: '',
-        valid_from: '',
-        valid_until: '',
-        signed_by: '',
-        signature_position: ''
-      })
-      setResidentSearchTerm('')
-      setRequestSearchTerm('')
-      fetchCertificates()
-    } catch (error) {
-      console.error('Failed to create certificate:', error)
-    }
-  }
+    fetchCertificates(true, listKey)
+  }, [listKey, fetchCertificates, archived])
 
   const handleInvalidate = async () => {
     if (!selectedCertificate) return
@@ -182,9 +128,9 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       await invalidateCertificate(selectedCertificate.id)
       setShowInvalidateModal(false)
       setSelectedCertificate(null)
-      fetchCertificates()
-    } catch (error) {
-      console.error('Failed to invalidate certificate:', error)
+      fetchCertificates(true)
+    } catch {
+      // Optionally toast
     }
   }
 
@@ -197,17 +143,31 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       setSelectedCertificate(null)
       setToast({
         show: true,
-        message: 'Certificate deleted successfully',
+        message: 'Record archived successfully',
         variant: 'success'
       })
-      fetchCertificates()
-    } catch (error: any) {
-      console.error('Failed to delete certificate:', error)
+      fetchCertificates(true)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } }
       setToast({
         show: true,
-        message: error?.response?.data?.message || 'Failed to delete certificate',
+        message: error?.response?.data?.message || 'Failed to archive certificate',
         variant: 'danger'
       })
+    }
+  }
+
+  const handleRestore = async () => {
+    if (!selectedCertificate || !archived) return
+    try {
+      await restoreIssuedCertificate(selectedCertificate.id)
+      setShowRestoreModal(false)
+      setSelectedCertificate(null)
+      setToast({ show: true, message: 'Restored successfully', variant: 'success' })
+      fetchCertificates(true)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } } }
+      setToast({ show: true, message: error?.response?.data?.message || 'Failed to restore', variant: 'danger' })
     }
   }
 
@@ -230,8 +190,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       link.click()
       document.body.removeChild(link)
       window.URL.revokeObjectURL(url)
-    } catch (error: any) {
-      console.error('Failed to download PDF:', error)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to download certificate PDF'
       alert(errorMessage)
     }
@@ -254,8 +214,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       } else {
         throw new Error('Failed to generate preview URL')
       }
-    } catch (error: any) {
-      console.error('Failed to preview PDF:', error)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to preview certificate PDF'
       alert(errorMessage)
     }
@@ -269,8 +229,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       
       const printPromise = printCertificatePdf(certificate.id)
       await Promise.race([printPromise, timeoutPromise])
-    } catch (error: any) {
-      console.error('Failed to print PDF:', error)
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { message?: string } }; message?: string }
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to print certificate PDF'
       alert(errorMessage)
     }
@@ -318,13 +278,9 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
-          <h5 className="mb-1 text-brand-primary">Issued Certificates</h5>
-          <p className="text-brand-muted mb-0">Manage and track issued certificates</p>
+          <h5 className="mb-1 text-brand-primary">{archived ? 'Archived Issued Certificates' : 'Issued Certificates'}</h5>
+          <p className="text-brand-muted mb-0">{archived ? 'View and restore archived certificates' : 'Manage and track issued certificates'}</p>
         </div>
-        <ButtonComponent onClick={() => setShowCreateModal(true)}>
-          <Plus size={16} className="me-2" />
-          Issue Certificate
-        </ButtonComponent>
       </div>
 
       {/* Filters */}
@@ -365,7 +321,7 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
             </Form.Select>
           </div>
           <div className="col-md-2">
-            <ButtonComponent variant="outline" onClick={fetchCertificates}>
+            <ButtonComponent variant="outline" onClick={() => fetchCertificates(true)}>
               <Filter size={16} className="me-2" />
               Filter
             </ButtonComponent>
@@ -444,45 +400,61 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
                         >
                           <Eye size={14} />
                         </ButtonComponent>
-                        <ButtonComponent
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDownloadPdf(certificate)}
-                          title="Download PDF"
-                        >
-                          <Download size={14} />
-                        </ButtonComponent>
-                        <ButtonComponent
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handlePrintPdf(certificate)}
-                          title="Print PDF"
-                        >
-                          <Printer size={14} />
-                        </ButtonComponent>
-                        <ButtonComponent
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setSelectedCertificate(certificate)
-                            setShowInvalidateModal(true)
-                          }}
-                          disabled={!certificate.is_valid}
-                          title="Invalidate Certificate"
-                        >
-                          <XCircle size={14} />
-                        </ButtonComponent>
-                        <ButtonComponent
-                          size="sm"
-                          variant="danger"
-                          onClick={() => {
-                            setSelectedCertificate(certificate)
-                            setShowDeleteModal(true)
-                          }}
-                          title="Delete Certificate"
-                        >
-                          <Trash2 size={14} />
-                        </ButtonComponent>
+                        {archived ? (
+                          <ButtonComponent
+                            size="sm"
+                            variant="outline-primary"
+                            onClick={() => {
+                              setSelectedCertificate(certificate)
+                              setShowRestoreModal(true)
+                            }}
+                            title="Restore"
+                          >
+                            <RotateCcw size={14} />
+                          </ButtonComponent>
+                        ) : (
+                          <>
+                            <ButtonComponent
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDownloadPdf(certificate)}
+                              title="Download PDF"
+                            >
+                              <Download size={14} />
+                            </ButtonComponent>
+                            <ButtonComponent
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handlePrintPdf(certificate)}
+                              title="Print PDF"
+                            >
+                              <Printer size={14} />
+                            </ButtonComponent>
+                            <ButtonComponent
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedCertificate(certificate)
+                                setShowInvalidateModal(true)
+                              }}
+                              disabled={!certificate.is_valid}
+                              title="Invalidate Certificate"
+                            >
+                              <XCircle size={14} />
+                            </ButtonComponent>
+                            <ButtonComponent
+                              size="sm"
+                              variant="danger"
+                              onClick={() => {
+                                setSelectedCertificate(certificate)
+                                setShowDeleteModal(true)
+                              }}
+                              title="Archive"
+                            >
+                              <Trash2 size={14} />
+                            </ButtonComponent>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -528,208 +500,6 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
         )}
       </div>
 
-      {/* Create Certificate Modal */}
-      <Modal show={showCreateModal} onHide={() => setShowCreateModal(false)} size="lg">
-        <Modal.Header closeButton className="modal-header-custom">
-          <Modal.Title className="modal-title-custom text-brand-primary">Issue New Certificate</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="modal-body-custom">
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Certificate Request</Form.Label>
-              <div className="position-relative">
-                <Form.Control
-                  id="request-search"
-                  name="request-search"
-                  type="text"
-                  placeholder="Search for an approved request..."
-                  value={requestSearchTerm}
-                  onChange={(e) => setRequestSearchTerm(e.target.value)}
-                  onFocus={() => setRequestSearchTerm('')}
-                />
-                {requestSearchTerm && (
-                  <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
-                    {filteredRequests.length > 0 ? (
-                      filteredRequests.map((request) => (
-                        <div
-                          key={request.id}
-                          className="px-3 py-2"
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setFormData({ 
-                              ...formData, 
-                              certificate_request_id: request.id,
-                              resident_id: request.resident_id || 0,
-                              certificate_type: request.certificate_type || 'barangay_clearance',
-                              purpose: request.purpose || ''
-                            })
-                            setRequestSearchTerm(`${request.resident?.full_name} - ${getCertificateTypeLabel(request.certificate_type)}`)
-                          }}
-                        >
-                          <div className="fw-medium">{request.resident?.full_name}</div>
-                          <small className="text-muted">
-                            {getCertificateTypeLabel(request.certificate_type)} • {request.purpose?.substring(0, 50)}...
-                          </small>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-muted">No approved requests found</div>
-                    )}
-                  </div>
-                )}
-                {formData.certificate_request_id > 0 && (
-                  <div className="mt-2">
-                    <small className="text-success">
-                      Selected: {approvedRequests.find(r => r.id === formData.certificate_request_id)?.resident?.full_name} - {getCertificateTypeLabel(approvedRequests.find(r => r.id === formData.certificate_request_id)?.certificate_type || '')}
-                    </small>
-                  </div>
-                )}
-              </div>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Resident</Form.Label>
-              <div className="position-relative">
-                <Form.Control
-                  id="resident-search-issued"
-                  name="resident-search-issued"
-                  type="text"
-                  placeholder="Search for a resident..."
-                  value={residentSearchTerm}
-                  onChange={(e) => setResidentSearchTerm(e.target.value)}
-                  onFocus={() => setResidentSearchTerm('')}
-                />
-                {residentSearchTerm && (
-                  <div className="position-absolute w-100 bg-white border rounded-bottom" style={{ zIndex: 1000, maxHeight: '200px', overflowY: 'auto' }}>
-                    {filteredResidents.length > 0 ? (
-                      filteredResidents.map((resident) => (
-                        <div
-                          key={resident.id}
-                          className="px-3 py-2"
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
-                          style={{ cursor: 'pointer' }}
-                          onClick={() => {
-                            setFormData({ ...formData, resident_id: resident.id })
-                            setResidentSearchTerm(resident.full_name)
-                          }}
-                        >
-                          <div className="fw-medium">{resident.full_name}</div>
-                          <small className="text-muted">
-                            {resident.household?.address} • {resident.relationship_to_head}
-                          </small>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="px-3 py-2 text-muted">No residents found</div>
-                    )}
-                  </div>
-                )}
-                {formData.resident_id > 0 && (
-                  <div className="mt-2">
-                    <small className="text-success">
-                      Selected: {residents.find(r => r.id === formData.resident_id)?.full_name}
-                    </small>
-                  </div>
-                )}
-              </div>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Certificate Type</Form.Label>
-              <Form.Select
-                id="certificate-type-issued"
-                name="certificate-type-issued"
-                value={formData.certificate_type}
-                onChange={(e) => setFormData({ ...formData, certificate_type: e.target.value as any })}
-              >
-                <option value="barangay_clearance">Barangay Clearance</option>
-                <option value="indigency">Indigency Certificate</option>
-                <option value="residency">Residency Certificate</option>
-                <option value="business_permit_endorsement">Business Permit Endorsement</option>
-              </Form.Select>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Purpose</Form.Label>
-              <Form.Control
-                id="purpose-issued"
-                name="purpose-issued"
-                as="textarea"
-                rows={3}
-                value={formData.purpose}
-                onChange={(e) => setFormData({ ...formData, purpose: e.target.value })}
-                placeholder="Describe the purpose of this certificate..."
-              />
-            </Form.Group>
-            
-            <div className="row">
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Valid From</Form.Label>
-                  <Form.Control
-                    id="valid-from"
-                    name="valid-from"
-                    type="date"
-                    value={formData.valid_from}
-                    onChange={(e) => setFormData({ ...formData, valid_from: e.target.value })}
-                  />
-                </Form.Group>
-              </div>
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Valid Until</Form.Label>
-                  <Form.Control
-                    id="valid-until"
-                    name="valid-until"
-                    type="date"
-                    value={formData.valid_until}
-                    onChange={(e) => setFormData({ ...formData, valid_until: e.target.value })}
-                  />
-                </Form.Group>
-              </div>
-            </div>
-            
-            <div className="row">
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Signed By</Form.Label>
-                  <Form.Control
-                    id="signed-by"
-                    name="signed-by"
-                    value={formData.signed_by}
-                    onChange={(e) => setFormData({ ...formData, signed_by: e.target.value })}
-                    placeholder="Name of signatory"
-                  />
-                </Form.Group>
-              </div>
-              <div className="col-md-6">
-                <Form.Group className="mb-3">
-                  <Form.Label>Position</Form.Label>
-                  <Form.Control
-                    id="signature-position"
-                    name="signature-position"
-                    value={formData.signature_position}
-                    onChange={(e) => setFormData({ ...formData, signature_position: e.target.value })}
-                    placeholder="Position/Title"
-                  />
-                </Form.Group>
-              </div>
-            </div>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer className="modal-footer-custom">
-          <Button variant="secondary" onClick={() => setShowCreateModal(false)} className="btn-brand-secondary">
-            Cancel
-          </Button>
-          <ButtonComponent onClick={handleCreateCertificate} className="btn-brand-primary">
-            Issue Certificate
-          </ButtonComponent>
-        </Modal.Footer>
-      </Modal>
-
       {/* Invalidate Confirmation Modal */}
       <Modal show={showInvalidateModal} onHide={() => setShowInvalidateModal(false)}>
         <Modal.Header closeButton className="modal-header-custom">
@@ -759,11 +529,11 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
         </Modal.Footer>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete (Archive) Confirmation Modal */}
       <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
         <Modal.Header closeButton className="modal-header-custom">
           <Modal.Title className="modal-title-custom text-brand-primary">
-            Delete Certificate
+            Archive Certificate
           </Modal.Title>
         </Modal.Header>
         <Modal.Body className="modal-body-custom">
@@ -774,9 +544,8 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
               <p><strong>Type:</strong> {getCertificateTypeLabel(selectedCertificate.certificate_type)}</p>
             </div>
           )}
-          <Alert variant="danger">
-            <strong>Warning:</strong> Are you sure you want to permanently delete this certificate? 
-            This action cannot be undone and the certificate record will be removed from the system.
+          <Alert variant="warning">
+            <strong>Archive:</strong> This certificate will be moved to the Archive. You can restore it later from the Archive tab.
           </Alert>
         </Modal.Body>
         <Modal.Footer className="modal-footer-custom">
@@ -785,7 +554,37 @@ export default function IssuedCertificates({ certificateType }: IssuedCertificat
           </Button>
           <ButtonComponent variant="danger" onClick={handleDelete} className="btn-danger">
             <Trash2 size={14} className="me-2" />
-            Delete Permanently
+            Archive
+          </ButtonComponent>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Restore Confirmation Modal */}
+      <Modal show={showRestoreModal} onHide={() => setShowRestoreModal(false)}>
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">
+            Restore Certificate
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="modal-body-custom">
+          {selectedCertificate && (
+            <div className="mb-3">
+              <p><strong>Certificate Number:</strong> {selectedCertificate.certificate_number}</p>
+              <p><strong>Resident:</strong> {selectedCertificate.resident?.full_name}</p>
+              <p><strong>Type:</strong> {getCertificateTypeLabel(selectedCertificate.certificate_type)}</p>
+            </div>
+          )}
+          <Alert variant="info">
+            Restore this certificate to the active Issued Certificates list?
+          </Alert>
+        </Modal.Body>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => setShowRestoreModal(false)} className="btn-brand-secondary">
+            Cancel
+          </Button>
+          <ButtonComponent variant="primary" onClick={handleRestore} className="btn-brand-primary">
+            <RotateCcw size={14} className="me-2" />
+            Restore
           </ButtonComponent>
         </Modal.Footer>
       </Modal>

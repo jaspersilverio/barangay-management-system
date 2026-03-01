@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Button, Alert } from 'react-bootstrap'
 import { useAuth } from '../../context/AuthContext'
 import OfficialList from '../../components/officials/OfficialList'
@@ -12,6 +12,8 @@ import {
   updateOfficial,
   deleteOfficial,
   toggleOfficialActive,
+  getOfficialsListCached,
+  setOfficialsListCached,
   OFFICIAL_POSITION_OPTIONS,
   SK_POSITION_OPTIONS
 } from '../../services/officials.service'
@@ -23,6 +25,10 @@ interface PersonnelPageProps {
   addButtonLabel: string
 }
 
+function cacheKey(cat: string, search: string, position: string, active: boolean | null): string {
+  return `officials:${cat}:${search}:${position}:${active === null ? '' : String(active)}`
+}
+
 export default function PersonnelPage({
   category,
   title,
@@ -30,11 +36,9 @@ export default function PersonnelPage({
   addButtonLabel
 }: PersonnelPageProps) {
   const { user } = useAuth()
-  // Admin, captain, and staff can manage (create/edit/toggle); only admin and captain can delete
   const canManage = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'staff'
   const canDelete = user?.role === 'admin' || user?.role === 'captain'
 
-  // State
   const [officials, setOfficials] = useState<Official[]>([])
   const [selectedOfficial, setSelectedOfficial] = useState<Official | null>(null)
   const [loading, setLoading] = useState(true)
@@ -43,47 +47,57 @@ export default function PersonnelPage({
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  // Filters
   const [filters, setFilters] = useState({
     search: '',
     position: '',
     active: null as boolean | null
   })
 
-  // Load personnel
-  const loadOfficials = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const key = useMemo(
+    () => cacheKey(category, filters.search, filters.position, filters.active),
+    [category, filters.search, filters.position, filters.active]
+  )
 
-      const params: any = {
-        category // Always filter by category
+  const loadOfficials = useCallback(
+    async (showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? key
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
       }
-      if (filters.search) params.search = filters.search
-      if (filters.position) params.position = filters.position
-      if (filters.active !== null) params.active = filters.active
+      try {
+        const params: Record<string, string | boolean> = { category }
+        if (filters.search) params.search = filters.search
+        if (filters.position) params.position = filters.position
+        if (filters.active !== null) params.active = filters.active
 
-      const response = await getOfficials(params)
-
-      if (response.success) {
-        // Set data immediately - no delays
-        const officialsData = response.data.data || []
-        setOfficials(officialsData)
-      } else {
-        setError(response.message || 'Failed to load personnel')
+        const response = await getOfficials(params)
+        if (response.success) {
+          const officialsData = response.data?.data ?? []
+          setOfficials(officialsData)
+          setOfficialsListCached(k, officialsData)
+        } else {
+          setError(response.message || 'Failed to load personnel')
+        }
+      } catch {
+        setError('Failed to load personnel')
+      } finally {
+        if (showLoading) setLoading(false)
       }
-    } catch (error) {
-      console.error('Error loading personnel:', error)
-      setError('Failed to load personnel')
-    } finally {
-      // Clear loading state immediately when data is ready
-      setLoading(false)
-    }
-  }
+    },
+    [category, filters, key]
+  )
 
   useEffect(() => {
-    loadOfficials()
-  }, [filters])
+    const cached = getOfficialsListCached<Official[]>(key)
+    if (cached != null) {
+      setOfficials(cached)
+      setLoading(false)
+      loadOfficials(false, key).catch(() => {})
+      return
+    }
+    loadOfficials(true, key)
+  }, [key, loadOfficials])
 
   // Handle form submission
   const handleFormSubmit = async (data: CreateOfficialData) => {
@@ -114,23 +128,19 @@ export default function PersonnelPage({
         setSuccess(selectedOfficial ? 'Personnel updated successfully' : 'Personnel created successfully')
         setShowForm(false)
         setSelectedOfficial(null)
-        // Reload personnel to get updated data including new photo URLs
-        await loadOfficials()
+        await loadOfficials(false)
       } else {
         setError(response.message || 'Failed to save personnel')
       }
-    } catch (error: any) {
-      console.error('Error saving personnel:', error)
-
-      // Handle validation errors
-      if (error.response?.status === 422 && error.response?.data?.errors) {
-        const validationErrors = error.response.data.errors
-        const errorMessages = Object.values(validationErrors).flat().join(', ')
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { errors?: Record<string, string[]>; message?: string } } }).response : undefined
+      if (res?.status === 422 && res?.data?.errors) {
+        const errorMessages = Object.values(res.data.errors).flat().join(', ')
         setError(`Validation errors: ${errorMessages}`)
-      } else if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to perform this action.')
+      } else if (res?.status === 403) {
+        setError(res?.data?.message || 'You do not have permission to perform this action.')
       } else {
-        setError(error.response?.data?.message || 'Failed to save personnel')
+        setError(res?.data?.message || 'Failed to save personnel')
       }
     } finally {
       setFormLoading(false)
@@ -162,13 +172,9 @@ export default function PersonnelPage({
       } else {
         setError(response.message || 'Failed to delete personnel')
       }
-    } catch (error: any) {
-      console.error('Error deleting personnel:', error)
-      if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to delete personnel.')
-      } else {
-        setError(error.response?.data?.message || 'Failed to delete personnel')
-      }
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { message?: string } } }).response : undefined
+      setError(res?.status === 403 ? (res?.data?.message || 'You do not have permission to delete personnel.') : (res?.data?.message || 'Failed to delete personnel'))
     }
   }
 
@@ -193,13 +199,9 @@ export default function PersonnelPage({
       } else {
         setError(response.message || 'Failed to update personnel status')
       }
-    } catch (error: any) {
-      console.error('Error updating personnel status:', error)
-      if (error.response?.status === 403) {
-        setError(error.response?.data?.message || 'You do not have permission to change personnel status.')
-      } else {
-        setError(error.response?.data?.message || 'Failed to update personnel status')
-      }
+    } catch (err: unknown) {
+      const res = err && typeof err === 'object' && 'response' in err ? (err as { response?: { status?: number; data?: { message?: string } } }).response : undefined
+      setError(res?.status === 403 ? (res?.data?.message || 'You do not have permission to change personnel status.') : (res?.data?.message || 'Failed to update personnel status'))
     }
   }
 
@@ -247,18 +249,20 @@ export default function PersonnelPage({
           <h2 className="mb-1 text-brand-primary">{title}</h2>
           <p className="text-brand-muted mb-0">{description}</p>
         </div>
-        {canManage && (
-          <Button
-            variant="primary"
-            onClick={() => {
-              setSelectedOfficial(null)
-              setShowForm(true)
-            }}
-            className="btn-brand-primary"
-          >
-            ➕ {addButtonLabel}
-          </Button>
-        )}
+        <div className="d-flex align-items-center gap-2">
+          {canManage && (
+            <Button
+              variant="primary"
+              onClick={() => {
+                setSelectedOfficial(null)
+                setShowForm(true)
+              }}
+              className="btn-brand-primary"
+            >
+              ➕ {addButtonLabel}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Alerts */}

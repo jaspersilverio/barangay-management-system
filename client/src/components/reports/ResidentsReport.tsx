@@ -1,17 +1,26 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Card, Form, Button, Table, Badge, Pagination, Alert } from 'react-bootstrap'
 import { Download, Filter, Users, Calendar, MapPin } from 'lucide-react'
-import { getResidentsReport, exportResidentsCsv, type ResidentReport, type ReportFilters } from '../../services/reports.service'
+import {
+  getResidentsReport,
+  exportResidentsCsv,
+  getResidentsReportCached,
+  setResidentsReportCached,
+  type ResidentReport,
+  type ReportFilters
+} from '../../services/reports.service'
 import { usePuroks } from '../../context/PurokContext'
 import api from '../../services/api'
+
+function reportKey(f: ReportFilters, page: number): string {
+  return `residents:${f.date_from ?? ''}:${f.date_to ?? ''}:${f.purok_id ?? ''}:${f.sex ?? ''}:${f.vulnerabilities ?? ''}:${page}`
+}
 
 export default function ResidentsReport() {
   const { puroks } = usePuroks()
   const [residents, setResidents] = useState<ResidentReport[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
@@ -24,33 +33,49 @@ export default function ResidentsReport() {
     per_page: 15
   })
 
-  useEffect(() => {
-    loadReport()
-  }, [filters, currentPage]) // These dependencies are fine as they're primitive values
+  const listKey = useMemo(() => reportKey(filters, currentPage), [filters, currentPage])
 
-  const loadReport = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      const response = await getResidentsReport({
-        ...filters,
-        per_page: filters.per_page || 15
-      })
-      
-      if (response.success) {
-        setResidents(response.data.data)
-        setTotalPages(response.data.last_page)
-        setTotal(response.data.total)
-      } else {
-        setError(response.message || 'Failed to load residents report')
+  const loadReport = useCallback(
+    async (showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
       }
-    } catch (err: any) {
-      setError(err?.response?.data?.message || 'Failed to load residents report')
-    } finally {
+      try {
+        const response = await getResidentsReport({
+          ...filters,
+          per_page: filters.per_page || 15
+        })
+        if (response.success) {
+          setResidents(response.data.data)
+          setTotalPages(response.data.last_page)
+          setTotal(response.data.total)
+          setResidentsReportCached(k, { data: response.data.data, last_page: response.data.last_page, total: response.data.total })
+        } else {
+          setError(response.message || 'Failed to load residents report')
+        }
+      } catch {
+        setError('Failed to load residents report')
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [filters, listKey]
+  )
+
+  useEffect(() => {
+    const cached = getResidentsReportCached<{ data: ResidentReport[]; last_page: number; total: number }>(listKey)
+    if (cached != null) {
+      setResidents(cached.data)
+      setTotalPages(cached.last_page)
+      setTotal(cached.total)
       setLoading(false)
+      loadReport(false, listKey).catch(() => {})
+      return
     }
-  }
+    loadReport(true, listKey)
+  }, [listKey, loadReport, filters])
 
   const handleFilterChange = (key: keyof ReportFilters, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -58,11 +83,8 @@ export default function ResidentsReport() {
   }
 
   const handleExport = async (type: 'pdf' | 'csv') => {
+    setError(null)
     try {
-      setExporting(true)
-      setExportType(type)
-      setError(null)
-
       if (type === 'csv') {
         // CSV export - use dedicated CSV export function
         await exportResidentsCsv(filters)
@@ -93,13 +115,9 @@ export default function ResidentsReport() {
 
         setError(null)
       }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || `Failed to export ${type}`
+    } catch (err: unknown) {
+      const errorMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || `Failed to export ${type}`
       setError(errorMessage)
-      console.error('Export error:', err)
-    } finally {
-      setExporting(false)
-      setExportType(null)
     }
   }
 
@@ -273,22 +291,20 @@ export default function ResidentsReport() {
       {/* Export Buttons */}
       <Row className="mb-4">
         <Col>
-          <div className="d-flex gap-2">
+          <div className="d-flex gap-2 align-items-center">
             <Button
               variant="outline-primary"
               onClick={() => handleExport('pdf')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+              Export PDF
             </Button>
             <Button
               variant="outline-success"
               onClick={() => handleExport('csv')}
-              disabled={exporting}
             >
               <Download size={16} className="me-2" />
-              {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
+              Export CSV
             </Button>
           </div>
         </Col>

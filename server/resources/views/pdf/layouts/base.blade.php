@@ -555,18 +555,14 @@
             @endif
         </div>
     @else
-        {{-- REPORT LAYOUT --}}
+        {{-- REPORT LAYOUT (no logo image for faster PDF generation) --}}
         <div class="page-header">
             <table class="header-table">
                 <tr>
                     <td class="header-left">
-                        @if ($showLogo && $logoSrc)
-                            <img src="{{ $logoSrc }}" alt="Logo" style="width: 70px; height: 70px;">
-                        @else
-                            <div
-                                style="width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; background: linear-gradient(135deg, #1a5276, #2874a6); line-height: 70px; text-align: center; color: white; font-size: 28pt; font-weight: bold;">
-                                B</div>
-                        @endif
+                        <div
+                            style="width: 70px; height: 70px; margin: 0 auto; border-radius: 50%; background: linear-gradient(135deg, #1a5276, #2874a6); line-height: 70px; text-align: center; color: white; font-size: 28pt; font-weight: bold;">
+                            B</div>
                     </td>
                     <td class="header-center">
                         <div style="font-size: 10pt;">Republic of the Philippines</div>

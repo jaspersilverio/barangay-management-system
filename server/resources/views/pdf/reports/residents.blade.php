@@ -46,7 +46,11 @@
         </table>
 
         <div style="margin-top: 20px; font-size: 10pt; color: #666;">
-            <strong>Total Records:</strong> {{ $residents->count() }}
+            @if(!empty($records_limited) && !empty($total_records))
+                <strong>Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records.</strong> Apply filters to narrow results.
+            @else
+                <strong>Total Records:</strong> {{ $residents->count() }}
+            @endif
         </div>
     </div>
 @endsection

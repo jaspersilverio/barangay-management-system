@@ -1,55 +1,73 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination, ToastContainer, Toast } from 'react-bootstrap'
-import { getPuroks, deletePurok, createPurok, updatePurok } from '../../services/puroks.service'
+import {
+  getPuroks,
+  deletePurok,
+  createPurok,
+  updatePurok,
+  getPuroksListCached,
+  setPuroksListCached,
+} from '../../services/puroks.service'
+import type { Purok } from '../../services/puroks.service'
 import PurokFormModal from '../../components/puroks/PurokFormModal'
 import ConfirmModal from '../../components/modals/ConfirmModal'
 import { useNavigate } from 'react-router-dom'
 
+type CachedRes = { data: { data: Purok[]; last_page: number } }
+
 export default function PurokListPage() {
-  const isAdmin = true // Allow all users to perform CRUD operations for demo
+  const isAdmin = true
   const navigate = useNavigate()
 
-  const [items, setItems] = useState<any[]>([])
-  // Separate input value from search query for smooth typing
+  const [items, setItems] = useState<Purok[]>([])
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
-  const [loading, setLoading] = useState(true) // Start with true for immediate skeleton display
+  const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<{ show: boolean; message: string; variant: 'success' | 'danger' }>({ show: false, message: '', variant: 'success' })
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<null | number>(null)
   const [deletingId, setDeletingId] = useState<null | number>(null)
 
-  // Debounce input value to search query (300ms delay)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(searchInput)
-      setPage(1) // Reset to first page when search changes
+      setPage(1)
     }, 300)
-
     return () => clearTimeout(timeoutId)
   }, [searchInput])
 
-  const load = useCallback(async (showLoading = true) => {
-    if (showLoading) setLoading(true)
-    try {
-      const res = await getPuroks({ search: debouncedSearch, page, per_page: 15 })
-      // Set data immediately - no delays
-      const list = res.data.data
-      setItems(list)
-      setTotalPages(res.data.last_page)
-    } catch (err) {
-      console.error('Failed to load puroks:', err)
-    } finally {
-      // Clear loading state immediately when data is ready
-      if (showLoading) setLoading(false)
-    }
-  }, [debouncedSearch, page])
+  const load = useCallback(
+    async (showLoading = true, cacheKey?: string) => {
+      const key = cacheKey ?? `puroks:${debouncedSearch}:${page}`
+      if (showLoading) setLoading(true)
+      try {
+        const res = await getPuroks({ search: debouncedSearch, page, per_page: 15 })
+        setItems(res.data.data)
+        setTotalPages(res.data.last_page)
+        setPuroksListCached(key, res)
+      } catch {
+        // Keep previous data on error
+      } finally {
+        if (showLoading) setLoading(false)
+      }
+    },
+    [debouncedSearch, page]
+  )
 
-  useEffect(() => { 
-    load()
-  }, [load])
+  useEffect(() => {
+    const key = `puroks:${debouncedSearch}:${page}`
+    const cached = getPuroksListCached<CachedRes>(key)
+    if (cached != null) {
+      setItems(cached.data.data)
+      setTotalPages(cached.data.last_page)
+      setLoading(false)
+      load(false, key).catch(() => {})
+      return
+    }
+    load(true, key)
+  }, [load, debouncedSearch, page])
 
   return (
     <div className="page-container">
@@ -106,7 +124,7 @@ export default function PurokListPage() {
                   <th>Purok Name</th>
                   <th>Purok Leader</th>
                   <th>Leader Contact</th>
-                  <th className="actions-column">Actions</th>
+                  <th className="actions-column" style={{ width: '180px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -125,6 +143,7 @@ export default function PurokListPage() {
                         </td>
                         <td>
                           <div className="action-buttons">
+                            <div className="skeleton-button" style={{ width: '60px', height: '28px', marginRight: '5px' }}></div>
                             <div className="skeleton-button" style={{ width: '50px', height: '28px', marginRight: '5px' }}></div>
                             <div className="skeleton-button" style={{ width: '50px', height: '28px' }}></div>
                           </div>
@@ -150,28 +169,31 @@ export default function PurokListPage() {
                       <td>{p.contact || '-'}</td>
                       <td>
                         <div className="action-buttons">
-                          <Button 
-                            size="sm" 
+                          <Button
+                            size="sm"
                             onClick={() => navigate(`/puroks/${p.id}`)}
                             className="btn-action btn-action-view"
+                            title="View Purok"
                           >
                             <i className="fas fa-eye"></i>
                             View
                           </Button>
                           {isAdmin && (
                             <>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 onClick={() => { setEditingId(p.id); setShowForm(true) }}
                                 className="btn-action btn-action-edit"
+                                title="Edit Purok"
                               >
                                 <i className="fas fa-edit"></i>
                                 Edit
                               </Button>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 onClick={() => setDeletingId(p.id)}
                                 className="btn-action btn-action-delete"
+                                title="Delete Purok"
                               >
                                 <i className="fas fa-trash"></i>
                                 Delete
@@ -249,8 +271,11 @@ export default function PurokListPage() {
             setShowForm(false)
             setEditingId(null)
             await load()
-          } catch (e: any) {
-            setToast({ show: true, message: e?.response?.data?.message || 'Save failed', variant: 'danger' })
+          } catch (e: unknown) {
+            const msg = e && typeof e === 'object' && 'response' in e
+              ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+              : null
+            setToast({ show: true, message: msg || 'Save failed', variant: 'danger' })
           }
         }}
         onHide={() => { setShowForm(false); setEditingId(null) }}
@@ -273,13 +298,12 @@ export default function PurokListPage() {
             await deletePurok(deletedId)
             setToast({ show: true, message: 'Purok deleted', variant: 'success' })
             
-            // Reload silently in background without showing loading state
-            load(false).catch(err => {
-              console.error('Failed to reload after delete:', err)
-            })
-          } catch (e: any) {
-            // If delete fails, reload silently to restore the item
-            setToast({ show: true, message: e?.response?.data?.message || 'Delete failed', variant: 'danger' })
+            load(false).catch(() => {})
+          } catch (e: unknown) {
+            const msg = e && typeof e === 'object' && 'response' in e
+              ? (e as { response?: { data?: { message?: string } } }).response?.data?.message
+              : null
+            setToast({ show: true, message: msg || 'Delete failed', variant: 'danger' })
             load(false)
           }
         }}

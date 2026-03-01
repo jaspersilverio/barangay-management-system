@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Row, Col } from 'react-bootstrap'
 import { 
   FileText, 
@@ -11,6 +11,8 @@ import {
 import { 
   getCertificateRequestStatistics, 
   getIssuedCertificateStatistics,
+  getCertificateStatsCached,
+  setCertificateStatsCached,
   type CertificateStatistics,
   type IssuedCertificateStatistics 
 } from '../../services/certificate.service'
@@ -21,28 +23,34 @@ export default function CertificateStatistics() {
   const [issuedStats, setIssuedStats] = useState<IssuedCertificateStatistics | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    fetchStatistics()
-  }, [])
-
-  const fetchStatistics = async () => {
+  const fetchStatistics = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true)
     try {
-      setLoading(true)
       const [requestResponse, issuedResponse] = await Promise.all([
         getCertificateRequestStatistics(),
         getIssuedCertificateStatistics()
       ])
-      
-      // Set data immediately - no delays
       setRequestStats(requestResponse.data)
       setIssuedStats(issuedResponse.data)
-    } catch (error) {
-      console.error('Failed to fetch certificate statistics:', error)
+      setCertificateStatsCached({ requestStats: requestResponse.data, issuedStats: issuedResponse.data })
+    } catch {
+      // Optionally toast
     } finally {
-      // Clear loading state immediately when data is ready
-      setLoading(false)
+      if (showLoading) setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    const cached = getCertificateStatsCached()
+    if (cached != null) {
+      setRequestStats(cached.requestStats)
+      setIssuedStats(cached.issuedStats)
+      setLoading(false)
+      fetchStatistics(false).catch(() => {})
+      return
+    }
+    fetchStatistics(true)
+  }, [fetchStatistics])
 
   if (loading) {
     return (

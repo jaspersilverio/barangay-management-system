@@ -1,5 +1,50 @@
 import api from './api'
 
+const certRequestsListCache: Record<string, unknown> = {}
+const issuedCertificatesListCache: Record<string, unknown> = {}
+let certificateStatsCache: { requestStats?: CertificateStatistics; issuedStats?: IssuedCertificateStatistics } = {}
+
+export function getCertificateRequestsListCached<T = unknown>(key: string): T | undefined {
+  return certRequestsListCache[key] as T | undefined
+}
+
+export function setCertificateRequestsListCached(key: string, value: unknown): void {
+  certRequestsListCache[key] = value
+}
+
+export function clearCertificateRequestsListCache(): void {
+  Object.keys(certRequestsListCache).forEach((k) => delete certRequestsListCache[k])
+}
+
+export function getIssuedCertificatesListCached<T = unknown>(key: string): T | undefined {
+  return issuedCertificatesListCache[key] as T | undefined
+}
+
+export function setIssuedCertificatesListCached(key: string, value: unknown): void {
+  issuedCertificatesListCache[key] = value
+}
+
+export function clearIssuedCertificatesListCache(): void {
+  Object.keys(issuedCertificatesListCache).forEach((k) => delete issuedCertificatesListCache[k])
+}
+
+export function getCertificateStatsCached(): { requestStats: CertificateStatistics; issuedStats: IssuedCertificateStatistics } | null {
+  if (certificateStatsCache.requestStats != null && certificateStatsCache.issuedStats != null) {
+    return { requestStats: certificateStatsCache.requestStats, issuedStats: certificateStatsCache.issuedStats }
+  }
+  return null
+}
+
+export function setCertificateStatsCached(payload: { requestStats: CertificateStatistics; issuedStats: IssuedCertificateStatistics }): void {
+  certificateStatsCache.requestStats = payload.requestStats
+  certificateStatsCache.issuedStats = payload.issuedStats
+}
+
+export function clearCertificateStatsCache(): void {
+  certificateStatsCache.requestStats = undefined
+  certificateStatsCache.issuedStats = undefined
+}
+
 export interface CertificateRequest {
   id: number
   resident_id: number
@@ -17,6 +62,7 @@ export interface CertificateRequest {
   rejected_at?: string
   created_at: string
   updated_at: string
+  deleted_at?: string | null
   resident?: Resident
   requestedBy?: User
   approvedBy?: User
@@ -44,6 +90,7 @@ export interface IssuedCertificate {
   signed_at?: string
   created_at: string
   updated_at: string
+  deleted_at?: string | null
   resident?: Resident
   issuedBy?: User
   certificateRequest?: CertificateRequest
@@ -124,8 +171,13 @@ export const getCertificateRequests = async (params?: {
   date_to?: string
   per_page?: number
   page?: number
+  archived?: boolean
 }) => {
-  const response = await api.get('/certificate-requests', { params })
+  const query = { ...params }
+  if (query.archived === true) {
+    query.archived = 1
+  }
+  const response = await api.get('/certificate-requests', { params: query })
   return response.data
 }
 
@@ -164,6 +216,11 @@ export const releaseCertificateRequest = async (id: number, remarks?: string) =>
   return response.data
 }
 
+export const restoreCertificateRequest = async (id: number) => {
+  const response = await api.post(`/certificate-requests/${id}/restore`)
+  return response.data
+}
+
 export const getCertificateRequestStatistics = async () => {
   const response = await api.get('/certificate-requests/statistics')
   return response.data
@@ -179,8 +236,13 @@ export const getIssuedCertificates = async (params?: {
   date_to?: string
   per_page?: number
   page?: number
+  archived?: boolean
 }) => {
-  const response = await api.get('/issued-certificates', { params })
+  const query = { ...params }
+  if (query.archived === true) {
+    query.archived = 1
+  }
+  const response = await api.get('/issued-certificates', { params: query })
   return response.data
 }
 
@@ -201,6 +263,11 @@ export const updateIssuedCertificate = async (id: number, data: Partial<IssuedCe
 
 export const deleteIssuedCertificate = async (id: number) => {
   const response = await api.delete(`/issued-certificates/${id}`)
+  return response.data
+}
+
+export const restoreIssuedCertificate = async (id: number) => {
+  const response = await api.post(`/issued-certificates/${id}/restore`)
   return response.data
 }
 

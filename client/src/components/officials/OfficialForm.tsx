@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Modal, Form, Button, Row, Col } from 'react-bootstrap'
 import { type Official, type CreateOfficialData, POSITION_OPTIONS, OFFICIAL_POSITION_OPTIONS, SK_POSITION_OPTIONS } from '../../services/officials.service'
-import { usePuroks } from '../../context/PurokContext'
 
 interface OfficialFormProps {
   show: boolean
@@ -20,7 +19,6 @@ export default function OfficialForm({
   loading,
   category = 'official' // Default to 'official' for backward compatibility
 }: OfficialFormProps) {
-  const { puroks } = usePuroks()
   const isOfficialCategory = category === 'official'
   const isSKCategory = category === 'sk'
   const isAppointedCategory = category === 'tanod' || category === 'bhw' || category === 'staff'
@@ -41,8 +39,7 @@ export default function OfficialForm({
       sex: '',
       birthdate: '',
       email: '',
-      address: '',
-      purok_id: undefined
+      address: ''
     }),
     ...(isAppointedCategory && {
       full_name: '',
@@ -148,7 +145,6 @@ export default function OfficialForm({
         baseData.birthdate = formatDateForInput((official as any).birthdate)
         baseData.email = (official as any).email || ''
         baseData.address = (official as any).address || ''
-        baseData.purok_id = (official as any).purok_id || undefined
 
         // Calculate age for SK if birthdate exists
         if (isSKCategory && baseData.birthdate) {
@@ -177,8 +173,7 @@ export default function OfficialForm({
           sex: '',
           birthdate: '',
           email: '',
-          address: '',
-          purok_id: undefined
+          address: ''
         }),
         ...(isAppointedCategory && {
           full_name: '',
@@ -514,25 +509,6 @@ export default function OfficialForm({
                             onChange={(e) => handleInputChange('address', e.target.value)}
                             className="modal-form-control"
                           />
-                        </Form.Group>
-                      </Col>
-                    </Row>
-                    <Row>
-                      <Col md={12}>
-                        <Form.Group className="modal-form-group">
-                          <Form.Label className="modal-form-label">Purok</Form.Label>
-                          <Form.Select
-                            value={formData.purok_id || ''}
-                            onChange={(e) => handleInputChange('purok_id', e.target.value ? parseInt(e.target.value) : undefined)}
-                            className="modal-form-control"
-                          >
-                            <option value="">Select Purok</option>
-                            {puroks.map((purok) => (
-                              <option key={purok.id} value={purok.id}>
-                                {purok.name}
-                              </option>
-                            ))}
-                          </Form.Select>
                         </Form.Group>
                       </Col>
                     </Row>

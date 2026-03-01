@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Models\BarangayInfo;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,113 +26,109 @@ use Illuminate\Support\Facades\Storage;
 class PdfService
 {
     /**
-     * Get barangay information from BarangayInfo model (singleton - id = 1)
+     * Get barangay information from BarangayInfo model (singleton - id = 1).
+     * Cached for 5 minutes to avoid repeated DB and disk reads on every PDF export.
      */
     public function getBarangayInfo(): array
     {
-        $barangayInfo = BarangayInfo::find(1);
+        return Cache::remember('pdf_barangay_info', 300, function () {
+            $barangayInfo = BarangayInfo::find(1);
 
-        if (!$barangayInfo) {
+            if (!$barangayInfo) {
+                return [
+                    'barangay_name' => 'Barangay',
+                    'municipality' => 'Municipality',
+                    'province' => 'Province',
+                    'region' => 'Region',
+                    'address' => '',
+                    'contact_number' => '',
+                    'email' => '',
+                    'captain_name' => '',
+                    'logo_path' => null,
+                    'logo_base64' => null,
+                    'captain_signature_base64' => null,
+                ];
+            }
+
+            // Convert logo to base64 for PDF generation (DomPDF can't load URLs)
+            $logoBase64 = null;
+
+            if ($barangayInfo->logo_path) {
+                try {
+                    if (Storage::disk('public')->exists($barangayInfo->logo_path)) {
+                        $logoPath = Storage::disk('public')->path($barangayInfo->logo_path);
+                        if (file_exists($logoPath) && is_readable($logoPath)) {
+                            $imageData = @file_get_contents($logoPath);
+                            if ($imageData !== false) {
+                                $mimeType = $this->getMimeTypeFromExtension($barangayInfo->logo_path);
+                                if (extension_loaded('gd')) {
+                                    $imageInfo = @getimagesizefromstring($imageData);
+                                    if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                        $mimeType = $imageInfo['mime'];
+                                    }
+                                }
+                                if ($mimeType) {
+                                    $logoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                                }
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to load logo for PDF', [
+                        'error' => $e->getMessage(),
+                        'logo_path' => $barangayInfo->logo_path
+                    ]);
+                }
+            }
+
+            // Convert captain signature to base64 for PDF certificates (fallback when no captain user signature)
+            $captainSignatureBase64 = null;
+            if ($barangayInfo->captain_signature_path ?? null) {
+                try {
+                    if (Storage::disk('public')->exists($barangayInfo->captain_signature_path)) {
+                        $sigPath = Storage::disk('public')->path($barangayInfo->captain_signature_path);
+                        if (file_exists($sigPath) && is_readable($sigPath)) {
+                            $imageData = @file_get_contents($sigPath);
+                            if ($imageData !== false && strlen($imageData) > 0 && strlen($imageData) < 5 * 1024 * 1024) {
+                                $mimeType = $this->getMimeTypeFromExtension($barangayInfo->captain_signature_path);
+                                if (extension_loaded('gd')) {
+                                    $imageInfo = @getimagesizefromstring($imageData);
+                                    if ($imageInfo !== false && isset($imageInfo['mime'])) {
+                                        $mimeType = $imageInfo['mime'];
+                                    }
+                                }
+                                if ($mimeType) {
+                                    $captainSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                                }
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to load captain signature for PDF', [
+                        'error' => $e->getMessage(),
+                        'path' => $barangayInfo->captain_signature_path
+                    ]);
+                }
+            }
+
             return [
-                'barangay_name' => 'Barangay',
-                'municipality' => 'Municipality',
-                'province' => 'Province',
-                'region' => 'Region',
-                'address' => '',
-                'contact_number' => '',
-                'email' => '',
-                'captain_name' => '',
-                'logo_path' => null,
-                'logo_base64' => null,
-                'captain_signature_base64' => null,
+                'barangay_name' => $barangayInfo->barangay_name ?? 'Barangay',
+                'municipality' => $barangayInfo->municipality ?? 'Municipality',
+                'province' => $barangayInfo->province ?? 'Province',
+                'region' => $barangayInfo->region ?? 'Region',
+                'address' => $barangayInfo->address ?? '',
+                'contact_number' => $barangayInfo->contact_number ?? '',
+                'email' => $barangayInfo->email ?? '',
+                'captain_name' => $barangayInfo->captain_name ?? '',
+                'secretary_name' => $barangayInfo->secretary_name ?? null,
+                'treasurer_name' => $barangayInfo->treasurer_name ?? null,
+                'logo_path' => $barangayInfo->logo_path,
+                'logo_base64' => $logoBase64,
+                'captain_signature_base64' => $captainSignatureBase64,
+                'name' => $barangayInfo->barangay_name ?? 'Barangay',
+                'contact' => $barangayInfo->contact_number ?? '',
             ];
-        }
-
-        // Convert logo to base64 for PDF generation (DomPDF can't load URLs)
-        $logoBase64 = null;
-        
-        if ($barangayInfo->logo_path) {
-            try {
-                if (Storage::disk('public')->exists($barangayInfo->logo_path)) {
-                    $logoPath = Storage::disk('public')->path($barangayInfo->logo_path);
-                    if (file_exists($logoPath) && is_readable($logoPath)) {
-                        $imageData = @file_get_contents($logoPath);
-                        if ($imageData !== false) {
-                            // Determine MIME type from file extension (works without GD)
-                            $mimeType = $this->getMimeTypeFromExtension($barangayInfo->logo_path);
-                            
-                            // If GD is available, try to get more accurate MIME type
-                            if (extension_loaded('gd')) {
-                                $imageInfo = @getimagesizefromstring($imageData);
-                                if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                    $mimeType = $imageInfo['mime'];
-                                }
-                            }
-                            
-                            if ($mimeType) {
-                                $logoBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                            }
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::warning('Failed to load logo for PDF', [
-                    'error' => $e->getMessage(),
-                    'logo_path' => $barangayInfo->logo_path
-                ]);
-            }
-        }
-
-        // Convert captain signature to base64 for PDF certificates (fallback when no captain user signature)
-        $captainSignatureBase64 = null;
-        if ($barangayInfo->captain_signature_path ?? null) {
-            try {
-                if (Storage::disk('public')->exists($barangayInfo->captain_signature_path)) {
-                    $sigPath = Storage::disk('public')->path($barangayInfo->captain_signature_path);
-                    if (file_exists($sigPath) && is_readable($sigPath)) {
-                        $imageData = @file_get_contents($sigPath);
-                        if ($imageData !== false && strlen($imageData) > 0 && strlen($imageData) < 5 * 1024 * 1024) {
-                            $mimeType = $this->getMimeTypeFromExtension($barangayInfo->captain_signature_path);
-                            if (extension_loaded('gd')) {
-                                $imageInfo = @getimagesizefromstring($imageData);
-                                if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                    $mimeType = $imageInfo['mime'];
-                                }
-                            }
-                            if ($mimeType) {
-                                $captainSignatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                            }
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                Log::warning('Failed to load captain signature for PDF', [
-                    'error' => $e->getMessage(),
-                    'path' => $barangayInfo->captain_signature_path
-                ]);
-            }
-        }
-
-        // Return both new and legacy field names for backward compatibility with PDF templates
-        return [
-            // New structure
-            'barangay_name' => $barangayInfo->barangay_name ?? 'Barangay',
-            'municipality' => $barangayInfo->municipality ?? 'Municipality',
-            'province' => $barangayInfo->province ?? 'Province',
-            'region' => $barangayInfo->region ?? 'Region',
-            'address' => $barangayInfo->address ?? '',
-            'contact_number' => $barangayInfo->contact_number ?? '',
-            'email' => $barangayInfo->email ?? '',
-            'captain_name' => $barangayInfo->captain_name ?? '',
-            'secretary_name' => $barangayInfo->secretary_name ?? null,
-            'treasurer_name' => $barangayInfo->treasurer_name ?? null,
-            'logo_path' => $barangayInfo->logo_path,
-            'logo_base64' => $logoBase64,
-            'captain_signature_base64' => $captainSignatureBase64,
-            // Legacy field names for backward compatibility with existing PDF templates
-            'name' => $barangayInfo->barangay_name ?? 'Barangay',
-            'contact' => $barangayInfo->contact_number ?? '',
-        ];
+        });
     }
 
     /**
@@ -200,7 +197,7 @@ class PdfService
                     'enable-local-file-access' => true,
                     'enable-javascript' => false,
                     'chroot' => realpath(base_path()),
-                    'dpi' => 96,
+                    'dpi' => 72,
                     'fontHeightRatio' => 1.1,
                 ]);
 

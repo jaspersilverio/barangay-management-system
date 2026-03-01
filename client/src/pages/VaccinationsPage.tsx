@@ -1,7 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Row, Col, Card, Form, Button, Alert } from 'react-bootstrap'
 import { Syringe, Filter, Download, Plus } from 'lucide-react'
-import { getVaccinations, getVaccinationStatistics, COMMON_VACCINES, VACCINATION_STATUSES, AGE_GROUPS } from '../services/vaccination.service'
+import {
+  getVaccinations,
+  getVaccinationStatistics,
+  getVaccinationsListCached,
+  setVaccinationsListCached,
+  getVaccinationStatsCached,
+  setVaccinationStatsCached,
+  COMMON_VACCINES,
+  VACCINATION_STATUSES,
+  AGE_GROUPS,
+} from '../services/vaccination.service'
 import { exportVaccinationsToPdf } from '../services/pdf.service'
 import { exportVaccinationsCsv } from '../services/reports.service'
 import { usePuroks } from '../context/PurokContext'
@@ -10,23 +20,26 @@ import VaccinationTable from '../components/vaccinations/VaccinationTable'
 import AddVaccinationModal from '../components/vaccinations/AddVaccinationModal'
 import type { Vaccination, VaccinationFilters, VaccinationStatistics } from '../types'
 
+function listCacheKey(f: VaccinationFilters): string {
+  return `vaccinations:list:${f.search ?? ''}:${f.status ?? ''}:${f.vaccine_name ?? ''}:${f.purok_id ?? ''}:${f.age_group ?? ''}:${f.date_from ?? ''}:${f.date_to ?? ''}:${f.page ?? 1}`
+}
+
+function statsCacheKey(f: VaccinationFilters): string {
+  return `vaccinations:stats:${f.purok_id ?? ''}:${f.date_from ?? ''}:${f.date_to ?? ''}`
+}
+
 export default function VaccinationsPage() {
   const { puroks } = usePuroks()
   const { refreshData: refreshDashboard } = useDashboard()
   const [vaccinations, setVaccinations] = useState<Vaccination[]>([])
   const [statistics, setStatistics] = useState<VaccinationStatistics | null>(null)
-  const [loading, setLoading] = useState(true) // Start with true for immediate skeleton display
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingVaccination, setEditingVaccination] = useState<Vaccination | null>(null)
-  const [exporting, setExporting] = useState(false)
-  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null)
-
-  // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  // Filters
   const [filters, setFilters] = useState<VaccinationFilters>({
     search: '',
     status: '',
@@ -46,64 +59,94 @@ export default function VaccinationsPage() {
     total: 0
   })
 
-  // Debounce input value to search query (300ms delay)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(searchInput)
       setFilters(prev => ({ ...prev, search: searchInput, page: 1 }))
     }, 300)
-
     return () => clearTimeout(timeoutId)
   }, [searchInput])
 
-  const loadVaccinations = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const listKey = useMemo(() => listCacheKey(filters), [filters])
+  const statsKey = useMemo(() => statsCacheKey(filters), [filters.purok_id, filters.date_from, filters.date_to])
 
-      const response = await getVaccinations(filters)
-      if (response.success) {
-        // Set data immediately - no delays
-        setVaccinations(response.data.data)
-        setPagination({
-          current_page: response.data.current_page,
-          last_page: response.data.last_page,
-          per_page: response.data.per_page,
-          total: response.data.total
-        })
-      } else {
+  const loadVaccinations = useCallback(
+    async (showLoading = true, cacheKey?: string) => {
+      const key = cacheKey ?? listKey
+      if (showLoading) {
+        setLoading(true)
+        setError(null)
+      }
+      try {
+        const response = await getVaccinations(filters)
+        if (response.success) {
+          setVaccinations(response.data.data)
+          setPagination({
+            current_page: response.data.current_page,
+            last_page: response.data.last_page,
+            per_page: response.data.per_page,
+            total: response.data.total
+          })
+          setVaccinationsListCached(key, response)
+        } else {
+          setError('Failed to load vaccinations')
+        }
+      } catch {
         setError('Failed to load vaccinations')
+      } finally {
+        if (showLoading) setLoading(false)
       }
-    } catch (err) {
-      console.error('Error loading vaccinations:', err)
-      setError('Failed to load vaccinations')
-    } finally {
-      // Clear loading state immediately when data is ready
-      setLoading(false)
-    }
-  }, [filters])
+    },
+    [filters, listKey]
+  )
 
-  const loadStatistics = useCallback(async () => {
-    try {
-      const response = await getVaccinationStatistics({
-        purok_id: filters.purok_id,
-        date_from: filters.date_from,
-        date_to: filters.date_to
-      })
-      if (response.success) {
-        setStatistics(response.data)
+  const loadStatistics = useCallback(
+    async (cacheKey?: string) => {
+      const key = cacheKey ?? statsKey
+      try {
+        const response = await getVaccinationStatistics({
+          purok_id: filters.purok_id,
+          date_from: filters.date_from,
+          date_to: filters.date_to
+        })
+        if (response.success) {
+          setStatistics(response.data)
+          setVaccinationStatsCached(key, response.data)
+        }
+      } catch {
+        // Keep previous stats on error
       }
-    } catch (err) {
-      console.error('Error loading statistics:', err)
-    }
-  }, [filters.purok_id, filters.date_from, filters.date_to])
+    },
+    [filters.purok_id, filters.date_from, filters.date_to, statsKey]
+  )
 
   useEffect(() => {
-    loadVaccinations()
-    loadStatistics()
-  }, [loadVaccinations, loadStatistics])
+    const listCached = getVaccinationsListCached<{ success: boolean; data: { data: Vaccination[]; current_page: number; last_page: number; per_page: number; total: number } }>(listKey)
+    const statsCached = getVaccinationStatsCached<VaccinationStatistics>(statsKey)
 
-  const handleFilterChange = (key: keyof VaccinationFilters, value: any) => {
+    if (listCached?.success && listCached.data) {
+      setVaccinations(listCached.data.data)
+      setPagination({
+        current_page: listCached.data.current_page,
+        last_page: listCached.data.last_page,
+        per_page: listCached.data.per_page,
+        total: listCached.data.total
+      })
+      setLoading(false)
+      loadVaccinations(false, listKey).catch(() => {})
+    } else {
+      loadVaccinations(true, listKey)
+    }
+
+    if (statsCached != null) {
+      setStatistics(statsCached)
+      loadStatistics(statsKey).catch(() => {})
+    } else {
+      loadStatistics(statsKey)
+    }
+  }, [listKey, statsKey, loadVaccinations, loadStatistics])
+
+  const handleFilterChange = (key: keyof VaccinationFilters, value: string | number | undefined) => {
     setFilters(prev => ({
       ...prev,
       [key]: value,
@@ -155,13 +198,9 @@ export default function VaccinationsPage() {
   }
 
   const handleExport = async (type: 'pdf' | 'csv') => {
+    setError(null)
     try {
-      setExporting(true)
-      setExportType(type)
-      setError(null)
-
-      // Build filter params
-      const params: any = {}
+      const params: Record<string, string | number | undefined> = {}
       if (filters.purok_id) params.purok_id = filters.purok_id
       if (filters.status) params.status = filters.status
       if (filters.vaccine_name) params.vaccine_name = filters.vaccine_name
@@ -173,15 +212,13 @@ export default function VaccinationsPage() {
       if (type === 'pdf') {
         await exportVaccinationsToPdf(params)
       } else {
-        // CSV export
         await exportVaccinationsCsv(params)
       }
-    } catch (err: any) {
-      console.error('Export error:', err)
-      setError(err?.response?.data?.message || `Failed to export ${type.toUpperCase()}`)
-    } finally {
-      setExporting(false)
-      setExportType(null)
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : null
+      setError(msg || `Failed to export ${type.toUpperCase()}`)
     }
   }
 
@@ -196,10 +233,12 @@ export default function VaccinationsPage() {
           </h1>
           <p className="text-brand-muted mb-0">Manage and track vaccination records across all residents</p>
         </div>
-        <Button variant="primary" onClick={() => setShowAddModal(true)} className="btn-brand-primary">
-          <Plus size={16} className="me-2" />
-          Add Vaccination
-        </Button>
+        <div className="d-flex align-items-center gap-2">
+          <Button variant="primary" onClick={() => setShowAddModal(true)} className="btn-brand-primary">
+            <Plus size={16} className="me-2" />
+            Add Vaccination
+          </Button>
+        </div>
       </div>
 
       {/* Statistics Cards (by_status uses computed status: completed, scheduled, pending, overdue) */}
@@ -363,18 +402,16 @@ export default function VaccinationsPage() {
                 <Button
                   variant="outline-primary"
                   onClick={() => handleExport('pdf')}
-                  disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+                  Export PDF
                 </Button>
                 <Button
                   variant="outline-success"
                   onClick={() => handleExport('csv')}
-                  disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
+                  Export CSV
                 </Button>
               </div>
             </Col>

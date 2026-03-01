@@ -1,5 +1,20 @@
 import api from './api'
 
+/** Session cache so approval center shows immediately when navigating back (no loading) */
+const approvalCenterCache: Record<string, unknown> = {}
+
+export function getApprovalQueueCached<T = unknown>(key: string): T | undefined {
+  return approvalCenterCache[key] as T | undefined
+}
+
+export function setApprovalQueueCached(key: string, value: unknown): void {
+  approvalCenterCache[key] = value
+}
+
+export function clearApprovalCenterCache(): void {
+  Object.keys(approvalCenterCache).forEach((k) => delete approvalCenterCache[k])
+}
+
 export interface PendingRequest {
   id: number
   type: 'certificate' | 'blotter' | 'incident'

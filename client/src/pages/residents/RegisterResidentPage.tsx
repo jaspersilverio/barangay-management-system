@@ -55,7 +55,7 @@ export default function RegisterResidentPage() {
       }
 
       const residentResponse = await createResident(residentPayload)
-      
+
       if (!residentResponse.success || !residentResponse.data) {
         throw new Error(residentResponse.message || 'Failed to create resident')
       }
@@ -69,12 +69,12 @@ export default function RegisterResidentPage() {
           property_type: values.new_household_property_type!,
           head_resident_id: createdResident.id, // Use the newly created resident as head
           contact: values.new_household_contact!,
-          purok_id: typeof values.new_household_purok_id === 'string' 
-            ? parseInt(values.new_household_purok_id) 
+          purok_id: typeof values.new_household_purok_id === 'string'
+            ? parseInt(values.new_household_purok_id)
             : values.new_household_purok_id!,
         }
         const householdResponse = await createHousehold(householdPayload)
-        
+
         // Verify the household was created and resident was linked
         if (householdResponse.success && householdResponse.data) {
           // Household created successfully, resident is already linked
@@ -96,7 +96,7 @@ export default function RegisterResidentPage() {
           }
 
           const soloParentResponse = await createSoloParent(soloParentPayload)
-          
+
           if (!soloParentResponse.success) {
             // Log warning but don't fail the entire registration
             console.warn('Solo parent record creation returned unsuccessful:', soloParentResponse.message)
@@ -126,13 +126,13 @@ export default function RegisterResidentPage() {
           <p className="text-muted mb-4">
             Register a new resident. You can assign them to an existing household, create a new household with them as head, or leave them unassigned for now.
           </p>
-        
-        <ResidentFormModal
-          show={showForm}
-          initial={undefined}
-          onSubmit={handleSubmit}
-          onHide={() => navigate('/residents')}
-        />
+
+          <ResidentFormModal
+            show={showForm}
+            initial={undefined}
+            onSubmit={handleSubmit}
+            onHide={() => navigate('/residents')}
+          />
         </div>
       </div>
     </Container>

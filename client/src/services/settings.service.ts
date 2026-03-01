@@ -63,6 +63,20 @@ export type Settings = {
   officials_options?: OfficialOption[] // Officials for dropdown selection
 }
 
+let settingsCache: Settings | null = null
+
+export function getSettingsCached(): Settings | null {
+  return settingsCache
+}
+
+export function setSettingsCached(data: Settings): void {
+  settingsCache = data
+}
+
+export function clearSettingsCache(): void {
+  settingsCache = null
+}
+
 export async function getSettings() {
   const res = await api.get('/settings')
   return res.data as { success: boolean; data: Settings; message: string | null; errors: any }

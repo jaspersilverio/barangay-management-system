@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../services/events.service'
 import type { Event, CreateEventPayload } from '../../services/events.service'
 import { getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { Calendar, MapPin, Plus, Edit, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import EventFormModal from '../events/EventFormModal'
@@ -9,10 +10,15 @@ import ConfirmModal from '../modals/ConfirmModal'
 
 const CACHE_KEY = 'upcomingEvents'
 
+function getCached() {
+  return getDashboardCached<Event[]>(CACHE_KEY) ?? null
+}
+
 export default function UpcomingEvents() {
   const navigate = useNavigate()
-  const [events, setEvents] = useState<Event[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [events, setEvents] = useState<Event[] | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -24,40 +30,33 @@ export default function UpcomingEvents() {
     if (cached != null) {
       setEvents(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchEvents = async () => {
-        try {
-          const response = await getEvents(true) // Get upcoming events only
-          if (response.success) {
-            setEvents(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            setError(response.message || 'Failed to fetch events')
-          }
-        } catch (err: any) {
-          setError(err?.response?.data?.message || 'Events unavailable')
-        }
-      }
-      fetchEvents()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchEvents = async () => {
       try {
-        const response = await getEvents(true) // Get upcoming events only
+        const response = await getEvents(true)
+        if (cancelled) return
         if (response.success) {
           setEvents(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch events')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Events unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Events unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchEvents()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const handleCreateEvent = async (values: CreateEventPayload) => {
     try {

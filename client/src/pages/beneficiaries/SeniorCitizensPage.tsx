@@ -1,9 +1,15 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { Card, Button, Table, Row, Col, Form, Pagination } from 'react-bootstrap'
-import { listResidents } from '../../services/residents.service'
+import {
+  listResidents,
+  getResidentsListCached,
+  setResidentsListCached
+} from '../../services/residents.service'
 import { usePuroks } from '../../context/PurokContext'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
+
+const SENIORS_LIST_KEY_PREFIX = 'residents:seniors:'
 
 export default function SeniorCitizensPage() {
   const { puroks } = usePuroks()
@@ -12,15 +18,13 @@ export default function SeniorCitizensPage() {
   const role = user?.role
   const assignedPurokId = user?.assigned_purok_id ?? null
 
-  // Separate input value from search query for smooth typing
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [purokId, setPurokId] = useState<string>('')
   const [page, setPage] = useState(1)
-  const [isLoading, setIsLoading] = useState(true) // Start with true for immediate skeleton display
+  const [isLoading, setIsLoading] = useState(true)
   const [residentsData, setResidentsData] = useState<any>(null)
 
-  // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null)
   const debounceTimeoutRef = useRef<number | null>(null)
 
@@ -30,53 +34,56 @@ export default function SeniorCitizensPage() {
     return purokId
   }, [purokId, role, assignedPurokId])
 
-  // Debounce input value to search query (300ms delay)
-  useEffect(() => {
-    // Clear any pending debounce when input changes
-    if (debounceTimeoutRef.current) {
-      window.clearTimeout(debounceTimeoutRef.current)
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setDebouncedSearch(searchInput)
-      setPage(1) // Reset to first page when search changes
-    }, 300)
-
-    debounceTimeoutRef.current = timeoutId
-
-    return () => {
-      if (debounceTimeoutRef.current) {
-        window.clearTimeout(debounceTimeoutRef.current)
-      }
-    }
-  }, [searchInput])
-
-  const loadResidents = useCallback(
-    async (overrideSearch?: string, overridePage?: number) => {
-      setIsLoading(true)
-      try {
-        const data = await listResidents({ 
-          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch, 
-          page: overridePage !== undefined ? overridePage : page, 
-          purok_id: effectivePurokId || undefined,
-          seniors: true, // Filter for seniors only
-          per_page: 15 
-        })
-        // Set data immediately - no delays
-        setResidentsData(data)
-      } catch (err) {
-        console.error('Error loading senior citizens:', err)
-      } finally {
-        // Clear loading state immediately when data is ready
-        setIsLoading(false)
-      }
-    },
+  const listKey = useMemo(
+    () => `${SENIORS_LIST_KEY_PREFIX}${debouncedSearch}:${page}:${effectivePurokId}`,
     [debouncedSearch, page, effectivePurokId]
   )
 
   useEffect(() => {
-    loadResidents()
-  }, [loadResidents])
+    if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(1)
+    }, 300)
+    debounceTimeoutRef.current = timeoutId
+    return () => {
+      if (debounceTimeoutRef.current) window.clearTimeout(debounceTimeoutRef.current)
+    }
+  }, [searchInput])
+
+  const loadResidents = useCallback(
+    async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKeyArg?: string) => {
+      const k = cacheKeyArg ?? listKey
+      if (showLoading) setIsLoading(true)
+      try {
+        const data = await listResidents({
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch,
+          page: overridePage !== undefined ? overridePage : page,
+          purok_id: effectivePurokId || undefined,
+          seniors: true,
+          per_page: 15
+        })
+        setResidentsData(data)
+        setResidentsListCached(k, data)
+      } catch {
+        // Optionally set toast on error
+      } finally {
+        if (showLoading) setIsLoading(false)
+      }
+    },
+    [debouncedSearch, page, effectivePurokId, listKey]
+  )
+
+  useEffect(() => {
+    const cached = getResidentsListCached(listKey)
+    if (cached != null) {
+      setResidentsData(cached)
+      setIsLoading(false)
+      loadResidents(undefined, undefined, false, listKey).catch(() => {})
+      return
+    }
+    loadResidents(undefined, undefined, true, listKey)
+  }, [listKey, loadResidents])
 
   const items = useMemo(() => {
     if (!residentsData?.data?.data) return []
@@ -98,25 +105,15 @@ export default function SeniorCitizensPage() {
     // Page reset is handled in debounce effect
   }, [])
 
-  // Manual search trigger for Enter key or Search button
   const handleSearchSubmit = useCallback(() => {
-    // Cancel any pending debounced search to avoid duplicate requests
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current)
       debounceTimeoutRef.current = null
     }
-
-    const searchTerm = searchInput
-    setDebouncedSearch(searchTerm)
+    setDebouncedSearch(searchInput)
     setPage(1)
-    // Trigger an immediate search using the latest input value
-    loadResidents(searchTerm, 1)
-
-    // Ensure the input keeps focus after triggering search
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-  }, [searchInput, loadResidents])
+    if (searchInputRef.current) searchInputRef.current.focus()
+  }, [searchInput])
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -142,7 +139,7 @@ export default function SeniorCitizensPage() {
   return (
     <div className="page-container page-sub">
       {/* Page Header */}
-      <div className="page-header">
+      <div className="page-header mb-4">
         <div className="page-title">
           <h2 className="mb-0 text-brand-primary">Senior Citizens</h2>
           <p className="text-brand-muted mb-0">Manage senior citizen beneficiaries (60 years and above)</p>

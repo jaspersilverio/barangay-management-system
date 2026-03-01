@@ -132,7 +132,6 @@ export type BlotterSummary = {
   resolvedThisMonth: number
   monthlyTrend: Array<{
     month: string
-    open: number
     ongoing: number
     resolved: number
   }>

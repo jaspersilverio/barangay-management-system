@@ -38,7 +38,7 @@ class ReportController extends Controller
 
         // Apply filters
         if ($request->filled('purok_id')) {
-            $query->where('purok_id', $request->purok_id);
+            $query->where('households.purok_id', (int) $request->purok_id);
         }
 
         if ($request->filled('date_from')) {
@@ -100,8 +100,9 @@ class ReportController extends Controller
 
         // Apply filters
         if ($request->filled('purok_id')) {
-            $query->whereHas('household', function ($q) use ($request) {
-                $q->where('purok_id', $request->purok_id);
+            $purokId = (int) $request->purok_id;
+            $query->whereHas('household', function ($q) use ($purokId) {
+                $q->where('purok_id', $purokId);
             });
         }
 
@@ -256,7 +257,7 @@ class ReportController extends Controller
         $query = Household::with(['purok', 'residents', 'headResident']);
 
         if (isset($filters['purok_id'])) {
-            $query->where('purok_id', $filters['purok_id']);
+            $query->where('purok_id', (int) $filters['purok_id']);
         }
 
         if (isset($filters['date_from'])) {
@@ -278,8 +279,9 @@ class ReportController extends Controller
         $query = Resident::with(['household.purok']);
 
         if (isset($filters['purok_id'])) {
-            $query->whereHas('household', function ($q) use ($filters) {
-                $q->where('purok_id', $filters['purok_id']);
+            $purokId = (int) $filters['purok_id'];
+            $query->whereHas('household', function ($q) use ($purokId) {
+                $q->where('purok_id', $purokId);
             });
         }
 
@@ -463,8 +465,8 @@ class ReportController extends Controller
                 $query->search($filters['search']);
             }
 
-            // STEP 4: Execute query
-            $households = $query->get();
+            // STEP 4: Execute query (limit for fast export)
+            $households = $query->limit(1000)->get();
 
             // STEP 5: Sort households alphabetically by head of household name
             // Convert to array, sort, then convert back to collection to ensure proper sorting
@@ -572,13 +574,14 @@ class ReportController extends Controller
                 $query->search($filters['search']);
             }
 
-            // STEP 4: Execute query and sort alphabetically
+            // STEP 4: Execute query and sort (limit for fast export)
             $residents = $query->leftJoin('households', 'residents.household_id', '=', 'households.id')
                 ->leftJoin('puroks', 'households.purok_id', '=', 'puroks.id')
                 ->select('residents.*', 'puroks.name as purok_name')
                 ->orderBy('residents.last_name', 'asc')
                 ->orderBy('residents.first_name', 'asc')
                 ->orderBy('residents.middle_name', 'asc')
+                ->limit(1000)
                 ->get();
 
             Log::info('CSV export initiated', [
@@ -655,10 +658,11 @@ class ReportController extends Controller
                 });
             }
 
-            // STEP 2: Eager load relationships and sort (alphabetically by case number)
+            // STEP 2: Eager load relationships and sort (limit for fast export)
             $blotters = $query
                 ->with(['complainant.household.purok', 'respondent.household.purok', 'official', 'creator'])
                 ->orderBy('case_number', 'asc')
+                ->limit(1000)
                 ->get();
 
             Log::info('Blotter CSV export initiated', [
@@ -791,7 +795,7 @@ class ReportController extends Controller
 
         // Location and status
         $location = $blotter->incident_location ?? 'N/A';
-        $status = ucfirst($blotter->status ?? 'Open');
+        $status = ucfirst($blotter->status ?? 'ongoing');
 
         // Created by
         $createdBy = 'N/A';
@@ -1035,8 +1039,8 @@ class ReportController extends Controller
                 $purokQuery->where('id', $user->assigned_purok_id);
             }
 
-            // Get puroks data (same logic as puroks() method)
-            $puroks = $purokQuery->get()
+            // Get puroks data (limit for fast export; typically few puroks)
+            $puroks = $purokQuery->limit(100)->get()
                 ->map(function ($purok) {
                     // Get only non-deleted households
                     $households = \App\Models\Household::where('purok_id', $purok->id)
@@ -1570,8 +1574,8 @@ class ReportController extends Controller
                 $query->byPurok($request->purok_id);
             }
 
-            // Execute query
-            $soloParents = $query->get();
+            // Execute query (limit for fast export)
+            $soloParents = $query->limit(1000)->get();
 
             // Sort alphabetically by resident name (last name, first name)
             $soloParentsArray = $soloParents->all();
@@ -1859,8 +1863,8 @@ class ReportController extends Controller
                 });
             }
 
-            // STEP 5: Execute query and sort
-            $vaccinations = $query->orderBy('date_administered', 'desc')->get();
+            // STEP 5: Execute query and sort (limit for fast export)
+            $vaccinations = $query->orderBy('date_administered', 'desc')->limit(1000)->get();
 
             Log::info('Vaccinations CSV export initiated', [
                 'vaccination_count' => $vaccinations->count(),
@@ -1918,11 +1922,12 @@ class ReportController extends Controller
                 $query->search($request->search);
             }
 
-            // STEP 2: Eager load relationships and sort (most recent incidents first)
+            // STEP 2: Eager load relationships and sort (limit for fast export)
             $incidentReports = $query
                 ->with(['reportingOfficer', 'creator'])
                 ->orderBy('incident_date', 'desc')
                 ->orderBy('incident_time', 'desc')
+                ->limit(1000)
                 ->get();
 
             Log::info('Incident reports CSV export initiated', [

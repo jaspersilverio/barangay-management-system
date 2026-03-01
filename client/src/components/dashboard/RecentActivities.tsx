@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react'
 import { getRecentActivities, getDashboardCached, setDashboardCached } from '../../services/dashboard.service'
 import type { RecentActivity } from '../../services/dashboard.service'
+import { useDashboard } from '../../context/DashboardContext'
 import { Clock, Plus, Edit, Trash2 } from 'lucide-react'
 
 const CACHE_KEY = 'recentActivities'
 
+function getCached() {
+  return getDashboardCached<RecentActivity[]>(CACHE_KEY) ?? null
+}
+
 export default function RecentActivities() {
-  const [activities, setActivities] = useState<RecentActivity[] | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { refreshTrigger } = useDashboard()
+  const [activities, setActivities] = useState<RecentActivity[] | null>(() => getCached())
+  const [loading, setLoading] = useState(() => getCached() == null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -15,40 +21,33 @@ export default function RecentActivities() {
     if (cached != null) {
       setActivities(cached)
       setLoading(false)
-      // Refetch in background to ensure data is fresh
-      const fetchActivities = async () => {
-        try {
-          const response = await getRecentActivities()
-          if (response.success) {
-            setActivities(response.data)
-            setDashboardCached(CACHE_KEY, response.data)
-          } else {
-            setError(response.message || 'Failed to fetch activities')
-          }
-        } catch (err: any) {
-          setError(err?.response?.data?.message || 'Activities unavailable')
-        }
-      }
-      fetchActivities()
       return
     }
+    setLoading(true)
+    let cancelled = false
     const fetchActivities = async () => {
       try {
         const response = await getRecentActivities()
+        if (cancelled) return
         if (response.success) {
           setActivities(response.data)
           setDashboardCached(CACHE_KEY, response.data)
         } else {
           setError(response.message || 'Failed to fetch activities')
         }
-      } catch (err: any) {
-        setError(err?.response?.data?.message || 'Activities unavailable')
+      } catch (err: unknown) {
+        if (cancelled) return
+        const message = err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+        setError(message || 'Activities unavailable')
       } finally {
-        setLoading(false)
+        if (!cancelled) setLoading(false)
       }
     }
     fetchActivities()
-  }, [])
+    return () => { cancelled = true }
+  }, [refreshTrigger])
 
   const getActionIcon = (action: string) => {
     switch (action) {

@@ -1,14 +1,22 @@
-import { useState, useEffect } from 'react'
-import { Container, Row, Col, Card, Button, Form, Modal, Badge, Alert } from 'react-bootstrap'
+import { useState, useEffect, useCallback } from 'react'
+import { Row, Col, Card, Button, Form, Modal, Badge, Alert } from 'react-bootstrap'
 import { CheckCircle, XCircle, Clock, Filter, FileText, AlertTriangle, ClipboardList, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
-import { getApprovalQueue, type PendingRequest } from '../services/approval-queue.service'
+import {
+  getApprovalQueue,
+  getApprovalQueueCached,
+  setApprovalQueueCached,
+  type PendingRequest,
+  type ApprovalQueueResponse
+} from '../services/approval-queue.service'
 import { approveCertificateRequest, rejectCertificateRequest } from '../services/certificate.service'
 import blotterService from '../services/blotter.service'
 import { approveIncidentReport, rejectIncidentReport } from '../services/incident-reports.service'
 import { useAuth } from '../context/AuthContext'
 import { useNotifications } from '../context/NotificationContext'
 import { getBarangayInfo } from '../services/barangay-info.service'
+
+const CACHE_KEY_PREFIX = 'approval:'
 
 export default function ApprovalCenter() {
   const { user } = useAuth()
@@ -31,18 +39,10 @@ export default function ApprovalCenter() {
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null)
   const [checkingSignature, setCheckingSignature] = useState(true)
 
-  // Check if user is captain or admin
   const canApprove = user?.role === 'captain' || user?.role === 'admin'
+  const cacheKey = `${CACHE_KEY_PREFIX}${typeFilter}`
 
-  useEffect(() => {
-    if (canApprove) {
-      fetchRequests()
-      checkSignatureStatus()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [typeFilter, canApprove])
-
-  const checkSignatureStatus = async () => {
+  const checkSignatureStatus = useCallback(async () => {
     try {
       setCheckingSignature(true)
       const response = await getBarangayInfo()
@@ -52,27 +52,51 @@ export default function ApprovalCenter() {
         setHasSignature(!!path)
         setSignatureUrl(path ? `${baseUrl}/storage/${path}` : null)
       }
-    } catch (error) {
-      console.error('Failed to check signature status:', error)
+    } catch {
+      // Keep previous state on error
     } finally {
       setCheckingSignature(false)
     }
-  }
+  }, [])
 
-  const fetchRequests = async () => {
-    try {
-      setLoading(true)
-      const response = await getApprovalQueue({ type: typeFilter })
-      if (response.success) {
-        setRequests(response.data)
-        setStatistics(response.statistics)
+  const fetchRequests = useCallback(
+    async (showLoading = true, key?: string) => {
+      const k = key ?? cacheKey
+      if (showLoading) setLoading(true)
+      try {
+        const response = await getApprovalQueue({ type: typeFilter })
+        if (response.success) {
+          setRequests(response.data)
+          setStatistics(response.statistics)
+          setApprovalQueueCached(k, { data: response.data, statistics: response.statistics })
+        }
+      } catch {
+        // Keep previous data on error
+      } finally {
+        if (showLoading) setLoading(false)
       }
-    } catch (error) {
-      console.error('Failed to fetch approval queue:', error)
-    } finally {
+    },
+    [typeFilter, cacheKey]
+  )
+
+  useEffect(() => {
+    if (!canApprove) return
+    checkSignatureStatus()
+  }, [canApprove, checkSignatureStatus])
+
+  useEffect(() => {
+    if (!canApprove) return
+
+    const cached = getApprovalQueueCached<{ data: PendingRequest[]; statistics: ApprovalQueueResponse['statistics'] }>(cacheKey)
+    if (cached) {
+      setRequests(cached.data)
+      setStatistics(cached.statistics)
       setLoading(false)
+      fetchRequests(false, cacheKey).catch(() => {})
+    } else {
+      fetchRequests(true, cacheKey)
     }
-  }
+  }, [canApprove, cacheKey, fetchRequests])
 
   const handleAction = async () => {
     if (!selectedRequest) return
@@ -110,20 +134,19 @@ export default function ApprovalCenter() {
       setRemarks('')
       setProcessing(false)
       
-      // Refresh data in background
-      fetchRequests()
+      fetchRequests(false)
       refreshNotifications()
       // Re-check signature status after approval attempt
       if (actionType === 'approve') {
         checkSignatureStatus()
       }
-    } catch (error: any) {
-      console.error('Failed to perform action:', error)
-      const errorMessage = error.response?.data?.message || 'Failed to perform action'
-      alert(errorMessage)
-      
-      // If error is about missing signature, update status
-      if (errorMessage.includes('signature')) {
+    } catch (err: unknown) {
+      const errorMessage =
+        err && typeof err === 'object' && 'response' in err
+          ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+          : null
+      alert(errorMessage || 'Failed to perform action')
+      if (errorMessage?.includes('signature')) {
         checkSignatureStatus()
       }
       setProcessing(false)
@@ -169,15 +192,9 @@ export default function ApprovalCenter() {
 
   return (
     <div className="page-container">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h1 className="h3 mb-1 text-brand-primary">Approval Center</h1>
-          <p className="text-brand-muted mb-0">Review and approve pending requests</p>
-        </div>
-        <Button variant="outline-primary" onClick={fetchRequests} disabled={loading}>
-          <Clock className="w-4 h-4 mr-2" />
-          Refresh
-        </Button>
+      <div className="mb-4">
+        <h1 className="h3 mb-1 text-brand-primary">Approval Center</h1>
+        <p className="text-brand-muted mb-0">Review and approve pending requests</p>
       </div>
 
       {/* Statistics Cards */}
@@ -268,7 +285,7 @@ export default function ApprovalCenter() {
             <Form.Select
               style={{ maxWidth: '200px' }}
               value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value as any)}
+              onChange={(e) => setTypeFilter(e.target.value as 'all' | 'certificate' | 'blotter' | 'incident')}
             >
               <option value="all">All Types</option>
               <option value="certificate">Certificates</option>

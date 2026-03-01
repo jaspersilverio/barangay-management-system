@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useDashboard } from '../context/DashboardContext';
-import { 
-  Search, 
+import {
+  Search,
   RefreshCw,
   FileText,
   Calendar,
@@ -10,7 +10,16 @@ import {
   CheckCircle,
   Download
 } from 'lucide-react';
-import { type Blotter, type BlotterFilters } from '../services/blotter.service';
+import {
+  type Blotter,
+  type BlotterFilters,
+  type BlotterStatistics,
+  getBlottersListCached,
+  setBlottersListCached,
+  getBlotterStatsCached,
+  setBlotterStatsCached,
+  clearBlotterPageCache,
+} from '../services/blotter.service';
 import blotterService from '../services/blotter.service';
 import AddBlotterModal from '../components/blotter/AddBlotterModal';
 import EditBlotterModal from '../components/blotter/EditBlotterModal';
@@ -20,10 +29,17 @@ import { Button, Alert } from 'react-bootstrap';
 import { exportBlottersToPdf } from '../services/pdf.service';
 import { exportBlottersCsv } from '../services/reports.service';
 
+const STATS_CACHE_KEY = 'blotter:stats';
+
+function listCacheKey(f: BlotterFilters): string {
+  return `blotter:list:${f.search ?? ''}:${f.status ?? ''}:${f.start_date ?? ''}:${f.end_date ?? ''}:${f.per_page ?? 15}:${f.page ?? 1}`;
+}
+
 const BlotterPage: React.FC = () => {
   const { isAuthenticated, user } = useAuth();
   const { refreshData: refreshDashboard } = useDashboard();
   const canDelete = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'purok_leader';
+  const canResolve = user?.role === 'admin' || user?.role === 'captain';
   const [blotters, setBlotters] = useState<Blotter[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedBlotter, setSelectedBlotter] = useState<Blotter | null>(null);
@@ -32,15 +48,12 @@ const BlotterPage: React.FC = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBlotter, setDeleteBlotter] = useState<Blotter | null>(null);
-  const [exporting, setExporting] = useState(false);
-  const [exportType, setExportType] = useState<'pdf' | 'csv' | null>(null);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  // Separate input value from search query for smooth typing
+
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  
-  // Filters and pagination
+
   const [filters, setFilters] = useState<BlotterFilters>({
     search: '',
     status: '',
@@ -56,64 +69,84 @@ const BlotterPage: React.FC = () => {
     total: 0
   });
 
-  // Statistics
-  const [statistics, setStatistics] = useState({
+  const [statistics, setStatistics] = useState<BlotterStatistics>({
     total: 0,
-    open: 0,
     ongoing: 0,
     resolved: 0,
     this_month: 0,
     this_year: 0
   });
 
-  // Debounce input value to search query (300ms delay)
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setDebouncedSearch(searchInput);
       setFilters(prev => ({ ...prev, search: searchInput, page: 1 }));
     }, 300);
-
     return () => clearTimeout(timeoutId);
   }, [searchInput]);
 
-  // Load blotters
-  const loadBlotters = async (showLoading = true) => {
-    try {
-      if (showLoading) setLoading(true);
-      const response = await blotterService.getBlotters(filters);
-      
-      // Set data immediately - no delays
-      setBlotters(response.data);
-      setPagination({
-        current_page: response.current_page,
-        last_page: response.last_page,
-        per_page: response.per_page,
-        total: response.total
-      });
-    } catch (error) {
-      console.error('Error loading blotters:', error);
-    } finally {
-      // Clear loading state immediately when data is ready
-      if (showLoading) setLoading(false);
-    }
-  };
+  const listKey = useMemo(() => listCacheKey(filters), [filters]);
 
-  // Load statistics
-  const loadStatistics = async () => {
+  const loadBlotters = useCallback(
+    async (showLoading = true, cacheKey?: string) => {
+      const key = cacheKey ?? listKey;
+      if (showLoading) setLoading(true);
+      try {
+        const response = await blotterService.getBlotters(filters);
+        setBlotters(response.data);
+        setPagination({
+          current_page: response.current_page,
+          last_page: response.last_page,
+          per_page: response.per_page,
+          total: response.total
+        });
+        setBlottersListCached(key, response);
+      } catch {
+        // Keep previous data on error
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [filters, listKey]
+  );
+
+  const loadStatistics = useCallback(async () => {
     try {
       const response = await blotterService.getStatistics();
       setStatistics(response);
-    } catch (error) {
-      console.error('Error loading statistics:', error);
+      setBlotterStatsCached(STATS_CACHE_KEY, response);
+    } catch {
+      // Keep previous stats on error
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      loadBlotters();
+    if (!isAuthenticated) return;
+
+    const listCached = getBlottersListCached<{ data: Blotter[]; current_page: number; last_page: number; per_page: number; total: number }>(listKey);
+    const statsCached = getBlotterStatsCached<BlotterStatistics>(STATS_CACHE_KEY);
+
+    if (listCached) {
+      setBlotters(listCached.data);
+      setPagination({
+        current_page: listCached.current_page,
+        last_page: listCached.last_page,
+        per_page: listCached.per_page,
+        total: listCached.total
+      });
+      setLoading(false);
+      loadBlotters(false, listKey).catch(() => {});
+    } else {
+      loadBlotters(true, listKey);
+    }
+
+    if (statsCached) {
+      setStatistics(statsCached);
+      loadStatistics().catch(() => {});
+    } else {
       loadStatistics();
     }
-  }, [isAuthenticated, debouncedSearch, filters.status, filters.start_date, filters.end_date, filters.per_page, filters.page]);
+  }, [isAuthenticated, listKey, loadBlotters, loadStatistics]);
 
   const handleFilterChange = (key: keyof BlotterFilters, value: string | number) => {
     setFilters(prev => ({
@@ -174,14 +207,11 @@ const BlotterPage: React.FC = () => {
       const remainingOnPage = blotters.length - 1;
       if (remainingOnPage === 0 && pagination.current_page > 1) {
         // Deleted last item on page, go to previous page
-        setFilters(prev => ({ ...prev, page: prev.page - 1 }));
+        setFilters(prev => ({ ...prev, page: Math.max(1, (prev.page ?? 1) - 1) }));
       }
-    } catch (error) {
-      console.error('Error deleting blotter:', error);
-      // If delete fails, restore previous state
+    } catch {
       setBlotters(previousBlotters);
       setPagination(previousPagination);
-      // Reload to sync with server
       loadBlotters(false);
       loadStatistics();
     }
@@ -202,53 +232,61 @@ const BlotterPage: React.FC = () => {
   };
 
   const handleExport = async (type: 'pdf' | 'csv') => {
+    setError(null);
     try {
-      setExporting(true)
-      setExportType(type)
-      setError(null)
-
       if (type === 'pdf') {
-        // Build query parameters for PDF export
-        const params: any = {}
-        if (filters.status) params.status = filters.status
-        if (filters.start_date) params.start_date = filters.start_date
-        if (filters.end_date) params.end_date = filters.end_date
-        if (debouncedSearch) params.search = debouncedSearch
-
-        await exportBlottersToPdf(params)
-      } else if (type === 'csv') {
+        const params: Record<string, string> = {};
+        if (filters.status) params.status = filters.status;
+        if (filters.start_date) params.start_date = filters.start_date;
+        if (filters.end_date) params.end_date = filters.end_date;
+        if (debouncedSearch) params.search = debouncedSearch;
+        await exportBlottersToPdf(params);
+      } else {
         await exportBlottersCsv({
           status: filters.status,
           start_date: filters.start_date,
           end_date: filters.end_date,
           search: debouncedSearch,
-        })
+        });
       }
-    } catch (err: any) {
-      console.error('Export error:', err)
-      setError(err?.response?.data?.message || `Failed to export ${type.toUpperCase()}`)
-    } finally {
-      setExporting(false)
-      setExportType(null)
+    } catch (err: unknown) {
+      const msg = err && typeof err === 'object' && 'response' in err
+        ? (err as { response?: { data?: { message?: string } } }).response?.data?.message
+        : null;
+      setError(msg || `Failed to export ${type.toUpperCase()}`);
     }
-  }
+  };
+
+  const normalizeStatus = (status?: string) => (status || '').toLowerCase();
 
   const getStatusBadge = (status: string) => {
-    const statusConfig = {
-      'Open': { variant: 'warning', icon: FileText },
-      'Ongoing': { variant: 'info', icon: RefreshCw },
-      'Resolved': { variant: 'success', icon: CheckCircle }
-    };
-
-    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig['Open'];
-    const Icon = config.icon;
+    const normalizedStatus = normalizeStatus(status);
+    const isResolved = normalizedStatus === 'resolved';
+    const Icon = isResolved ? CheckCircle : RefreshCw;
+    const label = isResolved ? 'Resolved' : 'Ongoing';
+    const variant = isResolved ? 'success' : 'warning';
 
     return (
-      <span className={`badge bg-${config.variant} d-flex align-items-center gap-1`}>
+      <span className={`badge bg-${variant} d-flex align-items-center gap-1`}>
         <Icon size={12} />
-        {status}
+        {label}
       </span>
     );
+  };
+
+  const handleMarkResolved = async (blotter: Blotter) => {
+    setResolvingId(blotter.id);
+    setError(null);
+    try {
+      await blotterService.updateBlotter(blotter.id, { status: 'resolved' });
+      await refreshDashboard();
+      loadBlotters(false);
+      loadStatistics();
+    } catch {
+      setError('Failed to mark blotter as resolved.');
+    } finally {
+      setResolvingId(null);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -286,8 +324,8 @@ const BlotterPage: React.FC = () => {
           <p className="text-brand-muted mb-0">Manage incident reports and case tracking</p>
         </div>
         <div className="page-actions">
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="lg"
             onClick={handleAddBlotter}
             className="btn-brand-primary"
@@ -307,19 +345,6 @@ const BlotterPage: React.FC = () => {
                 <div>
                   <h6 className="card-title">Total Cases</h6>
                   <h3 className="mb-0">{statistics.total}</h3>
-                </div>
-                <FileText size={24} />
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="col-md-2">
-          <div className="card bg-warning text-white">
-            <div className="card-body">
-              <div className="d-flex justify-content-between">
-                <div>
-                  <h6 className="card-title">Open</h6>
-                  <h3 className="mb-0">{statistics.open}</h3>
                 </div>
                 <FileText size={24} />
               </div>
@@ -407,9 +432,8 @@ const BlotterPage: React.FC = () => {
                 onChange={(e) => handleFilterChange('status', e.target.value)}
               >
                 <option value="">All Status</option>
-                <option value="Open">Open</option>
-                <option value="Ongoing">Ongoing</option>
-                <option value="Resolved">Resolved</option>
+                <option value="ongoing">Ongoing</option>
+                <option value="resolved">Resolved</option>
               </select>
             </div>
             <div className="col-md-2">
@@ -444,7 +468,7 @@ const BlotterPage: React.FC = () => {
               </select>
             </div>
             <div className="col-md-2 d-flex align-items-end gap-2">
-              <Button variant="outline-secondary" onClick={loadBlotters}>
+              <Button variant="outline-secondary" onClick={() => loadBlotters(true)} title="Reload list">
                 <RefreshCw size={16} />
               </Button>
             </div>
@@ -455,18 +479,16 @@ const BlotterPage: React.FC = () => {
                 <Button
                   variant="outline-primary"
                   onClick={() => handleExport('pdf')}
-                  disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'pdf' ? 'Exporting PDF...' : 'Export PDF'}
+                  Export PDF
                 </Button>
                 <Button
                   variant="outline-success"
                   onClick={() => handleExport('csv')}
-                  disabled={exporting}
                 >
                   <Download size={16} className="me-2" />
-                  {exporting && exportType === 'csv' ? 'Exporting CSV...' : 'Export CSV'}
+                  Export CSV
                 </Button>
               </div>
             </div>
@@ -491,6 +513,7 @@ const BlotterPage: React.FC = () => {
                   <th>Case Number</th>
                   <th>Complainant</th>
                   <th>Respondent</th>
+                  <th>Assigned Official</th>
                   <th>Incident Date</th>
                   <th>Location</th>
                   <th>Status</th>
@@ -532,7 +555,7 @@ const BlotterPage: React.FC = () => {
                   </>
                 ) : blotters.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="text-center py-4 text-brand-muted">
+                    <td colSpan={8} className="text-center py-4 text-brand-muted">
                       No blotter cases found.
                     </td>
                   </tr>
@@ -562,6 +585,7 @@ const BlotterPage: React.FC = () => {
                           </small>
                         </div>
                       </td>
+                      <td>{blotter.assigned_official_display || 'Unassigned'}</td>
                       <td>
                         <div>
                           <div>{formatDate(blotter.incident_date)}</div>
@@ -601,6 +625,28 @@ const BlotterPage: React.FC = () => {
                             <i className="fas fa-edit"></i>
                             Edit
                           </Button>
+                          {canResolve && normalizeStatus(blotter.status) === 'ongoing' && (
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => handleMarkResolved(blotter)}
+                              disabled={resolvingId === blotter.id}
+                              className="btn-action btn-action-success"
+                              title="Mark as Resolved"
+                            >
+                              {resolvingId === blotter.id ? (
+                                <>
+                                  <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                                  Resolving...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fas fa-check-circle"></i>
+                                  Mark as Resolved
+                                </>
+                              )}
+                            </Button>
+                          )}
                           {canDelete && (
                             <Button
                               size="sm"

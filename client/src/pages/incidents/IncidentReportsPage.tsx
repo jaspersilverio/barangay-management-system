@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { 
-  Search, 
+import {
+  Search,
   FileText,
   Calendar,
   MapPin,
@@ -10,11 +10,13 @@ import {
   AlertCircle,
   Download
 } from 'lucide-react';
-import { 
-  type IncidentReport, 
+import {
+  type IncidentReport,
   type IncidentReportListParams,
   listIncidentReports,
   deleteIncidentReport,
+  getIncidentReportsListCached,
+  setIncidentReportsListCached,
   exportIncidentReportsToPdf,
   exportIncidentReportsToCsv
 } from '../../services/incident-reports.service';
@@ -24,19 +26,21 @@ import ViewIncidentReportModal from '../../components/incidents/ViewIncidentRepo
 import DeleteConfirmModal from '../../components/incidents/DeleteConfirmModal';
 import { Button, Alert, Card, Form, Table, Pagination, InputGroup } from 'react-bootstrap';
 
+function listCacheKey(search: string, status: string, start: string, end: string, p: number): string {
+  return `incident-reports:${search}:${status}:${start}:${end}:${p}`;
+}
+
 const IncidentReportsPage: React.FC = () => {
   const { user, isAuthenticated } = useAuth();
   const [incidentReports, setIncidentReports] = useState<IncidentReport[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
   const [selectedIncidentReport, setSelectedIncidentReport] = useState<IncidentReport | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteIncidentReportId, setDeleteIncidentReportId] = useState<number | null>(null);
-  
-  // Filters and pagination
+
   const [inputValue, setInputValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -50,25 +54,23 @@ const IncidentReportsPage: React.FC = () => {
     total: 0
   });
 
-  // Ref to maintain input focus and manage debounce timer
   const searchInputRef = useRef<HTMLInputElement>(null);
   const debounceTimeoutRef = useRef<number | null>(null);
 
-  // Debounce input value to search query (300ms delay)
+  const listKey = useMemo(
+    () => listCacheKey(debouncedSearch, statusFilter, startDate, endDate, page),
+    [debouncedSearch, statusFilter, startDate, endDate, page]
+  );
+
   useEffect(() => {
-    // Clear any pending debounce when input changes
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current);
     }
-
     const timeoutId = window.setTimeout(() => {
       setDebouncedSearch(inputValue);
-      // Reset to first page when search changes
       setPage(1);
     }, 300);
-
     debounceTimeoutRef.current = timeoutId;
-
     return () => {
       if (debounceTimeoutRef.current) {
         window.clearTimeout(debounceTimeoutRef.current);
@@ -76,41 +78,62 @@ const IncidentReportsPage: React.FC = () => {
     };
   }, [inputValue]);
 
-  // Load incident reports - depends on debouncedSearch, not inputValue
-  const loadIncidentReports = useCallback(async (overrideSearch?: string, overridePage?: number, showLoading = true) => {
-    try {
+  const loadIncidentReports = useCallback(
+    async (overrideSearch?: string, overridePage?: number, showLoading = true, cacheKey?: string) => {
+      const key = cacheKey ?? listKey;
       if (showLoading) setLoading(true);
-      const params: IncidentReportListParams = {
-        search: overrideSearch !== undefined ? overrideSearch : debouncedSearch || undefined,
-        status: statusFilter || undefined,
-        start_date: startDate || undefined,
-        end_date: endDate || undefined,
-        page: overridePage !== undefined ? overridePage : page,
-        per_page: 15
-      };
-      
-      const response = await listIncidentReports(params);
-      
-      setIncidentReports(response.data.data);
-      setPagination({
-        current_page: response.data.current_page,
-        last_page: response.data.last_page,
-        per_page: response.data.per_page,
-        total: response.data.total
-      });
-    } catch (error) {
-      console.error('Error loading incident reports:', error);
-    } finally {
-      if (showLoading) setLoading(false);
-    }
-  }, [debouncedSearch, statusFilter, startDate, endDate, page]);
+      try {
+        const params: IncidentReportListParams = {
+          search: overrideSearch !== undefined ? overrideSearch : debouncedSearch || undefined,
+          status: statusFilter || undefined,
+          start_date: startDate || undefined,
+          end_date: endDate || undefined,
+          page: overridePage !== undefined ? overridePage : page,
+          per_page: 15
+        };
+        const response = await listIncidentReports(params);
+        setIncidentReports(response.data.data);
+        setPagination({
+          current_page: response.data.current_page,
+          last_page: response.data.last_page,
+          per_page: response.data.per_page,
+          total: response.data.total
+        });
+        setIncidentReportsListCached(key, response.data);
+      } catch {
+        // Keep previous data on error
+      } finally {
+        if (showLoading) setLoading(false);
+      }
+    },
+    [debouncedSearch, statusFilter, startDate, endDate, page, listKey]
+  );
 
-  // Load data on mount and when dependencies change
   useEffect(() => {
-    if (isAuthenticated) {
-      loadIncidentReports();
+    if (!isAuthenticated) return;
+
+    const cached = getIncidentReportsListCached<{
+      data: IncidentReport[];
+      current_page: number;
+      last_page: number;
+      per_page: number;
+      total: number;
+    }>(listKey);
+
+    if (cached) {
+      setIncidentReports(cached.data);
+      setPagination({
+        current_page: cached.current_page,
+        last_page: cached.last_page,
+        per_page: cached.per_page,
+        total: cached.total
+      });
+      setLoading(false);
+      loadIncidentReports(undefined, undefined, false, listKey).catch(() => {});
+    } else {
+      loadIncidentReports(undefined, undefined, true, listKey);
     }
-  }, [isAuthenticated, loadIncidentReports]);
+  }, [isAuthenticated, listKey, loadIncidentReports]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
@@ -123,25 +146,15 @@ const IncidentReportsPage: React.FC = () => {
     // Page reset is handled in debounce effect
   }, []);
 
-  // Manual search trigger for Enter key or Search button
   const handleSearchSubmit = useCallback(() => {
-    // Cancel any pending debounced search to avoid duplicate requests
     if (debounceTimeoutRef.current) {
       window.clearTimeout(debounceTimeoutRef.current);
       debounceTimeoutRef.current = null;
     }
-
-    const searchTerm = inputValue;
-    setDebouncedSearch(searchTerm);
+    setDebouncedSearch(inputValue);
     setPage(1);
-    // Trigger an immediate search using the latest input value
-    loadIncidentReports(searchTerm, 1);
-
-    // Ensure the input keeps focus after triggering search
-    if (searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [inputValue, loadIncidentReports]);
+    if (searchInputRef.current) searchInputRef.current.focus();
+  }, [inputValue]);
 
   const handleSearchKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -200,12 +213,9 @@ const IncidentReportsPage: React.FC = () => {
         // Deleted last item on page, go to previous page
         setPage(pagination.current_page - 1);
       }
-    } catch (error: any) {
-      console.error('Error deleting incident report:', error);
-      // If delete fails, restore previous state
+    } catch {
       setIncidentReports(previousReports);
       setPagination(previousPagination);
-      // Reload to sync with server
       loadIncidentReports(undefined, undefined, false);
     }
   };
@@ -224,33 +234,27 @@ const IncidentReportsPage: React.FC = () => {
 
   const handleExportPdf = async () => {
     try {
-      setExporting(true);
       await exportIncidentReportsToPdf({
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
-    } catch (error) {
-      console.error('Export error:', error);
-    } finally {
-      setExporting(false);
+    } catch {
+      // Export failed silently or throws
     }
   };
 
   const handleExportCsv = async () => {
     try {
-      setExporting(true);
       await exportIncidentReportsToCsv({
         search: debouncedSearch || undefined,
         status: statusFilter || undefined,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
-    } catch (error) {
-      console.error('Export CSV error:', error);
-    } finally {
-      setExporting(false);
+    } catch {
+      // Export failed silently or throws
     }
   };
 
@@ -309,8 +313,8 @@ const IncidentReportsPage: React.FC = () => {
         </div>
         <div className="page-actions">
           {canManage && (
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               size="lg"
               onClick={handleAddIncidentReport}
               disabled={loading}
@@ -413,18 +417,16 @@ const IncidentReportsPage: React.FC = () => {
               <Button
                 variant="outline-primary"
                 onClick={handleExportPdf}
-                disabled={loading || exporting}
               >
                 <Download size={16} className="me-2" />
-                {exporting ? 'Exporting PDF...' : 'Export PDF'}
+                Export PDF
               </Button>
               <Button
                 variant="outline-success"
                 onClick={handleExportCsv}
-                disabled={loading || exporting}
               >
                 <Download size={16} className="me-2" />
-                {exporting ? 'Exporting CSV...' : 'Export CSV'}
+                Export CSV
               </Button>
             </div>
           </div>

@@ -53,7 +53,6 @@ class UpdateOfficialRequest extends BaseFormRequest
             'birthdate' => ['nullable', 'date'],
             'email' => ['nullable', 'email', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
-            'purok_id' => ['nullable', 'exists:puroks,id'],
             'position' => [
                 'sometimes', 
                 'required', 

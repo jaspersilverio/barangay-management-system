@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Services\PdfService;
 use App\Exports\VaccinationExport;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -64,14 +66,19 @@ class PdfExportController extends Controller
                 $query->search($request->search);
             }
 
-            // Sort alphabetically
-            $residents = $query->orderBy('first_name')->orderBy('last_name')->get();
+            // Sort and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullResidents = $query->orderBy('first_name')->orderBy('last_name')->get();
+            $totalResidents = $fullResidents->count();
+            $residents = $fullResidents->count() > $pdfLimit ? $fullResidents->take($pdfLimit) : $fullResidents;
 
-            // Prepare data
             $data = [
                 'title' => 'Residents List',
                 'document_title' => 'RESIDENTS LIST',
                 'residents' => $residents,
+                'records_limited' => $fullResidents->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalResidents,
                 'filters' => [
                     'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
                     'search' => $request->search ?? 'None',
@@ -136,14 +143,19 @@ class PdfExportController extends Controller
                 $query->where('head_name', 'like', '%' . $request->search . '%');
             }
 
-            // Sort alphabetically
-            $households = $query->orderBy('head_name')->get();
+            // Sort and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullHouseholds = $query->orderBy('head_name')->get();
+            $totalHouseholds = $fullHouseholds->count();
+            $households = $fullHouseholds->count() > $pdfLimit ? $fullHouseholds->take($pdfLimit) : $fullHouseholds;
 
-            // Prepare data
             $data = [
                 'title' => 'Households List',
                 'document_title' => 'HOUSEHOLD MASTERLIST REPORT',
                 'households' => $households,
+                'records_limited' => $fullHouseholds->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalHouseholds,
                 'filters' => [
                     'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
                     'search' => $request->search ?? 'None',
@@ -212,18 +224,20 @@ class PdfExportController extends Controller
                 });
             }
 
-            // Eager load relationships and sort by case number
-            $blotters = $query->with(['complainant.household.purok', 'respondent.household.purok', 'official', 'creator'])
+            // Eager load relationships and sort by case number; limit for fast PDF generation (fewer rows = quicker download)
+            $pdfLimit = 100;
+            $fullBlotters = $query->with(['complainant.household.purok', 'respondent.household.purok', 'official', 'creator'])
                 ->orderBy('case_number', 'asc')
                 ->get();
+            $totalCases = $fullBlotters->count();
+            $ongoingCases = $fullBlotters->where('status', 'ongoing')->count();
+            $resolvedCases = $fullBlotters->where('status', 'resolved')->count();
+            $blotters = $fullBlotters->count() > $pdfLimit ? $fullBlotters->take($pdfLimit) : $fullBlotters;
+            $recordsLimited = $fullBlotters->count() > $pdfLimit;
 
-            // Calculate summary statistics
-            $totalCases = $blotters->count();
-            $pendingCases = $blotters->where('status', 'pending')->count();
-            $ongoingCases = $blotters->whereIn('status', ['ongoing', 'open', 'under_investigation'])->count();
-            $resolvedCases = $blotters->whereIn('status', ['resolved', 'settled', 'closed'])->count();
-            $approvedCases = $blotters->where('status', 'approved')->count();
-            $rejectedCases = $blotters->where('status', 'rejected')->count();
+            $pendingCases = 0;
+            $approvedCases = 0;
+            $rejectedCases = 0;
 
             // Get current user info for "Prepared by"
             $preparedBy = [
@@ -231,42 +245,11 @@ class PdfExportController extends Controller
                 'position' => ucwords(str_replace('_', ' ', $user->role ?? 'Staff')),
             ];
 
-            // Get barangay captain for "Noted by" with signature
+            // Captain name only (no signature image for faster PDF)
             $captain = \App\Models\User::where('role', 'captain')->first();
-            $signatureBase64 = null;
-
-            if ($captain && $captain->signature_path) {
-                try {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($captain->signature_path)) {
-                        $signaturePath = \Illuminate\Support\Facades\Storage::disk('public')->path($captain->signature_path);
-                        if (file_exists($signaturePath) && is_readable($signaturePath)) {
-                            $imageData = @file_get_contents($signaturePath);
-                            if ($imageData !== false) {
-                                // Determine MIME type from extension
-                                $extension = strtolower(pathinfo($captain->signature_path, PATHINFO_EXTENSION));
-                                $mimeTypes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif'];
-                                $mimeType = $mimeTypes[$extension] ?? 'image/png';
-
-                                // If GD available, get more accurate MIME
-                                if (extension_loaded('gd')) {
-                                    $imageInfo = @getimagesizefromstring($imageData);
-                                    if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                        $mimeType = $imageInfo['mime'];
-                                    }
-                                }
-                                $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to load captain signature for blotter PDF', ['error' => $e->getMessage()]);
-                }
-            }
-
             $notedBy = [
                 'name' => $captain ? strtoupper($captain->name) : 'BARANGAY CAPTAIN',
                 'position' => 'Punong Barangay',
-                'signature_base64' => $signatureBase64,
             ];
 
             // Prepare data
@@ -293,6 +276,9 @@ class PdfExportController extends Controller
                 'noted_by' => $notedBy,
                 'generated_date' => date('F d, Y'),
                 'generated_time' => date('h:i A'),
+                'records_limited' => $recordsLimited,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalCases,
             ];
 
             $filename = 'blotter-records-report-' . date('Y-m-d') . '.pdf';
@@ -356,58 +342,28 @@ class PdfExportController extends Controller
                 $query->search($request->search);
             }
 
-            // Eager load relationships and sort by incident date
-            $incidentReports = $query->with(['reportingOfficer', 'creator'])
+            // Eager load, sort, and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullIncidentReports = $query->with(['reportingOfficer', 'creator'])
                 ->orderBy('incident_date', 'desc')
                 ->get();
+            $totalReports = $fullIncidentReports->count();
+            $recordedReports = $fullIncidentReports->where('status', 'Recorded')->count();
+            $monitoringReports = $fullIncidentReports->where('status', 'Monitoring')->count();
+            $resolvedReports = $fullIncidentReports->where('status', 'Resolved')->count();
+            $pendingReports = $fullIncidentReports->where('status', 'pending')->count();
+            $approvedReports = $fullIncidentReports->where('status', 'approved')->count();
+            $incidentReports = $fullIncidentReports->count() > $pdfLimit ? $fullIncidentReports->take($pdfLimit) : $fullIncidentReports;
 
-            // Calculate summary statistics
-            $totalReports = $incidentReports->count();
-            $recordedReports = $incidentReports->where('status', 'Recorded')->count();
-            $monitoringReports = $incidentReports->where('status', 'Monitoring')->count();
-            $resolvedReports = $incidentReports->where('status', 'Resolved')->count();
-            $pendingReports = $incidentReports->where('status', 'pending')->count();
-            $approvedReports = $incidentReports->where('status', 'approved')->count();
-
-            // Get current user info for "Prepared by"
             $preparedBy = [
                 'name' => strtoupper($user->name ?? 'System Administrator'),
                 'position' => ucwords(str_replace('_', ' ', $user->role ?? 'Staff')),
             ];
 
-            // Get barangay captain for "Noted by" with signature
             $captain = \App\Models\User::where('role', 'captain')->first();
-            $signatureBase64 = null;
-
-            if ($captain && $captain->signature_path) {
-                try {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($captain->signature_path)) {
-                        $signaturePath = \Illuminate\Support\Facades\Storage::disk('public')->path($captain->signature_path);
-                        if (file_exists($signaturePath) && is_readable($signaturePath)) {
-                            $imageData = @file_get_contents($signaturePath);
-                            if ($imageData !== false) {
-                                $extension = strtolower(pathinfo($captain->signature_path, PATHINFO_EXTENSION));
-                                $mimeTypes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif'];
-                                $mimeType = $mimeTypes[$extension] ?? 'image/png';
-                                if (extension_loaded('gd')) {
-                                    $imageInfo = @getimagesizefromstring($imageData);
-                                    if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                        $mimeType = $imageInfo['mime'];
-                                    }
-                                }
-                                $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to load captain signature for incident reports PDF', ['error' => $e->getMessage()]);
-                }
-            }
-
             $notedBy = [
                 'name' => $captain ? strtoupper($captain->name) : 'BARANGAY CAPTAIN',
                 'position' => 'Punong Barangay',
-                'signature_base64' => $signatureBase64,
             ];
 
             // Prepare data
@@ -434,6 +390,9 @@ class PdfExportController extends Controller
                 'noted_by' => $notedBy,
                 'generated_date' => date('F d, Y'),
                 'generated_time' => date('h:i A'),
+                'records_limited' => $fullIncidentReports->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalReports,
             ];
 
             $filename = 'incident-reports-' . date('Y-m-d') . '.pdf';
@@ -507,17 +466,15 @@ class PdfExportController extends Controller
                 });
             }
 
-            // Sort by certificate number
-            $certificates = $query->orderBy('certificate_number', 'asc')->get();
-
-            // Calculate summary statistics
-            $totalCertificates = $certificates->count();
-            $validCertificates = $certificates->filter(fn($c) => $c->is_valid && $c->valid_until >= now())->count();
-            $expiredCertificates = $certificates->filter(fn($c) => $c->valid_until < now())->count();
-            $invalidCertificates = $certificates->filter(fn($c) => !$c->is_valid)->count();
-
-            // Count by type
-            $byType = $certificates->groupBy('certificate_type')->map->count();
+            // Sort and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullCertificates = $query->orderBy('certificate_number', 'asc')->get();
+            $totalCertificates = $fullCertificates->count();
+            $validCertificates = $fullCertificates->filter(fn($c) => $c->is_valid && $c->valid_until >= now())->count();
+            $expiredCertificates = $fullCertificates->filter(fn($c) => $c->valid_until < now())->count();
+            $invalidCertificates = $fullCertificates->filter(fn($c) => !$c->is_valid)->count();
+            $byType = $fullCertificates->groupBy('certificate_type')->map->count();
+            $certificates = $fullCertificates->count() > $pdfLimit ? $fullCertificates->take($pdfLimit) : $fullCertificates;
 
             // Get current user info for "Prepared by"
             $preparedBy = [
@@ -555,6 +512,9 @@ class PdfExportController extends Controller
                 'noted_by' => $notedBy,
                 'generated_date' => date('F d, Y'),
                 'generated_time' => date('h:i A'),
+                'records_limited' => $fullCertificates->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalCertificates,
             ];
 
             $filename = 'issued-certificates-report-' . date('Y-m-d') . '.pdf';
@@ -622,14 +582,19 @@ class PdfExportController extends Controller
                 $query->byComputedStatus($request->status);
             }
 
-            // Sort by date declared
-            $soloParents = $query->orderBy('date_declared', 'desc')->get();
+            // Sort and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullSoloParents = $query->orderBy('date_declared', 'desc')->get();
+            $totalSoloParents = $fullSoloParents->count();
+            $soloParents = $fullSoloParents->count() > $pdfLimit ? $fullSoloParents->take($pdfLimit) : $fullSoloParents;
 
-            // Prepare data
             $data = [
                 'title' => 'Solo Parents Report',
                 'document_title' => 'SOLO PARENTS REPORT',
                 'solo_parents' => $soloParents,
+                'records_limited' => $fullSoloParents->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalSoloParents,
                 'filters' => [
                     'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
                     'search' => $request->search ?? 'None',
@@ -813,66 +778,34 @@ class PdfExportController extends Controller
                 });
             }
 
-            // Sort alphabetically by resident's last name, first name and eager load relationships
-            $vaccinations = $query->with(['resident.household.purok'])
+            // Eager load, sort, and limit for fast PDF generation
+            $pdfLimit = 100;
+            $fullVaccinations = $query->with(['resident.household.purok'])
                 ->join('residents', 'vaccinations.resident_id', '=', 'residents.id')
                 ->orderBy('residents.last_name', 'asc')
                 ->orderBy('residents.first_name', 'asc')
                 ->select('vaccinations.*')
                 ->get();
-
-            // Calculate summary statistics
-            $totalRecords = $vaccinations->count();
-            $uniqueResidents = $vaccinations->pluck('resident_id')->unique()->count();
-            $fullyVaccinated = $vaccinations->where('status', 'completed')->count();
-            $partiallyVaccinated = $vaccinations->where('status', 'partial')->count();
-            $pendingVaccinations = $vaccinations->where('status', 'pending')->count();
-
-            // Get most common vaccine
-            $vaccineCounts = $vaccinations->groupBy('vaccine_name')->map->count();
+            $totalRecords = $fullVaccinations->count();
+            $uniqueResidents = $fullVaccinations->pluck('resident_id')->unique()->count();
+            $fullyVaccinated = $fullVaccinations->where('status', 'completed')->count();
+            $partiallyVaccinated = $fullVaccinations->where('status', 'partial')->count();
+            $pendingVaccinations = $fullVaccinations->where('status', 'pending')->count();
+            $vaccineCounts = $fullVaccinations->groupBy('vaccine_name')->map->count();
             $mostCommonVaccine = $vaccineCounts->count() > 0
                 ? $vaccineCounts->sortDesc()->keys()->first()
                 : 'N/A';
+            $vaccinations = $fullVaccinations->count() > $pdfLimit ? $fullVaccinations->take($pdfLimit) : $fullVaccinations;
 
-            // Get current user info for "Prepared by"
             $preparedBy = [
                 'name' => strtoupper($user->name ?? 'System Administrator'),
                 'position' => ucwords(str_replace('_', ' ', $user->role ?? 'Staff')),
             ];
 
-            // Get barangay captain for "Noted by" with signature
             $captain = \App\Models\User::where('role', 'captain')->first();
-            $signatureBase64 = null;
-
-            if ($captain && $captain->signature_path) {
-                try {
-                    if (\Illuminate\Support\Facades\Storage::disk('public')->exists($captain->signature_path)) {
-                        $signaturePath = \Illuminate\Support\Facades\Storage::disk('public')->path($captain->signature_path);
-                        if (file_exists($signaturePath) && is_readable($signaturePath)) {
-                            $imageData = @file_get_contents($signaturePath);
-                            if ($imageData !== false) {
-                                $extension = strtolower(pathinfo($captain->signature_path, PATHINFO_EXTENSION));
-                                $mimeTypes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'gif' => 'image/gif'];
-                                $mimeType = $mimeTypes[$extension] ?? 'image/png';
-                                if (extension_loaded('gd')) {
-                                    $imageInfo = @getimagesizefromstring($imageData);
-                                    if ($imageInfo !== false && isset($imageInfo['mime'])) {
-                                        $mimeType = $imageInfo['mime'];
-                                    }
-                                }
-                                $signatureBase64 = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    Log::warning('Failed to load captain signature for vaccination PDF', ['error' => $e->getMessage()]);
-                }
-            }
-
             $notedBy = [
                 'name' => $captain ? strtoupper($captain->name) : 'BARANGAY CAPTAIN',
                 'position' => 'Punong Barangay',
-                'signature_base64' => $signatureBase64,
             ];
 
             // Prepare data
@@ -902,6 +835,9 @@ class PdfExportController extends Controller
                 'generated_date' => date('F d, Y'),
                 'generated_time' => date('h:i A'),
                 'is_landscape' => true,
+                'records_limited' => $fullVaccinations->count() > $pdfLimit,
+                'records_limit' => $pdfLimit,
+                'total_records' => $totalRecords,
             ];
 
             $filename = 'vaccination-masterlist-report-' . date('Y-m-d') . '.pdf';

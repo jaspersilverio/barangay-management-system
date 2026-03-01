@@ -105,7 +105,7 @@ class BlotterExport implements FromCollection, WithHeadings, WithMapping, WithSt
             $location = $blotter->incident_location ?? 'N/A';
 
             // Get status
-            $status = ucfirst($blotter->status ?? 'Open');
+            $status = ucfirst($blotter->status ?? 'ongoing');
 
             // Get created by
             $createdBy = 'N/A';
@@ -136,7 +136,7 @@ class BlotterExport implements FromCollection, WithHeadings, WithMapping, WithSt
                 'N/A',
                 'N/A',
                 $blotter->incident_location ?? 'N/A',
-                ucfirst($blotter->status ?? 'Open'),
+                ucfirst($blotter->status ?? 'ongoing'),
                 $this->formatDate($blotter->created_at),
                 'N/A',
             ];
