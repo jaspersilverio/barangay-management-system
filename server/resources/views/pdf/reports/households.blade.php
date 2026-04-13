@@ -1,237 +1,20 @@
-<!DOCTYPE html>
-<html>
+@extends('pdf.layouts.base')
 
-<head>
-    <meta charset="utf-8">
-    <title>Household Masterlist Report</title>
-    <style>
-        @page {
-            margin: 15mm 15mm 25mm 15mm;
-        }
-
-        body {
-            font-family: Arial, sans-serif;
-            font-size: 10pt;
-            line-height: 1.4;
-            color: #000;
-            margin: 0;
-            padding: 0;
-        }
-
-        /* Header Styles: Logo left (top-aligned with text), text centered */
-        .report-header {
-            display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding-bottom: 10px;
-            border-bottom: 2px solid #000;
-        }
-
-        .report-header-logo {
-            flex-shrink: 0;
-            width: 60px;
-            height: 60px;
-        }
-
-        .report-header-logo img {
-            width: 60px;
-            height: 60px;
-            object-fit: contain;
-            display: block;
-            vertical-align: middle;
-        }
-
-        .report-header-logo .logo-placeholder {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #1a5276, #2874a6);
-            color: white;
-            font-size: 24pt;
-            font-weight: bold;
-            line-height: 60px;
-            text-align: center;
-        }
-
-        .report-header-text {
-            flex: 1;
-            text-align: center;
-        }
-
-        .report-header .line {
-            margin: 2px 0;
-            font-size: 10pt;
-        }
-
-        .report-header .title {
-            font-size: 14pt;
-            font-weight: bold;
-            margin: 8px 0 0 0;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .report-footer-meta {
-            font-size: 9pt;
-            color: #333;
-            margin-top: 15px;
-            text-align: center;
-        }
-
-        /* Section Styles */
-        .section {
-            margin: 20px 0;
-        }
-
-        .section-title {
-            font-size: 11pt;
-            font-weight: bold;
-            margin: 15px 0 10px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid #333;
-        }
-
-        /* Table Styles */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 10px 0;
-            font-size: 9pt;
-        }
-
-        table thead {
-            background-color: #f0f0f0;
-        }
-
-        table th {
-            padding: 6px 4px;
-            text-align: left;
-            border: 1px solid #000;
-            font-weight: bold;
-            background-color: #e0e0e0;
-            font-size: 9pt;
-        }
-
-        table td {
-            padding: 5px 4px;
-            border: 1px solid #000;
-            font-size: 8pt;
-        }
-
-        table tbody tr:nth-child(even) {
-            background-color: #f9f9f9;
-        }
-
-        /* Household Block */
-        .household-block {
-            margin: 20px 0;
-            padding: 10px;
-            border: 1px solid #333;
-            page-break-inside: avoid;
-        }
-
-        .household-block-title {
-            font-size: 11pt;
-            font-weight: bold;
-            margin-bottom: 8px;
-            background-color: #e0e0e0;
-            padding: 5px;
-        }
-
-        .household-info {
-            margin: 8px 0;
-            font-size: 9pt;
-        }
-
-        .household-info-row {
-            margin: 3px 0;
-        }
-
-        .household-info-label {
-            font-weight: bold;
-            display: inline-block;
-            width: 150px;
-        }
-
-        /* Footer Styles */
-        .report-footer {
-            margin-top: 40px;
-            padding-top: 15px;
-            border-top: 1px solid #333;
-            font-size: 9pt;
-        }
-
-        .signature-section {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 30px;
-            margin-bottom: 20px;
-        }
-
-        .signature-box {
-            text-align: center;
-            width: 200px;
-        }
-
-        .signature-line {
-            border-top: 1px solid #000;
-            width: 180px;
-            margin: 40px auto 5px;
-            height: 1px;
-        }
-
-        .signature-label {
-            font-weight: bold;
-            margin-top: 5px;
-        }
-
-        .page-number {
-            text-align: center;
-            font-size: 9pt;
-            margin-top: 10px;
-            color: #666;
-        }
-
-        .text-center {
-            text-align: center;
-        }
-
-        .text-right {
-            text-align: right;
-        }
-    </style>
-</head>
-
-<body>
-    <!-- Header: placeholder only for faster PDF -->
-    <div class="report-header">
-        <div class="report-header-logo">
-            <div class="logo-placeholder">B</div>
-        </div>
-        <div class="report-header-text">
-            <div class="line">Republic of the Philippines</div>
-            <div class="line">Province of {{ $barangay_info['province'] ?? 'Capiz' }}</div>
-            <div class="line">Municipality of {{ $barangay_info['municipality'] ?? 'Ivisan' }}</div>
-            <div class="line">Barangay {{ $barangay_info['barangay_name'] ?? $barangay_info['name'] ?? 'Poblacion Sur' }}</div>
-            <div class="title">HOUSEHOLD MASTERLIST REPORT</div>
-        </div>
-    </div>
-
-    <!-- SECTION 1: Household Summary Table -->
+@section('content')
     <div class="section">
         <div class="section-title">SECTION 1 – Household Summary</div>
+
         <table>
             <thead>
                 <tr>
                     <th style="width: 5%;">No.</th>
                     <th style="width: 10%;">Household ID</th>
-                    <th style="width: 18%;">Head of Household</th>
+                    <th style="width: 20%;">Head of Household</th>
                     <th style="width: 12%;">Purok</th>
-                    <th style="width: 20%;">Complete Address</th>
-                    <th style="width: 8%;">Total Members</th>
+                    <th style="width: 23%;">Complete Address</th>
+                    <th style="width: 8%;">Members</th>
                     <th style="width: 12%;">Date Registered</th>
-                    <th style="width: 8%;">Status</th>
+                    <th style="width: 10%;">Status</th>
                 </tr>
             </thead>
             <tbody>
@@ -239,7 +22,11 @@
                     <tr>
                         <td style="text-align: center;">{{ $index + 1 }}</td>
                         <td style="text-align: center;">{{ $household->id }}</td>
-                        <td>{{ $household->head_name ?? ($household->headResident ? $household->headResident->full_name : 'N/A') }}
+                        <td>
+                            {{ $household->head_name
+                                ?? ($household->headResident
+                                    ? ($household->headResident->full_name ?? trim(($household->headResident->last_name ?? '') . ', ' . ($household->headResident->first_name ?? '')) )
+                                    : 'N/A') }}
                         </td>
                         <td>{{ $household->purok->name ?? 'N/A' }}</td>
                         <td>{{ $household->address ?? 'N/A' }}</td>
@@ -258,53 +45,14 @@
                 @endforelse
             </tbody>
         </table>
-        @if(!empty($records_limited) && !empty($total_records))
-            <div style="margin-top: 10px; font-size: 9pt; color: #666;">Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records. Apply filters to narrow results.</div>
+
+        @if (!empty($records_limited) && !empty($total_records))
+            <div style="margin-top: 10px; font-size: 9pt; color: #666;">
+                Showing first {{ $records_limit ?? 100 }} of {{ number_format($total_records) }} records. Apply filters to
+                narrow results.
+            </div>
         @endif
     </div>
 
+@endsection
 
-    <!-- Footer -->
-    <div class="report-footer">
-        <div class="signature-section">
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Prepared by</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Reviewed by</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line"></div>
-                <div class="signature-label">Approved by</div>
-            </div>
-        </div>
-        <div style="text-align: center; margin-top: 20px;">
-            <div
-                style="width: 80px; height: 80px; margin: 0 auto; border: 2px solid #000; display: flex; align-items: center; justify-content: center; font-size: 10pt; color: #999;">
-                Barangay<br>Seal
-            </div>
-        </div>
-        <div class="report-footer-meta">
-            Date Generated: {{ $generated_date ?? date('F d, Y') }} | Generated by: {{ $generated_by ?? 'System' }}
-        </div>
-        <div class="page-number">
-            Page <span class="pagenum"></span>
-        </div>
-    </div>
-
-    <script type="text/php">
-        if (isset($pdf)) {
-            $text = "Page {PAGE_NUM} of {PAGE_COUNT}";
-            $size = 9;
-            $font = $fontMetrics->getFont("Arial");
-            $width = $fontMetrics->get_text_width($text, $font, $size) / 2;
-            $x = ($pdf->get_width() - $width) / 2;
-            $y = $pdf->get_height() - 20;
-            $pdf->page_text($x, $y, $text, $font, $size);
-        }
-    </script>
-</body>
-
-</html>

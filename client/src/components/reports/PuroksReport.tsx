@@ -127,26 +127,7 @@ export default function PuroksReport() {
   return (
     <div>
       {/* Export Buttons */}
-      <Row className="mb-4">
-        <Col>
-          <div className="d-flex gap-2 align-items-center">
-            <Button
-              variant="outline-primary"
-              onClick={() => handleExport('pdf')}
-            >
-              <Download size={16} className="me-2" />
-              Export PDF
-            </Button>
-            <Button
-              variant="outline-success"
-              onClick={() => handleExport('csv')}
-            >
-              <Download size={16} className="me-2" />
-              Export CSV
-            </Button>
-          </div>
-        </Col>
-      </Row>
+      
 
       {/* Error Alert */}
       {error && (
@@ -240,6 +221,27 @@ export default function PuroksReport() {
         </Col>
       </Row>
 
+      <Row className="mb-4">
+        <Col>
+          <div className="d-flex gap-2 align-items-center">
+            <Button
+              variant="outline-primary"
+              onClick={() => handleExport('pdf')}
+            >
+              <Download size={16} className="me-2" />
+              Export PDF
+            </Button>
+            <Button
+              variant="outline-success"
+              onClick={() => handleExport('csv')}
+            >
+              <Download size={16} className="me-2" />
+              Export CSV
+            </Button>
+          </div>
+        </Col>
+      </Row>
+
       {/* Puroks Summary Table */}
       <Row className="mb-3">
         <Col>
@@ -253,7 +255,7 @@ export default function PuroksReport() {
             <thead className="table-light">
               <tr>
                 <th>Purok</th>
-                                    <th>Leader</th>
+                <th>Leader</th>
                 <th>Contact</th>
                 <th>Households</th>
                 <th>Residents</th>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Modal, Button, Row, Col, Badge, Alert } from 'react-bootstrap';
-import { X, FileText, MapPin, Calendar, Clock, User, AlertCircle, ArrowRight } from 'lucide-react';
+import { X, FileText, MapPin, Calendar, Clock, User, AlertCircle, ArrowRight, Download } from 'lucide-react';
 import { type IncidentReport } from '../../services/incident-reports.service';
+import { downloadIncidentReportPdf } from '../../services/pdf.service';
 import { useNavigate } from 'react-router-dom';
 
 interface ViewIncidentReportModalProps {
@@ -102,6 +103,14 @@ const ViewIncidentReportModal: React.FC<ViewIncidentReportModalProps> = ({
 
   const personsInvolved = getPersonsInvolved();
 
+  const handleExportPdf = async () => {
+    try {
+      await downloadIncidentReportPdf(incidentReport.id);
+    } catch {
+      // Silent failure; errors are logged in service
+    }
+  };
+
   return (
     <Modal show={show} onHide={onHide} size="xl" centered>
       <Modal.Header className="border-0 pb-0">
@@ -114,6 +123,14 @@ const ViewIncidentReportModal: React.FC<ViewIncidentReportModalProps> = ({
         </Button>
       </Modal.Header>
       <Modal.Body>
+        <Row className="mb-3">
+          <Col className="d-flex justify-content-end">
+            <Button variant="outline-primary" size="sm" onClick={handleExportPdf}>
+              <Download size={14} className="me-1" />
+              Export PDF
+            </Button>
+          </Col>
+        </Row>
         <Row>
           <Col md={12}>
             <div className="d-flex justify-content-between align-items-center mb-3">

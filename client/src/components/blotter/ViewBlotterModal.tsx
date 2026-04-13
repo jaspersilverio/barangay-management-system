@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { X, FileText, User, MapPin, Calendar, Clock, Download, Eye } from 'lucide-react';
 import { type Blotter } from '../../services/blotter.service';
+import { downloadBlotterPdf } from '../../services/pdf.service';
 
 interface ViewBlotterModalProps {
   show: boolean;
@@ -94,6 +95,14 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
   const complainantInfo = getComplainantInfo();
   const respondentInfo = getRespondentInfo();
 
+  const handleExportPdf = async () => {
+    try {
+      await downloadBlotterPdf(blotter.id);
+    } catch {
+      // Silent failure; errors are logged in service
+    }
+  };
+
   return (
     <Modal show={show} onHide={onHide} size="xl" centered>
       <Modal.Header className="modal-header-custom">
@@ -107,6 +116,15 @@ const ViewBlotterModal: React.FC<ViewBlotterModalProps> = ({
       </Modal.Header>
 
       <Modal.Body className="modal-body-custom">
+        <Row className="mb-3">
+          <Col className="d-flex justify-content-end">
+            <Button variant="outline-primary" size="sm" onClick={handleExportPdf}>
+              <Download size={14} className="me-1" />
+              Export PDF
+            </Button>
+          </Col>
+        </Row>
+
         {/* Case Status */}
         <Row className="mb-4">
           <Col md={12}>

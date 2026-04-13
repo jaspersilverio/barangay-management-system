@@ -165,6 +165,58 @@ export async function exportBlottersToPdf(options: {
 }
 
 /**
+ * Download a single blotter case as PDF
+ */
+export async function downloadBlotterPdf(blotterId: number) {
+  try {
+    const response = await api.get(`/pdf/export/blotters/${blotterId}`, {
+      responseType: 'blob',
+    })
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `blotter-case-${blotterId}-${new Date().toISOString().split('T')[0]}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Blotter PDF download failed:', error)
+    throw new Error(error?.response?.data?.message || 'Failed to download blotter PDF')
+  }
+}
+
+/**
+ * Download a single incident report as PDF
+ */
+export async function downloadIncidentReportPdf(incidentReportId: number) {
+  try {
+    const response = await api.get(`/pdf/export/incident-reports/${incidentReportId}`, {
+      responseType: 'blob',
+    })
+
+    const blob = new Blob([response.data], { type: 'application/pdf' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `incident-report-${incidentReportId}-${new Date().toISOString().split('T')[0]}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('Incident report PDF download failed:', error)
+    throw new Error(error?.response?.data?.message || 'Failed to download incident report PDF')
+  }
+}
+
+/**
  * Preview PDF in new tab (for certificates)
  */
 export async function previewCertificatePdf(certificateId: number) {

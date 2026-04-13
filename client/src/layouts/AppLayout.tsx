@@ -3,7 +3,7 @@ import { Navbar, Container, Nav, Offcanvas, Button } from 'react-bootstrap'
 import { NotificationProvider } from '../context/NotificationContext'
 import { useAuth } from '../context/AuthContext'
 import { useState } from 'react'
-import { 
+import {
   Settings,
   Menu,
 } from 'lucide-react'
@@ -62,11 +62,11 @@ export default function AppLayout() {
                 Barangay Dashboard
               </Navbar.Brand>
             </div>
-            
+
             <Navbar.Collapse className="justify-content-end">
               <Nav className="align-items-center gap-3">
                 <ThemeToggle />
-                
+
                 {user && (
                   <div className="d-flex align-items-center gap-2">
                     <div className="bg-primary-100 text-primary-700 rounded-full w-8 h-8 d-flex align-items-center justify-content-center">
@@ -78,9 +78,9 @@ export default function AppLayout() {
                     </div>
                   </div>
                 )}
-                
+
                 <NotificationBell />
-                
+
                 {user?.role === 'admin' && (
                   <Nav.Link as={Link} to="/settings" className="text-neutral-600">
                     <Settings size={18} />
@@ -92,17 +92,17 @@ export default function AppLayout() {
         </Navbar>
 
         {/* Offcanvas sidebar for small screens */}
-        <Offcanvas 
-          show={showOffcanvas} 
+        <Offcanvas
+          show={showOffcanvas}
           onHide={handleCloseOffcanvas}
-          placement="start" 
+          placement="start"
           className="d-lg-none"
         >
           <Offcanvas.Header closeButton>
             <Offcanvas.Title className="text-gradient font-bold d-flex align-items-center gap-2">
-              <img 
-                src="/houselogo1.png" 
-                alt="HMMS Logo" 
+              <img
+                src="/houselogo1.png"
+                alt="HMMS Logo"
                 style={{ width: '24px', height: '24px', objectFit: 'contain' }}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;

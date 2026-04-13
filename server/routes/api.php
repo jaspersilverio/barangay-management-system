@@ -178,7 +178,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/pdf/export/residents', [PdfExportController::class, 'exportResidents']);
         Route::get('/pdf/export/households', [PdfExportController::class, 'exportHouseholds']);
         Route::get('/pdf/export/blotters', [PdfExportController::class, 'exportBlotters']);
+        Route::get('/pdf/export/blotters/{blotter}', [PdfExportController::class, 'exportBlotter']);
         Route::get('/pdf/export/incident-reports', [PdfExportController::class, 'exportIncidentReports']);
+        Route::get('/pdf/export/incident-reports/{incidentReport}', [PdfExportController::class, 'exportIncidentReport']);
         Route::get('/pdf/export/issued-certificates', [PdfExportController::class, 'exportIssuedCertificates']);
         Route::get('/pdf/export/solo-parents', [PdfExportController::class, 'exportSoloParents']);
         Route::get('/pdf/export/puroks', [PdfExportController::class, 'exportPuroks']);

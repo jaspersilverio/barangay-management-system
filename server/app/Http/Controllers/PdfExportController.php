@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\PdfService;
 use App\Exports\VaccinationExport;
+use App\Models\Blotter;
+use App\Models\IncidentReport;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -306,6 +308,113 @@ class PdfExportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to generate PDF: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Export a single blotter record as a detailed PDF
+     */
+    public function exportBlotter(Blotter $blotter)
+    {
+        $user = Auth::user();
+        if (!$user || !in_array($user->role, ['admin', 'captain', 'staff'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        try {
+            $blotter->load([
+                'complainant.household.purok',
+                'respondent.household.purok',
+                'official',
+                'creator',
+                'resolver',
+            ]);
+
+            $preparedBy = [
+                'name' => strtoupper($user->name ?? 'System Administrator'),
+                'position' => ucwords(str_replace('_', ' ', $user->role ?? 'Staff')),
+            ];
+
+            $data = [
+                'title' => 'Blotter Case Report',
+                'document_title' => 'BLOTTER CASE REPORT',
+                'blotter' => $blotter,
+                'prepared_by' => $preparedBy,
+            ];
+
+            $filename = ($blotter->case_number ?? 'blotter-case') . '-' . date('Y-m-d') . '.pdf';
+
+            return $this->pdfService->download('pdf.blotters.show', $data, $filename, [
+                'orientation' => 'portrait',
+                'paper' => 'a4',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Single blotter PDF export failed', [
+                'blotter_id' => $blotter->id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate PDF: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Export a single incident report as a detailed PDF
+     */
+    public function exportIncidentReport(IncidentReport $incidentReport)
+    {
+        $user = Auth::user();
+        if (!$user || !in_array($user->role, ['admin', 'captain', 'staff', 'purok_leader'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized',
+            ], 403);
+        }
+
+        try {
+            $incidentReport->load(['reportingOfficer', 'creator']);
+
+            $preparedBy = [
+                'name' => strtoupper($user->name ?? 'System Administrator'),
+                'position' => ucwords(str_replace('_', ' ', $user->role ?? 'Staff')),
+            ];
+
+            $data = [
+                'title' => 'Incident Report',
+                'document_title' => 'INCIDENT REPORT',
+                'incident' => $incidentReport,
+                'prepared_by' => $preparedBy,
+            ];
+
+            $safeTitle = preg_replace('/[^a-zA-Z0-9\-_]/', '-', $incidentReport->incident_title ?? 'incident');
+            $filename = 'incident-' . $incidentReport->id . '-' . substr($safeTitle, 0, 30) . '-' . date('Y-m-d') . '.pdf';
+
+            return $this->pdfService->download('pdf.incidents.show', $data, $filename, [
+                'orientation' => 'portrait',
+                'paper' => 'a4',
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Single incident report PDF export failed', [
+                'incident_id' => $incidentReport->id,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to generate PDF: ' . $e->getMessage(),
             ], 500);
         }
     }
