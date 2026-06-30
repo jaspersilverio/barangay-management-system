@@ -115,7 +115,7 @@ export default function OfficialForm({
           contact_number: official.contact || '',
           address: (official as any).address || '',
           date_appointed: formatDateForInput(official.term_start),
-          status: official.active ? 'active' : 'inactive',
+          status: 'active',
           official_role: category,
           official_type: 'appointed'
         })
@@ -132,7 +132,7 @@ export default function OfficialForm({
         term_start: formatDateForInput(official.term_start),
         term_end: formatDateForInput(official.term_end),
         contact: official.contact || '',
-        active: official.active
+        active: isOfficialCategory ? true : official.active
       }
 
       // Load enhanced fields if category supports them
@@ -308,9 +308,6 @@ export default function OfficialForm({
       if (!formData.date_appointed) {
         newErrors.date_appointed = 'Date appointed is required'
       }
-      if (!formData.status) {
-        newErrors.status = 'Status is required'
-      }
     } else {
       if (!formData.name?.trim()) {
         newErrors.name = 'Name is required'
@@ -335,8 +332,12 @@ export default function OfficialForm({
     }
 
     try {
-      // Prepare form data for submission
-      await onSubmit(formData)
+      const submitPayload: CreateOfficialData = {
+        ...formData,
+        ...(isOfficialCategory ? { active: true } : {}),
+        ...(isAppointedCategory ? { status: 'active' as const } : {})
+      }
+      await onSubmit(submitPayload)
       // Clear photo preview after successful submission
       setPhotoPreview(null)
       onHide()
@@ -578,18 +579,19 @@ export default function OfficialForm({
                     </Row>
                   </div>
 
-                  {/* Status Section */}
-                  <div className="mb-3">
-                    <Form.Group className="modal-form-group">
-                      <Form.Check
-                        type="switch"
-                        id="active-switch"
-                        label={isSKCategory ? 'Active SK Member' : 'Active Official'}
-                        checked={formData.active}
-                        onChange={(e) => handleInputChange('active', e.target.checked)}
-                      />
-                    </Form.Group>
-                  </div>
+                  {isSKCategory && (
+                    <div className="mb-3">
+                      <Form.Group className="modal-form-group">
+                        <Form.Check
+                          type="switch"
+                          id="active-switch"
+                          label="Active SK Member"
+                          checked={formData.active}
+                          onChange={(e) => handleInputChange('active', e.target.checked)}
+                        />
+                      </Form.Group>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
@@ -668,7 +670,7 @@ export default function OfficialForm({
                     </Col>
                   </Row>
                   <Row>
-                    <Col md={6}>
+                    <Col md={12}>
                       <Form.Group className="modal-form-group">
                         <Form.Label className="modal-form-label">Date Appointed *</Form.Label>
                         <Form.Control
@@ -679,21 +681,6 @@ export default function OfficialForm({
                           className="modal-form-control"
                         />
                         <Form.Control.Feedback type="invalid">{errors.date_appointed}</Form.Control.Feedback>
-                      </Form.Group>
-                    </Col>
-                    <Col md={6}>
-                      <Form.Group className="modal-form-group">
-                        <Form.Label className="modal-form-label">Status *</Form.Label>
-                        <Form.Select
-                          value={formData.status || 'active'}
-                          onChange={(e) => handleInputChange('status', e.target.value)}
-                          isInvalid={!!errors.status}
-                          className="modal-form-control"
-                        >
-                          <option value="active">Active</option>
-                          <option value="inactive">Inactive</option>
-                        </Form.Select>
-                        <Form.Control.Feedback type="invalid">{errors.status}</Form.Control.Feedback>
                       </Form.Group>
                     </Col>
                   </Row>

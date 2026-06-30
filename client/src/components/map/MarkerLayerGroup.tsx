@@ -51,10 +51,13 @@ export default function MarkerLayerGroup({
                 top: `${marker.y_position}%`,
                 width: '16px',
                 height: '16px',
-                backgroundColor: getMarkerColor(marker.type),
+                backgroundColor:
+                  highlightedMarker?.id === marker.id
+                    ? 'rgba(220, 53, 69, 0.35)'
+                    : getMarkerColor(marker.type),
                 borderRadius: '50%',
-                border: highlightedMarker?.id === marker.id 
-                  ? '3px solid #ffc107' 
+                border: highlightedMarker?.id === marker.id
+                  ? '2px solid #dc3545'
                   : '1px solid white',
                 transform: 'translate(-50%, -50%)',
                 display: 'flex',
@@ -62,8 +65,8 @@ export default function MarkerLayerGroup({
                 justifyContent: 'center',
                 color: 'white',
                 fontSize: '8px',
-                boxShadow: highlightedMarker?.id === marker.id 
-                  ? '0 0 10px #ffc107, 0 2px 4px rgba(0,0,0,0.3)' 
+                boxShadow: highlightedMarker?.id === marker.id
+                  ? '0 0 12px rgba(220, 53, 69, 0.85), 0 2px 4px rgba(0,0,0,0.3)'
                   : '0 2px 4px rgba(0,0,0,0.3)',
                 cursor: 'pointer',
                 zIndex: highlightedMarker?.id === marker.id ? 150 : 100,

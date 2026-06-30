@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Button, Dropdown, Form } from 'react-bootstrap'
+import { Dropdown, Form } from 'react-bootstrap'
 import { Settings2 } from 'lucide-react'
 import { useDashboard } from '../context/DashboardContext'
 import DashboardSummary from '../components/dashboard/DashboardSummary'
@@ -17,6 +17,7 @@ import VulnerabilityTrendsChart from '../components/dashboard/VulnerabilityTrend
 import QuickActions from '../components/dashboard/QuickActions'
 import RecentActivities from '../components/dashboard/RecentActivities'
 import UpcomingEvents from '../components/dashboard/UpcomingEvents'
+import { getRecentAnnouncements, getRecentNotifications, type DashboardAnnouncement, type DashboardNotification } from '../services/dashboard.service'
 
 const STORAGE_KEY = 'dashboardVisibility'
 
@@ -40,12 +41,31 @@ function loadVisibility(): typeof defaultVisibility {
 }
 
 export default function Dashboard() {
-  const { refreshData, loading } = useDashboard()
+  useDashboard()
   const [visibleSections, setVisibleSections] = useState(loadVisibility)
+  const [recentAnnouncements, setRecentAnnouncements] = useState<DashboardAnnouncement[]>([])
+  const [recentNotifications, setRecentNotifications] = useState<DashboardNotification[]>([])
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(visibleSections))
   }, [visibleSections])
+
+  useEffect(() => {
+    const loadRecentItems = async () => {
+      try {
+        const [announcementsRes, notificationsRes] = await Promise.all([
+          getRecentAnnouncements(),
+          getRecentNotifications(),
+        ])
+        if (announcementsRes.success) setRecentAnnouncements(announcementsRes.data)
+        if (notificationsRes.success) setRecentNotifications(notificationsRes.data)
+      } catch {
+        // Keep dashboard resilient if one widget fails
+      }
+    }
+
+    loadRecentItems()
+  }, [])
 
   const setSection = useCallback((key: keyof typeof defaultVisibility, value: boolean) => {
     setVisibleSections((prev) => ({ ...prev, [key]: value }))
@@ -170,6 +190,49 @@ export default function Dashboard() {
             <UpcomingEvents />
           </div>
         )}
+      </div>
+
+      <div className="row g-6 mb-6">
+        <div className="col-12 col-lg-6">
+          <div className="card-modern p-4 h-100">
+            <h5 className="h5 font-bold text-brand-primary mb-3">Recent Announcements</h5>
+            {recentAnnouncements.length === 0 ? (
+              <p className="text-brand-muted mb-0">No announcements yet.</p>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {recentAnnouncements.map((announcement) => (
+                  <div key={announcement.id} className="border-bottom pb-2">
+                    <div className="fw-semibold">{announcement.title}</div>
+                    <div className="small text-brand-muted text-truncate">{announcement.content}</div>
+                    <div className="small text-brand-muted">
+                      {new Date(announcement.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="col-12 col-lg-6">
+          <div className="card-modern p-4 h-100">
+            <h5 className="h5 font-bold text-brand-primary mb-3">Recent Notifications</h5>
+            {recentNotifications.length === 0 ? (
+              <p className="text-brand-muted mb-0">No notifications yet.</p>
+            ) : (
+              <div className="d-flex flex-column gap-3">
+                {recentNotifications.map((notification) => (
+                  <div key={notification.id} className="border-bottom pb-2">
+                    <div className="fw-semibold">{notification.title}</div>
+                    <div className="small text-brand-muted text-truncate">{notification.message}</div>
+                    <div className="small text-brand-muted">
+                      {new Date(notification.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

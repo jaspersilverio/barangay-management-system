@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Household extends Model
@@ -58,6 +59,16 @@ class Household extends Model
     public function residents(): HasMany
     {
         return $this->hasMany(Resident::class);
+    }
+
+    /**
+     * Map marker placed for this household (sketch map).
+     *
+     * @return HasOne<MapMarker>
+     */
+    public function mapMarker(): HasOne
+    {
+        return $this->hasOne(MapMarker::class);
     }
 
     /**

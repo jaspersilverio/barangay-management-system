@@ -95,6 +95,26 @@ export type UpcomingEvent = {
   type: string
 }
 
+export type DashboardAnnouncement = {
+  id: number
+  title: string
+  content: string
+  created_at: string
+  creator?: {
+    id: number
+    name: string
+  }
+}
+
+export type DashboardNotification = {
+  id: number
+  title: string
+  message: string
+  type: string
+  is_read: boolean
+  created_at: string
+}
+
 export async function getMonthlyRegistrations() {
   const res = await api.get('/dashboard/monthly-registrations')
   return res.data as { success: boolean; data: MonthlyRegistrations; message: string | null; errors: any }
@@ -113,6 +133,16 @@ export async function getRecentActivities() {
 export async function getUpcomingEvents() {
   const res = await api.get('/dashboard/upcoming-events')
   return res.data as { success: boolean; data: UpcomingEvent[]; message: string | null; errors: any }
+}
+
+export async function getRecentAnnouncements() {
+  const res = await api.get('/dashboard/recent-announcements')
+  return res.data as { success: boolean; data: DashboardAnnouncement[]; message: string | null; errors: any }
+}
+
+export async function getRecentNotifications() {
+  const res = await api.get('/dashboard/recent-notifications')
+  return res.data as { success: boolean; data: DashboardNotification[]; message: string | null; errors: any }
 }
 
 export type VaccinationSummary = {

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Household;
 use App\Models\Resident;
-use App\Models\MapMarker;
 use Illuminate\Http\Request;
 
 class SearchController extends Controller
@@ -18,56 +17,78 @@ class SearchController extends Controller
         $user = $request->user();
 
         if (empty($query) || strlen($query) < 2) {
-            return $this->respondSuccess(['data' => []]);
+            return $this->respondSuccess([]);
         }
 
+        $like = "%{$query}%";
         $results = [];
 
-        // Search households
+        // Search households (head, address, head resident name, or any member name)
         $householdsQuery = Household::with(['purok', 'mapMarker']);
 
-        // Role-based filtering for purok leaders
         if ($user->isPurokLeader()) {
             $householdsQuery->where('purok_id', $user->assigned_purok_id);
         }
 
-        $households = $householdsQuery->where('head_name', 'like', "%{$query}%")
-            ->orWhere('address', 'like', "%{$query}%")
-            ->limit(5)
+        $households = $householdsQuery->where(function ($q) use ($like) {
+            $q->where('head_name', 'like', $like)
+                ->orWhere('address', 'like', $like)
+                ->orWhereHas('headResident', function ($residentQuery) use ($like) {
+                    $residentQuery->where('first_name', 'like', $like)
+                        ->orWhere('middle_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like);
+                })
+                ->orWhereHas('residents', function ($residentQuery) use ($like) {
+                    $residentQuery->where('first_name', 'like', $like)
+                        ->orWhere('middle_name', 'like', $like)
+                        ->orWhere('last_name', 'like', $like);
+                });
+        })
+            ->limit(8)
             ->get();
 
+        $householdIdsFromHouseholdQuery = [];
+
         foreach ($households as $household) {
+            $householdIdsFromHouseholdQuery[] = $household->id;
             $results[] = [
                 'id' => $household->id,
                 'type' => 'household',
+                'household_id' => $household->id,
                 'name' => $household->head_name,
                 'address' => $household->address,
                 'purok_name' => $household->purok?->name,
+                'map_marker_id' => $household->mapMarker?->id,
                 'x_position' => $household->mapMarker?->x_position,
                 'y_position' => $household->mapMarker?->y_position,
             ];
         }
 
-        // Search residents
+        // Search residents (for rows that show which person matched)
         $residentsQuery = Resident::with(['household.purok', 'household.mapMarker']);
 
-        // Role-based filtering for purok leaders
         if ($user->isPurokLeader()) {
             $residentsQuery->whereHas('household', function ($q) use ($user) {
                 $q->where('purok_id', $user->assigned_purok_id);
             });
         }
 
-        $residents = $residentsQuery->where(function ($q) use ($query) {
-            $q->where('first_name', 'like', "%{$query}%")
-                ->orWhere('middle_name', 'like', "%{$query}%")
-                ->orWhere('last_name', 'like', "%{$query}%")
-                ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", ["%{$query}%"]);
+        $residents = $residentsQuery->where(function ($q) use ($like) {
+            $q->where('first_name', 'like', $like)
+                ->orWhere('middle_name', 'like', $like)
+                ->orWhere('last_name', 'like', $like)
+                ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", [$like]);
         })
-            ->limit(5)
+            ->limit(8)
             ->get();
 
         foreach ($residents as $resident) {
+            // Same household already listed — skip (avoids duplicate names / pins in dropdown)
+            if ($resident->household_id !== null
+                && in_array($resident->household_id, $householdIdsFromHouseholdQuery, true)) {
+                continue;
+            }
+
             $results[] = [
                 'id' => $resident->id,
                 'type' => 'resident',
@@ -78,12 +99,12 @@ class SearchController extends Controller
                 'address' => $resident->household?->address,
                 'purok_name' => $resident->household?->purok?->name,
                 'household_id' => $resident->household_id,
+                'map_marker_id' => $resident->household?->mapMarker?->id,
                 'x_position' => $resident->household?->mapMarker?->x_position,
                 'y_position' => $resident->household?->mapMarker?->y_position,
             ];
         }
 
-        // Sort results by relevance (households first, then residents)
         usort($results, function ($a, $b) {
             if ($a['type'] === 'household' && $b['type'] === 'resident') {
                 return -1;
@@ -91,9 +112,10 @@ class SearchController extends Controller
             if ($a['type'] === 'resident' && $b['type'] === 'household') {
                 return 1;
             }
+
             return 0;
         });
 
-        return $this->respondSuccess(['data' => array_slice($results, 0, 10)]);
+        return $this->respondSuccess(array_slice($results, 0, 12));
     }
 }

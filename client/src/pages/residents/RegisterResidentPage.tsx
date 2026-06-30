@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Container } from 'react-bootstrap'
 import { useNavigate } from 'react-router-dom'
 import ResidentFormModal from '../../components/residents/ResidentFormModal'
-import { createResident } from '../../services/residents.service'
+import { createResident, clearResidentsListCache } from '../../services/residents.service'
 import { createHousehold } from '../../services/households.service'
 import { createSoloParent } from '../../services/solo-parents.service'
 import type { ResidentFormValues } from '../../components/residents/ResidentFormModal'
@@ -111,7 +111,7 @@ export default function RegisterResidentPage() {
         }
       }
 
-      // Navigate back to residents list
+      clearResidentsListCache()
       navigate('/residents')
     } catch (error: any) {
       throw error // Let the modal handle the error

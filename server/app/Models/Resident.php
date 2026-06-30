@@ -312,6 +312,10 @@ class Resident extends Model
             $classifications[] = 'PWD';
         }
 
+        if ($this->is_pregnant) {
+            $classifications[] = 'Pregnant';
+        }
+
         if ($this->is_solo_parent) {
             $classifications[] = 'Solo Parent';
         }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react'
 import { Button, ButtonGroup, Modal, Form, Row, Col } from 'react-bootstrap'
 import { Stage, Layer, Line, Circle, Group } from 'react-konva'
 import { useAuth } from '../context/AuthContext'
@@ -40,7 +40,9 @@ export default function SketchMap() {
   })
 
   // Search and highlighting states
-  const [highlightedMarker, setHighlightedMarker] = useState<MapMarker | null>(null)
+  const [selectedHousehold, setSelectedHousehold] = useState<SearchResult | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [searchResetKey, setSearchResetKey] = useState(0)
   const [hoveredMarker, setHoveredMarker] = useState<MapMarker | null>(null)
   const [mapLayers, setMapLayers] = useState(getLayerState())
 
@@ -60,9 +62,74 @@ export default function SketchMap() {
   const [hoveredBoundary, setHoveredBoundary] = useState<number | null>(null)
   const stageRef = useRef<any>(null)
   const imageRef = useRef<HTMLImageElement>(null)
-  // Use original image dimensions for coordinate calculations to avoid zoom issues
-  const originalImageDimensions = { width: 800, height: 600 }
-  
+  const mapViewportRef = useRef<HTMLDivElement>(null)
+  const mapContentRef = useRef<HTMLDivElement>(null)
+  const highlightedMarkerRef = useRef<MapMarker | null>(null)
+  const [searchFocusNonce, setSearchFocusNonce] = useState(0)
+
+  const findMarkerForSearchResult = useCallback((result: SearchResult): MapMarker | null => {
+    const householdId = result.type === 'household' ? result.id : (result.household_id ?? null)
+
+    let marker: MapMarker | undefined
+
+    if (result.map_marker_id != null) {
+      marker = markers.find((m) => m.id === result.map_marker_id)
+    }
+    if (!marker && householdId != null) {
+      marker = markers.find(
+        (m) => m.type === 'household' && m.household_id === householdId
+      )
+    }
+    if (
+      !marker &&
+      result.x_position != null &&
+      result.y_position != null
+    ) {
+      const near = (a: number, b: number) => Math.abs(a - b) < 0.02
+      marker = markers.find(
+        (m) =>
+          m.type === 'household' &&
+          near(m.x_position, result.x_position!) &&
+          near(m.y_position, result.y_position!)
+      )
+    }
+
+    return marker ?? null
+  }, [markers])
+
+  const highlightedMarker = useMemo(
+    () => (selectedHousehold ? findMarkerForSearchResult(selectedHousehold) : null),
+    [selectedHousehold, findMarkerForSearchResult]
+  )
+
+  const householdMarkersForPurokInfo = useMemo(
+    () => markers.filter((m) => m.type === 'household'),
+    [markers]
+  )
+
+  highlightedMarkerRef.current = highlightedMarker
+
+  /** Displayed image box (client pixels). Konva stage and boundary % must match marker % (same img rect). */
+  const [mapPixelSize, setMapPixelSize] = useState({ width: 800, height: 600 })
+
+  const syncMapPixelSize = useCallback(() => {
+    const el = imageRef.current
+    if (!el) return
+    const w = el.clientWidth
+    const h = el.clientHeight
+    if (w > 0 && h > 0) {
+      setMapPixelSize({ width: w, height: h })
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    syncMapPixelSize()
+    const el = imageRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => syncMapPixelSize())
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [syncMapPixelSize])
 
   // Modal states
   const [showAssignModal, setShowAssignModal] = useState(false)
@@ -137,11 +204,25 @@ export default function SketchMap() {
   }
 
 
+  const clearSelection = useCallback(() => {
+    setSelectedHousehold(null)
+    setSearchTerm('')
+    setSearchResetKey((k) => k + 1)
+  }, [])
+
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSelectedHousehold(null)
+    }
+  }, [searchTerm])
+
   const handleImageClick = (e: React.MouseEvent) => {
     // Close any open marker info popup
     setSelectedMarkerForInfo(null)
     // Clear hover when clicking on map
     setHoveredMarker(null)
+    // Optional UX: click empty map area clears current search highlight
+    clearSelection()
     
     // If in drawing mode, don't handle marker clicks
     if (isDrawingMode) {
@@ -262,26 +343,59 @@ export default function SketchMap() {
     ))
   }
 
-  // Search result handler
+  // Search result handler — map highlight is state-driven
   const handleSearchResultSelect = (result: SearchResult) => {
-    if (result.x_position && result.y_position) {
-      // Center and zoom to the location
-      setImagePosition({ x: 0, y: 0 }) // Reset position
-      setZoomLevel(3) // Zoom in to 3x
-      
-      // Find and highlight the corresponding marker
-      const marker = markers.find(m => 
-        m.x_position === result.x_position && 
-        m.y_position === result.y_position
-      )
-      
-      if (marker) {
-        setHighlightedMarker(marker)
-        // Remove highlight after 3 seconds
-        setTimeout(() => setHighlightedMarker(null), 3000)
-      }
+    const marker = findMarkerForSearchResult(result)
+    setSelectedHousehold(result)
+    setSearchTerm(result.name)
+    if (marker) {
+      setZoomLevel(3)
+      setSearchFocusNonce((n) => n + 1)
     }
   }
+
+  // After search: pan + zoom so the marker sits in the viewport center (transform uses origin: center)
+  useLayoutEffect(() => {
+    if (searchFocusNonce === 0) return
+
+    const marker = highlightedMarkerRef.current
+    if (!marker) return
+
+    const applyPan = () => {
+      const vp = mapViewportRef.current
+      const inner = mapContentRef.current
+      if (!vp || !inner) return
+
+      const z = 3
+      const cs = getComputedStyle(vp)
+      const pl = parseFloat(cs.paddingLeft) || 0
+      const pr = parseFloat(cs.paddingRight) || 0
+      const pt = parseFloat(cs.paddingTop) || 0
+      const pb = parseFloat(cs.paddingBottom) || 0
+      const vw = vp.clientWidth - pl - pr
+      const vh = vp.clientHeight - pt - pb
+      const iw = inner.offsetWidth
+      const ih = inner.offsetHeight
+      if (iw === 0 || ih === 0 || vw === 0 || vh === 0) return false
+
+      const cx = iw / 2
+      const cy = ih / 2
+      const mx = (marker.x_position / 100) * iw
+      const my = (marker.y_position / 100) * ih
+
+      const tx = vw / 2 - cx - (mx - cx) * z
+      const ty = vh / 2 - cy - (my - cy) * z
+
+      setImagePosition({ x: tx, y: ty })
+      return true
+    }
+
+    if (!applyPan()) {
+      requestAnimationFrame(() => {
+        applyPan()
+      })
+    }
+  }, [searchFocusNonce])
 
   // Layer toggle handler
   const handleLayerToggle = (layer: string, enabled: boolean) => {
@@ -348,8 +462,8 @@ export default function SketchMap() {
       
       // Convert to percentage coordinates relative to the image dimensions
       // Note: Since the Stage is inside the transformed container, we don't need to account for zoom
-      const x = (point.x / originalImageDimensions.width) * 100
-      const y = (point.y / originalImageDimensions.height) * 100
+      const x = (point.x / mapPixelSize.width) * 100
+      const y = (point.y / mapPixelSize.height) * 100
 
       setCurrentPolygon(prev => [...prev, { x, y }])
     }
@@ -378,7 +492,7 @@ export default function SketchMap() {
       setCurrentPolygon([])
       setIsDrawingMode(false)
     }
-  }, [currentPolygon, selectedPurok])
+  }, [currentPolygon, selectedPurok, mapPixelSize.width, mapPixelSize.height])
 
 
 
@@ -501,7 +615,20 @@ export default function SketchMap() {
         <div style={{ width: '300px', flexShrink: 0 }}>
           {/* Search and Zoom Controls Group */}
           <div className="rounded border p-3 mb-3" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-            <MapSearch onResultSelect={handleSearchResultSelect} />
+            <div className="position-relative">
+              <MapSearch key={searchResetKey} onResultSelect={handleSearchResultSelect} />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="position-absolute top-0 end-0 btn btn-sm btn-outline-secondary"
+                  style={{ marginTop: '2rem', marginRight: '0.25rem', lineHeight: 1 }}
+                  title="Clear selected household"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             
             <hr className="my-3" />
             
@@ -627,6 +754,7 @@ export default function SketchMap() {
           <div className="d-flex justify-content-center align-items-center h-100">
             {/* Map Container */}
             <div 
+              ref={mapViewportRef}
               style={{ 
                 border: '2px solid var(--color-border)', 
                 borderRadius: '8px', 
@@ -652,7 +780,7 @@ export default function SketchMap() {
                 }}
                 onMouseDown={handleMouseDown}
               >
-                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <div ref={mapContentRef} style={{ position: 'relative', width: '100%', height: '100%' }}>
                   <img 
                     ref={imageRef}
                     src="/barangay map.svg" 
@@ -666,7 +794,7 @@ export default function SketchMap() {
                     }}
                     onClick={handleImageClick}
                     onLoad={() => {
-                      // Image loaded successfully
+                      syncMapPixelSize()
                     }}
                     onError={() => {/* Image failed to load */}}
                     draggable={false}
@@ -675,8 +803,8 @@ export default function SketchMap() {
                   {/* Konva Stage for drawing polygons - positioned to overlay the image */}
                   <Stage
                     ref={stageRef}
-                    width={originalImageDimensions.width}
-                    height={originalImageDimensions.height}
+                    width={Math.max(1, mapPixelSize.width)}
+                    height={Math.max(1, mapPixelSize.height)}
                     style={{ 
                       position: 'absolute', 
                       top: 0, 
@@ -692,8 +820,8 @@ export default function SketchMap() {
                       {boundaries.map((boundary) => {
                         // Convert percentage coordinates to pixel coordinates based on original image dimensions
                         const points = boundary.points.flatMap(p => [
-                          (p.x / 100) * originalImageDimensions.width,
-                          (p.y / 100) * originalImageDimensions.height
+                          (p.x / 100) * mapPixelSize.width,
+                          (p.y / 100) * mapPixelSize.height
                         ])
                         const isHovered = hoveredBoundary === boundary.id
                         const isSelected = selectedPurok && boundary.purok_id === selectedPurok.id
@@ -745,8 +873,8 @@ export default function SketchMap() {
                         <Group>
                           <Line
                             points={currentPolygon.flatMap(p => [
-                              (p.x / 100) * originalImageDimensions.width,
-                              (p.y / 100) * originalImageDimensions.height
+                              (p.x / 100) * mapPixelSize.width,
+                              (p.y / 100) * mapPixelSize.height
                             ])}
                             stroke="#10b981"
                             strokeWidth={2}
@@ -756,8 +884,8 @@ export default function SketchMap() {
                           {currentPolygon.map((point, index) => (
                             <Circle
                               key={index}
-                              x={(point.x / 100) * originalImageDimensions.width}
-                              y={(point.y / 100) * originalImageDimensions.height}
+                              x={(point.x / 100) * mapPixelSize.width}
+                              y={(point.y / 100) * mapPixelSize.height}
                               radius={4}
                               fill="#10b981"
                               stroke="#ffffff"
@@ -914,6 +1042,7 @@ export default function SketchMap() {
           setSelectedBoundary(null)
         }}
         boundary={selectedBoundary}
+        householdMarkers={householdMarkersForPurokInfo}
         onDelete={handleDeleteBoundary}
         isAdmin={canManageMarkers}
       />

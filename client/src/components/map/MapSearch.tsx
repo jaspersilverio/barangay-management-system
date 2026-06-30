@@ -13,39 +13,37 @@ export default function MapSearch({ onResultSelect }: MapSearchProps) {
   const [showResults, setShowResults] = useState(false)
 
   useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const timeoutId = setTimeout(() => {
-        performSearch()
-      }, 300) // Debounce search
-
-      return () => clearTimeout(timeoutId)
-    } else {
+    const trimmed = searchQuery.trim()
+    if (trimmed.length < 2) {
       setSearchResults([])
       setShowResults(false)
+      return
     }
-  }, [searchQuery])
 
-  const performSearch = async () => {
-    if (searchQuery.length < 2) return
-
-    setIsSearching(true)
-    try {
-      const response = await searchHouseholdsAndResidents(searchQuery)
-      if (response.success) {
-        setSearchResults(response.data || [])
-        setShowResults(true)
+    const timeoutId = window.setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const response = await searchHouseholdsAndResidents(trimmed)
+        if (response.success && Array.isArray(response.data)) {
+          setSearchResults(response.data)
+          setShowResults(true)
+        } else {
+          setSearchResults([])
+        }
+      } catch (error) {
+        console.error('Search failed:', error)
+        setSearchResults([])
+      } finally {
+        setIsSearching(false)
       }
-    } catch (error) {
-      console.error('Search failed:', error)
-      setSearchResults([])
-    } finally {
-      setIsSearching(false)
-    }
-  }
+    }, 300)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [searchQuery])
 
   const handleResultSelect = (result: SearchResult) => {
     onResultSelect(result)
-    setSearchQuery('')
+    setSearchQuery(result.name)
     setShowResults(false)
     setSearchResults([])
   }

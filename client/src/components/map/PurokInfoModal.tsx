@@ -1,29 +1,35 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Row, Col, Alert, Badge } from 'react-bootstrap'
 import PurokBoundaryService, { type PurokBoundary, type PurokSummary } from '../../services/purokBoundary.service'
-import MapService from '../../services/map.service'
-import { countPointsInPolygon } from '../../utils/pointInPolygon'
+import MapService, { type MapMarker } from '../../services/map.service'
+import { pointInPolygon } from '../../utils/pointInPolygon'
 
 interface PurokInfoModalProps {
   show: boolean
   onHide: () => void
   boundary: PurokBoundary | null
+  /** When provided, coverage uses this list (stays in sync when pins move). Otherwise markers are fetched from the API. */
+  householdMarkers?: MapMarker[]
   onEdit?: () => void
   onDelete: () => void
   isAdmin: boolean
 }
 
-export default function PurokInfoModal({ 
-  show, 
-  onHide, 
-  boundary, 
-  onDelete, 
-  isAdmin 
+export default function PurokInfoModal({
+  show,
+  onHide,
+  boundary,
+  householdMarkers: householdMarkersProp,
+  onDelete,
+  isAdmin
 }: PurokInfoModalProps) {
   const [purokSummary, setPurokSummary] = useState<PurokSummary | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [housesInsideCount, setHousesInsideCount] = useState<number>(0)
+  const [coveredStats, setCoveredStats] = useState<{
+    house_marker_count: number
+    resident_count: number
+  }>({ house_marker_count: 0, resident_count: 0 })
   const [isLoadingHouses, setIsLoadingHouses] = useState(false)
 
   useEffect(() => {
@@ -34,36 +40,58 @@ export default function PurokInfoModal({
     }
     
     if (show && boundary) {
-      calculateHousesInside()
+      calculateCoverageStats()
     } else {
-      setHousesInsideCount(0)
+      setCoveredStats({ house_marker_count: 0, resident_count: 0 })
     }
-  }, [show, boundary])
+  }, [show, boundary, householdMarkersProp])
 
-  const calculateHousesInside = async () => {
+  const calculateCoverageStats = async () => {
     if (!boundary) return
 
     setIsLoadingHouses(true)
     try {
-      // Get all markers from the map
-      const markers = await MapService.getMarkers()
-      
-      // Filter only household markers
-      const householdMarkers = markers.filter(marker => marker.type === 'household')
-      
-      // Convert marker coordinates to the same coordinate system as boundary points
-      // Boundary points are in percentage (0-100), markers are also in percentage
-      const housePoints = householdMarkers.map(marker => ({
-        x: marker.x_position,
-        y: marker.y_position
-      }))
-      
-      // Count houses inside the boundary
-      const count = countPointsInPolygon(housePoints, boundary.points)
-      setHousesInsideCount(count)
+      const householdMarkers =
+        householdMarkersProp ??
+        (await MapService.getMarkers()).filter((marker) => marker.type === 'household')
+
+      const polygon =
+        boundary.points?.map((p) => ({ x: Number(p.x), y: Number(p.y) })).filter(
+          (p) => Number.isFinite(p.x) && Number.isFinite(p.y)
+        ) ?? []
+
+      const seenMarkerIds = new Set<number>()
+      const insideHouseholdMarkers: MapMarker[] = []
+
+      for (const m of householdMarkers) {
+        if (seenMarkerIds.has(m.id)) continue
+        seenMarkerIds.add(m.id)
+
+        const x = Number(m.x_position)
+        const y = Number(m.y_position)
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+
+        if (pointInPolygon({ x, y }, polygon)) {
+          insideHouseholdMarkers.push(m)
+        }
+      }
+
+      const uniqueResidentIds = new Set<number>()
+
+      insideHouseholdMarkers.forEach((m) => {
+        if (m.household?.id != null) {
+          ;(m.household.residents || []).forEach((r: { id?: number }) => {
+            if (r?.id != null) uniqueResidentIds.add(r.id)
+          })
+        }
+      })
+
+      setCoveredStats({
+        house_marker_count: insideHouseholdMarkers.length,
+        resident_count: uniqueResidentIds.size
+      })
     } catch (err) {
-      // Error calculating houses inside boundary
-      setHousesInsideCount(0)
+      setCoveredStats({ house_marker_count: 0, resident_count: 0 })
     } finally {
       setIsLoadingHouses(false)
     }
@@ -164,7 +192,7 @@ export default function PurokInfoModal({
                   </Badge>
                 </div>
                 <div className="mb-3">
-                  <strong>Covered Houses:</strong> 
+                  <strong>Covered Houses (Pins in boundary):</strong> 
                   {isLoadingHouses ? (
                     <div className="d-inline-flex align-items-center ms-2">
                       <div className="spinner-border spinner-border-sm" role="status">
@@ -174,7 +202,22 @@ export default function PurokInfoModal({
                     </div>
                   ) : (
                     <Badge bg="success" className="ms-2">
-                      {housesInsideCount}
+                      {coveredStats.house_marker_count}
+                    </Badge>
+                  )}
+                </div>
+                <div className="mb-3">
+                  <strong>Residents in boundary:</strong>
+                  {isLoadingHouses ? (
+                    <div className="d-inline-flex align-items-center ms-2">
+                      <div className="spinner-border spinner-border-sm" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <span className="ms-2 text-muted">Calculating...</span>
+                    </div>
+                  ) : (
+                    <Badge bg="dark" className="ms-2">
+                      {coveredStats.resident_count}
                     </Badge>
                   )}
                 </div>
@@ -191,7 +234,7 @@ export default function PurokInfoModal({
                   No purok assigned to this boundary
                 </div>
                 <div className="mb-3">
-                  <strong>Covered Houses:</strong> 
+                  <strong>Covered Houses (Pins in boundary):</strong> 
                   {isLoadingHouses ? (
                     <div className="d-inline-flex align-items-center ms-2">
                       <div className="spinner-border spinner-border-sm" role="status">
@@ -201,7 +244,22 @@ export default function PurokInfoModal({
                     </div>
                   ) : (
                     <Badge bg="success" className="ms-2">
-                      {housesInsideCount}
+                      {coveredStats.house_marker_count}
+                    </Badge>
+                  )}
+                </div>
+                <div className="mb-3">
+                  <strong>Residents in boundary:</strong>
+                  {isLoadingHouses ? (
+                    <div className="d-inline-flex align-items-center ms-2">
+                      <div className="spinner-border spinner-border-sm" role="status">
+                        <span className="visually-hidden">Loading...</span>
+                      </div>
+                      <span className="ms-2 text-muted">Calculating...</span>
+                    </div>
+                  ) : (
+                    <Badge bg="dark" className="ms-2">
+                      {coveredStats.resident_count}
                     </Badge>
                   )}
                 </div>

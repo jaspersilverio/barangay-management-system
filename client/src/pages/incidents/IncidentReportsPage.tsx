@@ -15,6 +15,7 @@ import {
   type IncidentReportListParams,
   listIncidentReports,
   deleteIncidentReport,
+  updateIncidentReport,
   getIncidentReportsListCached,
   setIncidentReportsListCached,
   exportIncidentReportsToPdf,
@@ -43,10 +44,12 @@ const IncidentReportsPage: React.FC = () => {
 
   const [inputValue, setInputValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'resolved'>('ongoing');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
   const [page, setPage] = useState(1);
+  const [resolvingId, setResolvingId] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     current_page: 1,
     last_page: 1,
@@ -58,8 +61,8 @@ const IncidentReportsPage: React.FC = () => {
   const debounceTimeoutRef = useRef<number | null>(null);
 
   const listKey = useMemo(
-    () => listCacheKey(debouncedSearch, statusFilter, startDate, endDate, page),
-    [debouncedSearch, statusFilter, startDate, endDate, page]
+    () => listCacheKey(debouncedSearch, activeTab, startDate, endDate, page),
+    [debouncedSearch, activeTab, startDate, endDate, page]
   );
 
   useEffect(() => {
@@ -85,7 +88,7 @@ const IncidentReportsPage: React.FC = () => {
       try {
         const params: IncidentReportListParams = {
           search: overrideSearch !== undefined ? overrideSearch : debouncedSearch || undefined,
-          status: statusFilter || undefined,
+          status: activeTab,
           start_date: startDate || undefined,
           end_date: endDate || undefined,
           page: overridePage !== undefined ? overridePage : page,
@@ -106,7 +109,7 @@ const IncidentReportsPage: React.FC = () => {
         if (showLoading) setLoading(false);
       }
     },
-    [debouncedSearch, statusFilter, startDate, endDate, page, listKey]
+    [debouncedSearch, activeTab, startDate, endDate, page, listKey]
   );
 
   useEffect(() => {
@@ -232,11 +235,27 @@ const IncidentReportsPage: React.FC = () => {
     loadIncidentReports();
   };
 
+  const normalizeStatus = (status?: string) => (status || '').toLowerCase();
+  const isResolved = (status?: string) => normalizeStatus(status) === 'resolved';
+
+  const handleMarkResolved = async (incidentReport: IncidentReport) => {
+    setResolvingId(incidentReport.id);
+    setError(null);
+    try {
+      await updateIncidentReport(incidentReport.id, { status: 'Resolved' });
+      loadIncidentReports(undefined, undefined, false);
+    } catch {
+      setError('Failed to mark incident report as resolved.');
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
   const handleExportPdf = async () => {
     try {
       await exportIncidentReportsToPdf({
         search: debouncedSearch || undefined,
-        status: statusFilter || undefined,
+        status: activeTab,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
@@ -249,7 +268,7 @@ const IncidentReportsPage: React.FC = () => {
     try {
       await exportIncidentReportsToCsv({
         search: debouncedSearch || undefined,
-        status: statusFilter || undefined,
+        status: activeTab,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
       });
@@ -260,6 +279,9 @@ const IncidentReportsPage: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const statusConfig = {
+      'pending': { variant: 'secondary', icon: FileText },
+      'approved': { variant: 'info', icon: FileText },
+      'rejected': { variant: 'danger', icon: AlertCircle },
       'Recorded': { variant: 'secondary', icon: FileText },
       'Monitoring': { variant: 'warning', icon: AlertCircle },
       'Resolved': { variant: 'success', icon: CheckCircle }
@@ -292,6 +314,7 @@ const IncidentReportsPage: React.FC = () => {
 
   const canManage = user?.role === 'admin' || user?.role === 'purok_leader' || user?.role === 'staff';
   const canDelete = user?.role === 'admin' || user?.role === 'captain' || user?.role === 'purok_leader';
+  const canResolve = user?.role === 'admin' || user?.role === 'captain';
 
   if (!isAuthenticated) {
     return (
@@ -330,6 +353,28 @@ const IncidentReportsPage: React.FC = () => {
       {/* Filters Section */}
       <Card className="filters-card mb-4">
         <Card.Body className="p-3">
+          <div className="d-flex gap-2 mb-3">
+            <Button
+              variant={activeTab === 'ongoing' ? 'primary' : 'outline-primary'}
+              onClick={() => {
+                setActiveTab('ongoing');
+                setPage(1);
+              }}
+              disabled={loading}
+            >
+              Ongoing Cases
+            </Button>
+            <Button
+              variant={activeTab === 'resolved' ? 'success' : 'outline-success'}
+              onClick={() => {
+                setActiveTab('resolved');
+                setPage(1);
+              }}
+              disabled={loading}
+            >
+              Resolved Cases
+            </Button>
+          </div>
           <div className="row g-3">
             <div className="col-md-4">
               <Form.Group>
@@ -361,25 +406,6 @@ const IncidentReportsPage: React.FC = () => {
                 <i className="fas fa-search me-2" />
                 Search
               </Button>
-            </div>
-            <div className="col-md-2">
-              <Form.Group>
-                <Form.Label className="form-label-custom">Status</Form.Label>
-                <Form.Select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value);
-                    setPage(1);
-                  }}
-                  disabled={loading}
-                  className="form-control-custom"
-                >
-                  <option value="">All Status</option>
-                  <option value="Recorded">Recorded</option>
-                  <option value="Monitoring">Monitoring</option>
-                  <option value="Resolved">Resolved</option>
-                </Form.Select>
-              </Form.Group>
             </div>
             <div className="col-md-3">
               <Form.Group>
@@ -432,6 +458,12 @@ const IncidentReportsPage: React.FC = () => {
           </div>
         </Card.Body>
       </Card>
+
+      {error && (
+        <Alert variant="danger" className="mb-3" dismissible onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
       {/* Data Table */}
       <Card className="data-table-card">
@@ -506,6 +538,28 @@ const IncidentReportsPage: React.FC = () => {
                                 <i className="fas fa-edit"></i>
                                 Edit
                               </Button>
+                              {canResolve && !isResolved(incidentReport.status) && (
+                                <Button
+                                  size="sm"
+                                  variant="success"
+                                  onClick={() => handleMarkResolved(incidentReport)}
+                                  disabled={resolvingId === incidentReport.id}
+                                  className="btn-action btn-action-success"
+                                  title="Mark as Resolved"
+                                >
+                                  {resolvingId === incidentReport.id ? (
+                                    <>
+                                      <span className="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true" />
+                                      Resolving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <i className="fas fa-check-circle"></i>
+                                      Mark as Resolved
+                                    </>
+                                  )}
+                                </Button>
+                              )}
                               {canDelete && (
                                 <Button
                                   size="sm"

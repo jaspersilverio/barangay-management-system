@@ -12,6 +12,7 @@ import {
   UserCog,
   Calendar,
   Megaphone,
+  Bell,
   BarChart3,
   Settings,
   ShieldCheck,
@@ -135,8 +136,14 @@ export const sidebarMenu: MenuItem[] = [
       },
       {
         label: 'Announcements',
-        to: '/notifications',
+        to: '/announcements',
         icon: Megaphone,
+        roles: ['admin', 'captain', 'staff', 'purok_leader'],
+      },
+      {
+        label: 'Notifications',
+        to: '/notifications',
+        icon: Bell,
       },
     ],
   },

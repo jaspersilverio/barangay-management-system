@@ -1,27 +1,28 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { 
-  Button, 
-  Form, 
-  InputGroup, 
-  Modal, 
+import {
+  Button,
+  Form,
+  InputGroup,
+  Modal,
   Alert,
   Pagination,
   Toast,
   ToastContainer
 } from 'react-bootstrap'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Plus,
+  Search,
+  Filter,
+  CheckCircle,
+  XCircle,
   Clock,
   Trash2,
-  RotateCcw
+  RotateCcw,
+  Eye
 } from 'lucide-react'
 import { format } from 'date-fns'
-import { 
-  getCertificateRequests, 
+import {
+  getCertificateRequests,
   createCertificateRequest,
   approveCertificateRequest,
   rejectCertificateRequest,
@@ -53,6 +54,8 @@ export default function CertificateRequests({ certificateType, archived = false 
   const [residents, setResidents] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
+  const [detailRequest, setDetailRequest] = useState<CertificateRequestType | null>(null)
   const [showActionModal, setShowActionModal] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<CertificateRequestType | null>(null)
   const [actionType, setActionType] = useState<'approve' | 'reject' | 'release' | 'delete' | 'restore'>('approve')
@@ -133,7 +136,7 @@ export default function CertificateRequests({ certificateType, archived = false 
       setRequests(cached.data)
       setTotalPages(cached.last_page)
       setLoading(false)
-      fetchRequests(false, listKey).catch(() => {})
+      fetchRequests(false, listKey).catch(() => { })
       return
     }
     fetchRequests(true, listKey)
@@ -218,11 +221,11 @@ export default function CertificateRequests({ certificateType, archived = false 
           await restoreCertificateRequest(selectedRequest.id)
           break
       }
-      
+
       setShowActionModal(false)
       setSelectedRequest(null)
       setRemarks('')
-      
+
       // Show success toast
       const actionMessages = {
         approve: 'Certificate request approved successfully',
@@ -236,7 +239,7 @@ export default function CertificateRequests({ certificateType, archived = false 
         message: actionMessages[actionType],
         variant: 'success'
       })
-      
+
       fetchRequests(true)
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } }
@@ -382,9 +385,20 @@ export default function CertificateRequests({ certificateType, archived = false 
                         <div className="d-flex gap-1">
                           <ButtonComponent
                             size="sm"
-                            variant="outline-primary"
+                            variant="outline"
+                            onClick={() => {
+                              setDetailRequest(request)
+                              setShowDetailModal(true)
+                            }}
+                            title="View details"
+                          >
+                            <Eye size={14} />
+                          </ButtonComponent>
+                          <ButtonComponent
+                            size="sm"
+                            variant="primary"
                             onClick={(e) => {
-                              e.stopPropagation()
+                              e?.stopPropagation()
                               setSelectedRequest(request)
                               setActionType('restore')
                               setShowActionModal(true)
@@ -395,69 +409,96 @@ export default function CertificateRequests({ certificateType, archived = false 
                           </ButtonComponent>
                         </div>
                       ) : (
-                        <span className="text-muted small">—</span>
-                      )
-                    ) : canManageRequests ? (
-                      <div className="d-flex gap-1">
-                        {canApprove && (
-                          <>
-                            <ButtonComponent
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request)
-                                setActionType('approve')
-                                setShowActionModal(true)
-                              }}
-                              disabled={request.status !== 'pending'}
-                              title="Approve Request"
-                            >
-                              <CheckCircle size={14} />
-                            </ButtonComponent>
-                            <ButtonComponent
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request)
-                                setActionType('reject')
-                                setShowActionModal(true)
-                              }}
-                              disabled={!['pending', 'approved'].includes(request.status)}
-                              title="Reject Request"
-                            >
-                              <XCircle size={14} />
-                            </ButtonComponent>
-                            <ButtonComponent
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request)
-                                setActionType('release')
-                                setShowActionModal(true)
-                              }}
-                              disabled={request.status !== 'approved'}
-                              title="Release Certificate"
-                            >
-                              <Clock size={14} />
-                            </ButtonComponent>
-                          </>
-                        )}
                         <ButtonComponent
                           size="sm"
-                          variant="danger"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setSelectedRequest(request)
-                            setActionType('delete')
-                            setShowActionModal(true)
+                          variant="outline"
+                          onClick={() => {
+                            setDetailRequest(request)
+                            setShowDetailModal(true)
                           }}
-                          title="Archive"
+                          title="View details"
                         >
-                          <Trash2 size={14} />
+                          <Eye size={14} className="me-1" />
+                          View
                         </ButtonComponent>
-                      </div>
+                      )
                     ) : (
-                      <span className="text-muted small">Awaiting approval</span>
+                      <div className="d-flex gap-1 flex-wrap">
+                        <ButtonComponent
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setDetailRequest(request)
+                            setShowDetailModal(true)
+                          }}
+                          title="View details"
+                        >
+                          <Eye size={14} className="me-1" />
+                          View
+                        </ButtonComponent>
+                        {canManageRequests ? (
+                          <>
+                            {canApprove && (
+                              <>
+                                <ButtonComponent
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRequest(request)
+                                    setActionType('approve')
+                                    setShowActionModal(true)
+                                  }}
+                                  disabled={request.status !== 'pending'}
+                                  title="Approve Request"
+                                >
+                                  <CheckCircle size={14} />
+                                </ButtonComponent>
+                                <ButtonComponent
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRequest(request)
+                                    setActionType('reject')
+                                    setShowActionModal(true)
+                                  }}
+                                  disabled={!['pending', 'approved'].includes(request.status)}
+                                  title="Reject Request"
+                                >
+                                  <XCircle size={14} />
+                                </ButtonComponent>
+                                <ButtonComponent
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRequest(request)
+                                    setActionType('release')
+                                    setShowActionModal(true)
+                                  }}
+                                  disabled={request.status !== 'approved'}
+                                  title="Release Certificate"
+                                >
+                                  <Clock size={14} />
+                                </ButtonComponent>
+                              </>
+                            )}
+                            <ButtonComponent
+                              size="sm"
+                              variant="danger"
+                              onClick={(e) => {
+                                e?.stopPropagation()
+                                setSelectedRequest(request)
+                                setActionType('delete')
+                                setShowActionModal(true)
+                              }}
+                              title="Archive"
+                            >
+                              <Trash2 size={14} />
+                            </ButtonComponent>
+                          </>
+                        ) : (
+                          <span className="text-muted small align-self-center">Awaiting captain approval</span>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -470,15 +511,15 @@ export default function CertificateRequests({ certificateType, archived = false 
         {totalPages > 1 && (
           <div className="d-flex justify-content-center mt-4">
             <Pagination>
-              <Pagination.First 
+              <Pagination.First
                 onClick={() => setCurrentPage(1)}
                 disabled={currentPage === 1}
               />
-              <Pagination.Prev 
+              <Pagination.Prev
                 onClick={() => setCurrentPage(currentPage - 1)}
                 disabled={currentPage === 1}
               />
-              
+
               {[...Array(totalPages)].map((_, i) => (
                 <Pagination.Item
                   key={i + 1}
@@ -488,12 +529,12 @@ export default function CertificateRequests({ certificateType, archived = false 
                   {i + 1}
                 </Pagination.Item>
               ))}
-              
-              <Pagination.Next 
+
+              <Pagination.Next
                 onClick={() => setCurrentPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
               />
-              <Pagination.Last 
+              <Pagination.Last
                 onClick={() => setCurrentPage(totalPages)}
                 disabled={currentPage === totalPages}
               />
@@ -521,11 +562,11 @@ export default function CertificateRequests({ certificateType, archived = false 
                   onChange={(e) => setResidentSearchTerm(e.target.value)}
                 />
                 {residentSearchTerm && (
-                  <div 
-                    className="position-absolute w-100 border rounded-bottom" 
-                    style={{ 
-                      zIndex: 1000, 
-                      maxHeight: '200px', 
+                  <div
+                    className="position-absolute w-100 border rounded-bottom"
+                    style={{
+                      zIndex: 1000,
+                      maxHeight: '200px',
                       overflowY: 'auto',
                       backgroundColor: '#FFFFFF',
                       boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
@@ -544,7 +585,7 @@ export default function CertificateRequests({ certificateType, archived = false 
                             e.currentTarget.style.backgroundColor = '#FFFFFF'
                             e.currentTarget.style.color = '#0F172A'
                           }}
-                          style={{ 
+                          style={{
                             cursor: 'pointer',
                             backgroundColor: '#FFFFFF',
                             color: '#0F172A'
@@ -580,7 +621,7 @@ export default function CertificateRequests({ certificateType, archived = false 
                 )}
               </div>
             </Form.Group>
-            
+
             <Form.Group className="mb-3">
               <Form.Label>Certificate Type</Form.Label>
               <Form.Select
@@ -595,7 +636,7 @@ export default function CertificateRequests({ certificateType, archived = false 
                 <option value="business_permit_endorsement">Business Permit Endorsement</option>
               </Form.Select>
             </Form.Group>
-            
+
             <Form.Group className="mb-3">
               <Form.Label>Purpose</Form.Label>
               <Form.Control
@@ -608,7 +649,7 @@ export default function CertificateRequests({ certificateType, archived = false 
                 placeholder="Describe the purpose of this certificate request..."
               />
             </Form.Group>
-            
+
             <Form.Group className="mb-3">
               <Form.Label>Additional Requirements (Optional)</Form.Label>
               <Form.Control
@@ -632,6 +673,66 @@ export default function CertificateRequests({ certificateType, archived = false 
             <i className="fas fa-save me-1"></i>
             Create Request
           </ButtonComponent>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Read-only certificate details (including rejected) */}
+      <Modal
+        show={showDetailModal}
+        onHide={() => {
+          setShowDetailModal(false)
+          setDetailRequest(null)
+        }}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton className="modal-header-custom">
+          <Modal.Title className="modal-title-custom text-brand-primary">Certificate request</Modal.Title>
+        </Modal.Header>
+        <Modal.Body className="modal-body-custom">
+          {detailRequest && (
+            <div className="d-flex flex-column gap-3">
+              <div>
+                <strong className="text-muted small d-block">Certificate type</strong>
+                {getCertificateTypeLabel(detailRequest.certificate_type)}
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Resident</strong>
+                {detailRequest.resident?.full_name ||
+                  (detailRequest.resident
+                    ? [detailRequest.resident.first_name, detailRequest.resident.last_name].filter(Boolean).join(' ')
+                    : '—')}
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Status</strong>
+                {getStatusBadge(detailRequest.status)}
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Purpose</strong>
+                <p className="mb-0 text-break">{detailRequest.purpose || '—'}</p>
+              </div>
+              {detailRequest.additional_requirements ? (
+                <div>
+                  <strong className="text-muted small d-block">Additional requirements</strong>
+                  <p className="mb-0 text-break">{detailRequest.additional_requirements}</p>
+                </div>
+              ) : null}
+              {detailRequest.status === 'rejected' && (
+                <Alert variant="danger" className="mb-0">
+                  <strong>Rejection reason</strong>
+                  <p className="mb-0 mt-2">{detailRequest.remarks?.trim() || '—'}</p>
+                </Alert>
+              )}
+              <div className="text-muted small">
+                Requested {format(new Date(detailRequest.requested_at), 'MMM dd, yyyy hh:mm a')}
+              </div>
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className="modal-footer-custom">
+          <Button variant="secondary" onClick={() => { setShowDetailModal(false); setDetailRequest(null) }} className="btn-brand-secondary">
+            Close
+          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -660,7 +761,7 @@ export default function CertificateRequests({ certificateType, archived = false 
               </p>
             </div>
           )}
-          
+
           {(actionType === 'reject' || actionType === 'approve' || actionType === 'release') && (
             <Form.Group>
               <Form.Label>
@@ -676,7 +777,7 @@ export default function CertificateRequests({ certificateType, archived = false 
               />
             </Form.Group>
           )}
-          
+
           {actionType === 'delete' && (
             <Alert variant="warning">
               <strong>Archive:</strong> This certificate request will be moved to the Archive. You can restore it later from the Archive tab.
@@ -693,19 +794,18 @@ export default function CertificateRequests({ certificateType, archived = false 
             <i className="fas fa-times me-1"></i>
             Cancel
           </Button>
-          <ButtonComponent 
+          <ButtonComponent
             variant={actionType === 'reject' || actionType === 'delete' ? 'danger' : 'primary'}
             onClick={handleAction}
             disabled={actionType === 'reject' && !remarks.trim()}
             className={actionType === 'reject' || actionType === 'delete' ? 'btn-danger' : 'btn-brand-primary'}
           >
-            <i className={`fas ${
-              actionType === 'approve' ? 'fa-check' : 
-              actionType === 'reject' ? 'fa-times' : 
-              actionType === 'release' ? 'fa-paper-plane' : 
-              actionType === 'restore' ? 'fa-undo' : 
-              'fa-archive'
-            } me-1`}></i>
+            <i className={`fas ${actionType === 'approve' ? 'fa-check' :
+                actionType === 'reject' ? 'fa-times' :
+                  actionType === 'release' ? 'fa-paper-plane' :
+                    actionType === 'restore' ? 'fa-undo' :
+                      'fa-archive'
+              } me-1`}></i>
             {actionType === 'approve' && 'Approve'}
             {actionType === 'reject' && 'Reject'}
             {actionType === 'release' && 'Release'}
@@ -717,8 +817,8 @@ export default function CertificateRequests({ certificateType, archived = false 
 
       {/* Toast Notification */}
       <ToastContainer position="top-end" className="p-3" style={{ zIndex: 9999 }}>
-        <Toast 
-          show={toast.show} 
+        <Toast
+          show={toast.show}
           onClose={() => setToast({ ...toast, show: false })}
           delay={3000}
           autohide

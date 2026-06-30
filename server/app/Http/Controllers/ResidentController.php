@@ -183,6 +183,9 @@ class ResidentController extends Controller
                     if ($resident->is_pwd ?? false) {
                         $classifications[] = 'PWD';
                     }
+                    if ($resident->is_pregnant ?? false) {
+                        $classifications[] = 'Pregnant';
+                    }
                     // Check solo parent - can be from household relationship or from being head
                     $checkHousehold = $resident->household ?? $headHousehold;
                     if ($checkHousehold && ($resident->household_id || $isHeadOfHousehold)) {
@@ -248,6 +251,7 @@ class ResidentController extends Controller
                     'occupation_status' => $resident->occupation_status ?? 'other',
                     'resident_status' => $resident->resident_status ?? 'active',
                     'is_pwd' => $resident->is_pwd ?? false,
+                    'is_pregnant' => $resident->is_pregnant ?? false,
                     'age' => $age,
                     'is_senior' => $isSenior,
                     'is_solo_parent' => $isSoloParent,
@@ -281,6 +285,7 @@ class ResidentController extends Controller
                     'occupation_status' => $resident->occupation_status ?? 'other',
                     'resident_status' => $resident->resident_status ?? 'active',
                     'is_pwd' => $resident->is_pwd ?? false,
+                    'is_pregnant' => $resident->is_pregnant ?? false,
                     'age' => null,
                     'is_senior' => false,
                     'is_solo_parent' => false,
@@ -312,8 +317,11 @@ class ResidentController extends Controller
             'raw_data' => $request->all()
         ]);
 
-        // Remove purok_id from data as it's not needed (residents get purok through household)
-        unset($data['purok_id']);
+        // Drop redundant purok_id only when tied to a household (purok comes from household + sync below).
+        // Unassigned residents must keep purok_id so the assigned purok is stored and shown in the list.
+        if (! empty($data['household_id'])) {
+            unset($data['purok_id']);
+        }
 
         try {
             // Start database transaction for data consistency

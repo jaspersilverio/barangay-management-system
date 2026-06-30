@@ -15,7 +15,8 @@ class NotificationController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Notification::forUser(Auth::id())
+        $query = Notification::query()
+            ->where('user_id', Auth::id())
             ->orderBy('created_at', 'desc');
 
         // Filter by read status
@@ -51,8 +52,8 @@ class NotificationController extends Controller
      */
     public function bell(): JsonResponse
     {
-        $unreadCount = Notification::forUser(Auth::id())->unread()->count();
-        $latestNotifications = Notification::forUser(Auth::id())
+        $unreadCount = Notification::query()->where('user_id', Auth::id())->unread()->count();
+        $latestNotifications = Notification::query()->where('user_id', Auth::id())
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
@@ -71,7 +72,8 @@ class NotificationController extends Controller
      */
     public function markAsRead($id): JsonResponse
     {
-        $notification = Notification::forUser(Auth::id())
+        $notification = Notification::query()
+            ->where('user_id', Auth::id())
             ->findOrFail($id);
 
         $notification->update(['is_read' => true]);
@@ -87,7 +89,8 @@ class NotificationController extends Controller
      */
     public function markAllAsRead(): JsonResponse
     {
-        Notification::forUser(Auth::id())
+        Notification::query()
+            ->where('user_id', Auth::id())
             ->unread()
             ->update(['is_read' => true]);
 

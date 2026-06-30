@@ -9,9 +9,10 @@ export interface SearchResult {
   sex?: string
   address?: string
   purok_name?: string
-  household_id?: number
-  x_position?: number
-  y_position?: number
+  household_id?: number | null
+  map_marker_id?: number | null
+  x_position?: number | null
+  y_position?: number | null
 }
 
 export async function searchHouseholdsAndResidents(query: string) {

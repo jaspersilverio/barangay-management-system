@@ -8,6 +8,9 @@ use App\Models\Household;
 use App\Models\SoloParent;
 use App\Models\FourPsBeneficiary;
 use App\Models\Blotter;
+use App\Models\CertificateRequest;
+use App\Models\IssuedCertificate;
+use App\Models\Vaccination;
 use App\Models\IncidentReport;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
@@ -26,6 +29,460 @@ class ReportController extends Controller
     public function __construct(PdfService $pdfService)
     {
         $this->pdfService = $pdfService;
+    }
+
+    /**
+     * Unified reports endpoint.
+     * Returns a consistent payload: { columns: string[], data: object[] }
+     */
+    public function index(Request $request): JsonResponse
+    {
+        $type = (string) $request->string('type')->toString();
+        $payload = $this->buildUnifiedReportPayload($type, $request);
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Unified CSV export endpoint.
+     */
+    public function exportCsv(Request $request)
+    {
+        $type = (string) $request->string('type')->toString();
+        $payload = $this->buildUnifiedReportPayload($type, $request);
+        $columns = $payload['columns'] ?? [];
+        $rows = $payload['data'] ?? [];
+
+        $filename = ($type !== '' ? $type : 'report') . '_report_' . date('Y-m-d') . '.csv';
+
+        return response()->streamDownload(function () use ($columns, $rows) {
+            $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
+
+            try {
+                fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+                fputcsv($handle, $columns);
+                foreach ($rows as $row) {
+                    fputcsv($handle, array_values((array) $row));
+                }
+            } finally {
+                fclose($handle);
+            }
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Cache-Control' => 'private, max-age=0, must-revalidate',
+            'Pragma' => 'public',
+        ]);
+    }
+
+    private function buildUnifiedReportPayload(string $type, Request $request): array
+    {
+        $columns = $this->getColumns($type);
+        if (empty($columns)) {
+            return ['columns' => [], 'data' => []];
+        }
+
+        $user = $request->user();
+        $search = trim((string) $request->string('search')->toString());
+        $status = trim((string) $request->string('status')->toString());
+        $dateFrom = trim((string) $request->string('date_from')->toString());
+        $dateTo = trim((string) $request->string('date_to')->toString());
+        $purokId = trim((string) $request->string('purok_id')->toString());
+        $program = trim((string) $request->string('program')->toString());
+        $limit = max(1, min((int) $request->integer('limit', 500), 2000));
+
+        switch ($type) {
+            case 'residents':
+                $query = Resident::with(['household.purok'])
+                    ->whereNull('deleted_at');
+
+                if ($user && $user->isPurokLeader() && $user->assigned_purok_id) {
+                    $query->whereHas('household', function ($q) use ($user) {
+                        $q->where('purok_id', $user->assigned_purok_id);
+                    });
+                }
+                if ($purokId !== '') {
+                    $query->whereHas('household', function ($q) use ($purokId) {
+                        $q->where('purok_id', (int) $purokId);
+                    });
+                }
+                if ($status !== '') {
+                    $query->where('resident_status', $status);
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('middle_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhereRaw("CONCAT(first_name, ' ', COALESCE(middle_name, ''), ' ', last_name) LIKE ?", ["%{$search}%"]);
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('created_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('created_at', '<=', $dateTo);
+                }
+
+                $rows = $query->latest()->limit($limit)->get()->map(function ($r) {
+                    return [
+                        'Full Name' => trim(($r->first_name ?? '') . ' ' . ($r->middle_name ? $r->middle_name . ' ' : '') . ($r->last_name ?? '')),
+                        'Gender' => ucfirst((string) ($r->sex ?? '-')),
+                        'Purok' => $r->household?->purok?->name ?? '-',
+                        'Birthdate' => $r->birthdate ? Carbon::parse($r->birthdate)->format('Y-m-d') : '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'households':
+                $query = Household::with(['purok', 'headResident'])
+                    ->whereNull('deleted_at');
+
+                if ($user && $user->isPurokLeader() && $user->assigned_purok_id) {
+                    $query->where('purok_id', $user->assigned_purok_id);
+                }
+                if ($purokId !== '') {
+                    $query->where('purok_id', (int) $purokId);
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('head_name', 'like', "%{$search}%")
+                            ->orWhere('address', 'like', "%{$search}%");
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('created_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('created_at', '<=', $dateTo);
+                }
+
+                $rows = $query->latest()->limit($limit)->get()->map(function ($h) {
+                    $headName = $h->headResident
+                        ? trim(($h->headResident->first_name ?? '') . ' ' . ($h->headResident->last_name ?? ''))
+                        : ($h->head_name ?? '-');
+                    return [
+                        'Household Head' => $headName,
+                        'Purok' => $h->purok?->name ?? '-',
+                        'Address' => $h->address ?? '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'blotter':
+                $query = Blotter::query()->withoutTrashed();
+                if ($status !== '') {
+                    $query->where('status', $status);
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('complainant_full_name', 'like', "%{$search}%")
+                            ->orWhere('respondent_full_name', 'like', "%{$search}%")
+                            ->orWhere('case_number', 'like', "%{$search}%");
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('created_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('created_at', '<=', $dateTo);
+                }
+                $rows = $query->latest()->limit($limit)->get()->map(function ($b) {
+                    return [
+                        'Complainant' => $b->complainant_full_name ?? '-',
+                        'Respondent' => $b->respondent_full_name ?? '-',
+                        'Status' => ucfirst((string) ($b->status ?? '-')),
+                        'Date Filed' => $b->created_at ? Carbon::parse($b->created_at)->format('Y-m-d') : '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'incident_reports':
+                $query = IncidentReport::query()
+                    ->with(['reportingOfficer', 'creator'])
+                    ->withoutTrashed();
+                if ($status !== '') {
+                    $query->where('status', $status);
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('incident_title', 'like', "%{$search}%")
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhere('location', 'like', "%{$search}%");
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('incident_date', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('incident_date', '<=', $dateTo);
+                }
+                $rows = $query
+                    ->orderBy('incident_date', 'desc')
+                    ->orderBy('incident_time', 'desc')
+                    ->limit($limit)
+                    ->get()
+                    ->map(function ($incident) {
+                        return [
+                            'Incident Title' => $incident->incident_title ?? '-',
+                            'Location' => $incident->location ?? '-',
+                            'Status' => ucfirst((string) ($incident->status ?? '-')),
+                            'Date Filed' => $incident->created_at ? Carbon::parse($incident->created_at)->format('Y-m-d') : '-',
+                        ];
+                    })->values()->all();
+                break;
+
+            case 'cert_requests':
+                $query = CertificateRequest::with(['resident'])->whereNull('deleted_at');
+                if ($status !== '') {
+                    $query->where('status', $status);
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('certificate_type', 'like', "%{$search}%")
+                            ->orWhereHas('resident', function ($sq) use ($search) {
+                                $sq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('requested_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('requested_at', '<=', $dateTo);
+                }
+                $rows = $query->latest()->limit($limit)->get()->map(function ($c) {
+                    $residentName = $c->resident
+                        ? trim(($c->resident->first_name ?? '') . ' ' . ($c->resident->last_name ?? ''))
+                        : '-';
+                    return [
+                        'Resident' => $residentName,
+                        'Certificate Type' => $c->certificate_type_label ?? $c->certificate_type ?? '-',
+                        'Status' => ucfirst((string) ($c->status ?? '-')),
+                        'Date Requested' => $c->requested_at ? Carbon::parse($c->requested_at)->format('Y-m-d') : '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'cert_issued':
+                $query = IssuedCertificate::with(['resident'])->whereNull('deleted_at');
+                if ($status !== '') {
+                    if ($status === 'valid') {
+                        $query->valid();
+                    } elseif ($status === 'expired' || $status === 'invalid') {
+                        $query->expired();
+                    }
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('certificate_number', 'like', "%{$search}%")
+                            ->orWhereHas('resident', function ($sq) use ($search) {
+                                $sq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('created_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('created_at', '<=', $dateTo);
+                }
+                $rows = $query->latest()->limit($limit)->get()->map(function ($c) {
+                    $residentName = $c->resident
+                        ? trim(($c->resident->first_name ?? '') . ' ' . ($c->resident->last_name ?? ''))
+                        : '-';
+                    return [
+                        'Control Number' => $c->certificate_number ?? '-',
+                        'Resident' => $residentName,
+                        'Date Issued' => $c->created_at ? Carbon::parse($c->created_at)->format('Y-m-d') : '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'vaccinations':
+                $query = Vaccination::with(['resident.household.purok']);
+                if ($status !== '') {
+                    $query->where('status', $status);
+                }
+                if ($user && $user->isPurokLeader() && $user->assigned_purok_id) {
+                    $query->whereHas('resident.household', function ($q) use ($user) {
+                        $q->where('purok_id', $user->assigned_purok_id);
+                    });
+                }
+                if ($purokId !== '') {
+                    $query->whereHas('resident.household', function ($q) use ($purokId) {
+                        $q->where('purok_id', (int) $purokId);
+                    });
+                }
+                if ($search !== '') {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('vaccine_name', 'like', "%{$search}%")
+                            ->orWhereHas('resident', function ($sq) use ($search) {
+                                $sq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
+                    });
+                }
+                if ($dateFrom !== '') {
+                    $query->whereDate('date_administered', '>=', $dateFrom);
+                }
+                if ($dateTo !== '') {
+                    $query->whereDate('date_administered', '<=', $dateTo);
+                }
+                $rows = $query->latest()->limit($limit)->get()->map(function ($v) {
+                    $residentName = $v->resident
+                        ? trim(($v->resident->first_name ?? '') . ' ' . ($v->resident->last_name ?? ''))
+                        : '-';
+                    return [
+                        'Resident' => $residentName,
+                        'Vaccine' => $v->vaccine_name ?? '-',
+                        'Dose' => (string) ($v->dose_number ?? '-'),
+                        'Date' => $v->date_administered ? Carbon::parse($v->date_administered)->format('Y-m-d') : '-',
+                    ];
+                })->values()->all();
+                break;
+
+            case 'beneficiaries':
+                $rowsCollection = collect();
+
+                if ($program === '' || $program === '4ps') {
+                    $fourPs = FourPsBeneficiary::with(['household.headResident'])
+                        ->when($status !== '', fn ($q) => $q->where('status', $status))
+                        ->when($search !== '', function ($q) use ($search) {
+                            $q->where('four_ps_number', 'like', "%{$search}%")
+                                ->orWhereHas('household.headResident', function ($sq) use ($search) {
+                                    $sq->where('first_name', 'like', "%{$search}%")
+                                        ->orWhere('last_name', 'like', "%{$search}%");
+                                });
+                        })
+                        ->latest()
+                        ->limit($limit)
+                        ->get()
+                        ->map(function ($b) {
+                            $residentName = $b->household?->headResident
+                                ? trim(($b->household->headResident->first_name ?? '') . ' ' . ($b->household->headResident->last_name ?? ''))
+                                : ($b->household?->head_name ?? '-');
+                            return [
+                                'Resident' => $residentName,
+                                'Program' => '4Ps',
+                                'Status' => ucfirst((string) ($b->status ?? '-')),
+                            ];
+                        });
+                    $rowsCollection = $rowsCollection->concat($fourPs);
+                }
+
+                if ($program === '' || $program === 'solo_parents') {
+                    $soloParents = SoloParent::with(['resident'])
+                        ->when($status !== '', function ($q) use ($status) {
+                            if (in_array($status, ['active', 'expired', 'inactive'], true)) {
+                                $q->byComputedStatus($status);
+                            }
+                        })
+                        ->when($search !== '', function ($q) use ($search) {
+                            $q->whereHas('resident', function ($sq) use ($search) {
+                                $sq->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%");
+                            });
+                        })
+                        ->latest()
+                        ->limit($limit)
+                        ->get()
+                        ->map(function ($s) {
+                            $residentName = $s->resident
+                                ? trim(($s->resident->first_name ?? '') . ' ' . ($s->resident->last_name ?? ''))
+                                : '-';
+                            return [
+                                'Resident' => $residentName,
+                                'Program' => 'Solo Parent',
+                                'Status' => ucfirst((string) ($s->computed_status ?? '-')),
+                            ];
+                        });
+                    $rowsCollection = $rowsCollection->concat($soloParents);
+                }
+
+                if ($program === '' || $program === 'seniors' || $program === 'pwd') {
+                    $residentQuery = Resident::with(['household.purok'])
+                        ->whereNull('deleted_at');
+
+                    if ($program === 'seniors') {
+                        $residentQuery->seniors();
+                    }
+                    if ($program === 'pwd') {
+                        $residentQuery->pwds();
+                    }
+                    if ($program === '') {
+                        $residentQuery->where(function ($q) {
+                            $q->where('is_pwd', true)
+                                ->orWhereDate('birthdate', '<=', now()->subYears(60)->toDateString());
+                        });
+                    }
+                    if ($status !== '') {
+                        $residentQuery->where('resident_status', $status);
+                    }
+                    if ($search !== '') {
+                        $residentQuery->where(function ($q) use ($search) {
+                            $q->where('first_name', 'like', "%{$search}%")
+                                ->orWhere('middle_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%");
+                        });
+                    }
+                    if ($purokId !== '') {
+                        $residentQuery->whereHas('household', function ($q) use ($purokId) {
+                            $q->where('purok_id', (int) $purokId);
+                        });
+                    }
+
+                    $residentBeneficiaries = $residentQuery->latest()->limit($limit)->get()->map(function ($r) use ($program) {
+                        $fullName = trim(($r->first_name ?? '') . ' ' . ($r->middle_name ? $r->middle_name . ' ' : '') . ($r->last_name ?? ''));
+                        if ($program === 'seniors') {
+                            $label = 'Senior Citizens';
+                        } elseif ($program === 'pwd') {
+                            $label = 'PWD';
+                        } else {
+                            $label = ($r->is_pwd ?? false) ? 'PWD' : 'Senior Citizens';
+                        }
+
+                        return [
+                            'Resident' => $fullName !== '' ? $fullName : '-',
+                            'Program' => $label,
+                            'Status' => ucfirst((string) ($r->resident_status ?? '-')),
+                        ];
+                    });
+
+                    $rowsCollection = $rowsCollection->concat($residentBeneficiaries);
+                }
+
+                $rows = $rowsCollection->take($limit)->values()->all();
+                break;
+
+            default:
+                $rows = [];
+                break;
+        }
+
+        return [
+            'columns' => $columns,
+            'data' => $rows,
+        ];
+    }
+
+    private function getColumns(string $type): array
+    {
+        return match ($type) {
+            'residents' => ['Full Name', 'Gender', 'Purok', 'Birthdate'],
+            'households' => ['Household Head', 'Purok', 'Address'],
+            'blotter' => ['Complainant', 'Respondent', 'Status', 'Date Filed'],
+            'incident_reports' => ['Incident Title', 'Location', 'Status', 'Date Filed'],
+            'cert_requests' => ['Resident', 'Certificate Type', 'Status', 'Date Requested'],
+            'cert_issued' => ['Control Number', 'Resident', 'Date Issued'],
+            'vaccinations' => ['Resident', 'Vaccine', 'Dose', 'Date'],
+            'beneficiaries' => ['Resident', 'Program', 'Status'],
+            default => [],
+        };
     }
     /**
      * Get households report with filters
@@ -106,8 +563,9 @@ class ReportController extends Controller
             });
         }
 
-        if ($request->filled('sex')) {
-            $query->where('sex', $request->sex);
+        $genderOrSex = $request->filled('gender') ? $request->input('gender') : ($request->filled('sex') ? $request->input('sex') : null);
+        if ($genderOrSex !== null && $genderOrSex !== '') {
+            $query->where('sex', $genderOrSex);
         }
 
         if ($request->filled('vulnerabilities')) {
@@ -529,7 +987,7 @@ class ReportController extends Controller
     {
         try {
             // STEP 1: Extract and validate filters
-            $filters = $request->only(['purok_id', 'date_from', 'date_to', 'sex', 'vulnerabilities', 'search']);
+            $filters = $request->only(['purok_id', 'date_from', 'date_to', 'sex', 'gender', 'vulnerabilities', 'search']);
 
             // STEP 2: Build query with proper eager loading
             $query = Resident::with(['household.purok']);
@@ -541,8 +999,9 @@ class ReportController extends Controller
                 });
             }
 
-            if (!empty($filters['sex'])) {
-                $query->where('sex', $filters['sex']);
+            $sexFilter = !empty($filters['gender']) ? $filters['gender'] : ($filters['sex'] ?? null);
+            if (!empty($sexFilter)) {
+                $query->where('sex', $sexFilter);
             }
 
             if (!empty($filters['vulnerabilities'])) {

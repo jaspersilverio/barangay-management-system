@@ -27,6 +27,7 @@ use App\Http\Controllers\FourPsBeneficiaryController;
 use App\Http\Controllers\SoloParentController;
 use App\Http\Controllers\IncidentReportController;
 use App\Http\Controllers\ApprovalQueueController;
+use App\Http\Controllers\AnnouncementController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no authentication required)
@@ -81,13 +82,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard/vulnerable-trends', [DashboardController::class, 'vulnerableTrends']);
     Route::get('/dashboard/recent-activities', [DashboardController::class, 'recentActivities']);
     Route::get('/dashboard/upcoming-events', [DashboardController::class, 'upcomingEvents']);
+    Route::get('/dashboard/recent-announcements', [DashboardController::class, 'recentAnnouncements']);
+    Route::get('/dashboard/recent-notifications', [DashboardController::class, 'recentNotifications']);
     Route::get('/dashboard/vaccinations/summary', [DashboardController::class, 'vaccinationSummary']);
     Route::get('/dashboard/blotters/summary', [DashboardController::class, 'blotterSummary']);
     Route::get('/dashboard/age-distribution', [DashboardController::class, 'ageDistribution']);
     Route::get('/dashboard/beneficiaries', [DashboardController::class, 'beneficiaries']);
 
-    // Purok read (admin, captain, purok_leader only - no staff)
-    Route::middleware('role:admin,captain,purok_leader')->group(function () {
+    // Purok read (includes staff for dropdowns and filters)
+    Route::middleware('role:admin,captain,purok_leader,staff')->group(function () {
         Route::get('/puroks', [PurokController::class, 'index']);
         Route::get('/puroks/{purok}', [PurokController::class, 'show']);
     });
@@ -104,6 +107,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/residents/{resident}', [ResidentController::class, 'show']);
         Route::get('/events', [EventController::class, 'index']);
         Route::get('/events/{event}', [EventController::class, 'show']);
+        Route::get('/announcements', [AnnouncementController::class, 'index']);
         Route::get('/search/households-residents', [SearchController::class, 'searchHouseholdsAndResidents']);
         Route::get('/officials', [OfficialController::class, 'index']);
         Route::get('/officials/active', [OfficialController::class, 'active']);
@@ -202,6 +206,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Puroks report (admin, captain, staff, and purok leaders - purok leaders get filtered data)
     Route::middleware('role:admin,captain,staff,purok_leader')->group(function () {
+        Route::get('/reports', [ReportController::class, 'index']);
+        Route::get('/reports/export/csv', [ReportController::class, 'exportCsv']);
         Route::get('/reports/puroks', [ReportController::class, 'puroks']);
         Route::get('/reports/puroks/export/csv', [ReportController::class, 'exportPuroksCsv']);
     });
@@ -263,6 +269,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/events', [EventController::class, 'store']);
         Route::put('/events/{event}', [EventController::class, 'update']);
         Route::delete('/events/{event}', [EventController::class, 'destroy']);
+    });
+
+    // Announcements management (admin and captain only)
+    Route::middleware('role:admin,captain')->group(function () {
+        Route::post('/announcements', [AnnouncementController::class, 'store']);
+        Route::put('/announcements/{announcement}', [AnnouncementController::class, 'update']);
+        Route::delete('/announcements/{announcement}', [AnnouncementController::class, 'destroy']);
     });
 
     // Blotter creation (staff, purok leaders, and admin can create)
@@ -336,11 +349,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/officials/{official}', [OfficialController::class, 'destroy']);
     });
 
+    // Purok options for user forms (staff needs this when assisting with user-facing flows)
+    Route::middleware('role:admin,captain,staff')->group(function () {
+        Route::get('/users/puroks', [UserController::class, 'getPuroks']);
+    });
+
     // User management routes (admin and captain - except creation)
     Route::middleware('role:admin,captain')->group(function () {
         Route::get('/users', [UserController::class, 'index']);
         Route::get('/users/roles', [UserController::class, 'getRoles']);
-        Route::get('/users/puroks', [UserController::class, 'getPuroks']);
         Route::post('/users/{id}/restore', [UserController::class, 'restore']);
         Route::get('/users/{user}', [UserController::class, 'show']);
         Route::put('/users/{user}', [UserController::class, 'update']);

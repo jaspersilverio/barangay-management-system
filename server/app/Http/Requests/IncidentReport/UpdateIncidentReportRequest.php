@@ -19,11 +19,25 @@ class UpdateIncidentReportRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        // Ensure incident_date and incident_time are always set for validation
-        $this->merge([
-            'incident_date' => $this->input('incident_date') ? trim($this->input('incident_date')) : null,
-            'incident_time' => $this->input('incident_time') ? trim($this->input('incident_time')) : null,
-        ]);
+        $data = [];
+
+        // Only normalize fields that are actually present in the request.
+        // This keeps status-only updates (e.g., mark as resolved) valid.
+        if ($this->has('incident_date')) {
+            $data['incident_date'] = $this->input('incident_date')
+                ? trim((string) $this->input('incident_date'))
+                : null;
+        }
+
+        if ($this->has('incident_time')) {
+            $data['incident_time'] = $this->input('incident_time')
+                ? trim((string) $this->input('incident_time'))
+                : null;
+        }
+
+        if (!empty($data)) {
+            $this->merge($data);
+        }
     }
 
     /**

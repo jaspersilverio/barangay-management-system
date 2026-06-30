@@ -23,6 +23,10 @@ export interface PendingRequest {
   subtitle: string
   requested_by: string
   requested_at: string
+  /** Record workflow status (pending, approved, rejected, issued, …). */
+  status?: string
+  /** Populated when status is rejected (certificates use remarks). */
+  rejection_reason?: string | null
   data: any // The actual request data (certificate, blotter, or incident)
 }
 
@@ -30,6 +34,8 @@ export interface ApprovalQueueResponse {
   success: boolean
   data: PendingRequest[]
   statistics: {
+    /** Total rows for the current status filter (same as total_pending for backward compatibility). */
+    total?: number
     total_pending: number
     certificates: number
     blotters: number
@@ -50,14 +56,18 @@ export interface PendingCountResponse {
 /**
  * Get all pending requests for approval
  */
+export type ApprovalQueueStatusFilter = 'pending' | 'approved' | 'rejected'
+
 export async function getApprovalQueue(params?: {
   type?: 'all' | 'certificate' | 'blotter' | 'incident'
+  status?: ApprovalQueueStatusFilter
 }): Promise<ApprovalQueueResponse> {
   const searchParams = new URLSearchParams()
-  
+
   if (params?.type && params.type !== 'all') {
     searchParams.append('type', params.type)
   }
+  searchParams.append('status', params?.status ?? 'pending')
 
   const url = `/approval-queue${searchParams.toString() ? `?${searchParams.toString()}` : ''}`
   const response = await api.get(url)

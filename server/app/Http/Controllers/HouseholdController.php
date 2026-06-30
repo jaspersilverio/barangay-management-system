@@ -107,6 +107,7 @@ class HouseholdController extends Controller
         $headResident->update([
             'household_id' => $household->id,
             'relationship_to_head' => 'Head',
+            'purok_id' => $household->purok_id,
         ]);
         
         // Refresh the head resident to ensure relationship is loaded
@@ -138,7 +139,11 @@ class HouseholdController extends Controller
         if ($household->head_resident_id) {
             $head = Resident::find($household->head_resident_id);
             if ($head && !$head->household_id) {
-                $head->update(['household_id' => $household->id, 'relationship_to_head' => 'Head']);
+                $head->update([
+                    'household_id' => $household->id,
+                    'relationship_to_head' => 'Head',
+                    'purok_id' => $household->purok_id,
+                ]);
             }
         }
 
@@ -223,9 +228,11 @@ class HouseholdController extends Controller
             
             // Ensure head resident is assigned to this household
             if (!$headResident->household_id || $headResident->household_id !== $household->id) {
+                $purokId = $data['purok_id'] ?? $household->purok_id;
                 $headResident->update([
                     'household_id' => $household->id,
                     'relationship_to_head' => 'Head',
+                    'purok_id' => $purokId,
                 ]);
             }
         }
@@ -285,7 +292,11 @@ class HouseholdController extends Controller
         if ($household->head_resident_id) {
             $head = Resident::find($household->head_resident_id);
             if ($head && !$head->household_id) {
-                $head->update(['household_id' => $household->id, 'relationship_to_head' => 'Head']);
+                $head->update([
+                    'household_id' => $household->id,
+                    'relationship_to_head' => 'Head',
+                    'purok_id' => $household->purok_id,
+                ]);
             }
         }
 

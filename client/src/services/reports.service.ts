@@ -1,5 +1,55 @@
 import api from './api'
 
+export type UnifiedReportType =
+  | 'residents'
+  | 'households'
+  | 'blotter'
+  | 'incident_reports'
+  | 'cert_requests'
+  | 'cert_issued'
+  | 'vaccinations'
+  | 'beneficiaries'
+
+export type UnifiedReportFilters = {
+  type: UnifiedReportType
+  search?: string
+  status?: string
+  program?: '4ps' | 'seniors' | 'solo_parents' | 'pwd'
+  date_from?: string
+  date_to?: string
+  purok_id?: number | string
+  limit?: number
+}
+
+export async function getReports(params: UnifiedReportFilters) {
+  const res = await api.get('/reports', { params })
+  return res.data as { columns: string[]; data: Record<string, unknown>[] }
+}
+
+export async function exportReportsCsv(params: UnifiedReportFilters) {
+  const res = await api.get('/reports/export/csv', {
+    params,
+    responseType: 'blob',
+  })
+
+  if (res.data instanceof Blob) {
+    const blob = new Blob([res.data], {
+      type: 'text/csv; charset=UTF-8',
+    })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${params.type}_report_${new Date().toISOString().split('T')[0]}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+    return { success: true }
+  }
+
+  throw new Error('Failed to download CSV export')
+}
+
 const householdsReportCache: Record<string, unknown> = {}
 const residentsReportCache: Record<string, unknown> = {}
 let puroksReportCache: unknown[] | null = null
@@ -140,7 +190,10 @@ export async function getResidentsReport(filters: ReportFilters = {}) {
   if (filters.date_from) params.append('date_from', filters.date_from)
   if (filters.date_to) params.append('date_to', filters.date_to)
   if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
-  if (filters.sex) params.append('sex', filters.sex)
+  if (filters.sex) {
+    params.append('gender', filters.sex)
+    params.append('sex', filters.sex)
+  }
   if (filters.vulnerabilities) params.append('vulnerabilities', filters.vulnerabilities)
   if (filters.per_page) params.append('per_page', filters.per_page.toString())
 
@@ -159,7 +212,10 @@ export async function exportResidentsCsv(filters: ReportFilters = {}) {
   if (filters.date_from) params.append('date_from', filters.date_from)
   if (filters.date_to) params.append('date_to', filters.date_to)
   if (filters.purok_id) params.append('purok_id', filters.purok_id.toString())
-  if (filters.sex) params.append('sex', filters.sex)
+  if (filters.sex) {
+    params.append('gender', filters.sex)
+    params.append('sex', filters.sex)
+  }
   if (filters.vulnerabilities) params.append('vulnerabilities', filters.vulnerabilities)
   if (filters.search) params.append('search', filters.search)
 

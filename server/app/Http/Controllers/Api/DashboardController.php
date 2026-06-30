@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Announcement;
 use App\Models\Household;
+use App\Models\Notification;
 use App\Models\Purok;
 use App\Models\Resident;
 use App\Models\Vaccination;
@@ -513,6 +515,27 @@ class DashboardController extends Controller
             });
 
         return $this->respondSuccess($events);
+    }
+
+    public function recentAnnouncements()
+    {
+        $announcements = Announcement::with('creator:id,name')
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        return $this->respondSuccess($announcements);
+    }
+
+    public function recentNotifications()
+    {
+        $notifications = Notification::query()
+            ->where('user_id', request()->user()->id)
+            ->latest()
+            ->limit(5)
+            ->get();
+
+        return $this->respondSuccess($notifications);
     }
 
     public function vaccinationSummary()

@@ -669,7 +669,12 @@ const ResidentListPage = React.memo(() => {
                                 Solo Parent
                               </Badge>
                             )}
-                            {!resident.is_senior && !resident.is_pwd && !resident.is_solo_parent && (
+                            {resident.is_pregnant && (
+                              <Badge className="rounded-pill text-white" style={{ fontSize: '0.75rem', backgroundColor: '#d63384' }}>
+                                Pregnant
+                              </Badge>
+                            )}
+                            {!resident.is_senior && !resident.is_pwd && !resident.is_solo_parent && !resident.is_pregnant && (
                               <span className="text-muted small">-</span>
                             )}
                           </div>

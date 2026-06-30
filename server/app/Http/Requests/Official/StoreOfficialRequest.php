@@ -24,7 +24,6 @@ class StoreOfficialRequest extends BaseFormRequest
                 'contact_number' => ['nullable', 'string', 'max:20'],
                 'address' => ['nullable', 'string'],
                 'date_appointed' => ['required', 'date'],
-                'status' => ['required', 'string', 'in:active,inactive'],
                 'official_role' => ['required', 'string', 'in:tanod,bhw,staff'],
                 'official_type' => ['required', 'string', 'in:appointed'],
             ];
@@ -91,9 +90,8 @@ class StoreOfficialRequest extends BaseFormRequest
 
     protected function prepareForValidation()
     {
-        // Appointed officials: normalize status to active boolean
-        if ($this->input('official_type') === 'appointed' && $this->has('status')) {
-            $this->merge(['active' => $this->status === 'active']);
+        if ($this->input('official_type') === 'appointed') {
+            $this->merge(['status' => 'active', 'active' => true]);
         }
 
         // Convert active to boolean if it's a string

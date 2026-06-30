@@ -18,7 +18,6 @@ import {
   setBlottersListCached,
   getBlotterStatsCached,
   setBlotterStatsCached,
-  clearBlotterPageCache,
 } from '../services/blotter.service';
 import blotterService from '../services/blotter.service';
 import AddBlotterModal from '../components/blotter/AddBlotterModal';
@@ -53,10 +52,11 @@ const BlotterPage: React.FC = () => {
 
   const [searchInput, setSearchInput] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'ongoing' | 'resolved'>('ongoing');
 
   const [filters, setFilters] = useState<BlotterFilters>({
     search: '',
-    status: '',
+    status: 'ongoing',
     start_date: '',
     end_date: '',
     per_page: 15,
@@ -84,6 +84,10 @@ const BlotterPage: React.FC = () => {
     }, 300);
     return () => clearTimeout(timeoutId);
   }, [searchInput]);
+
+  useEffect(() => {
+    setFilters(prev => ({ ...prev, status: activeTab, page: 1 }));
+  }, [activeTab]);
 
   const listKey = useMemo(() => listCacheKey(filters), [filters]);
 
@@ -408,6 +412,20 @@ const BlotterPage: React.FC = () => {
       {/* Filters */}
       <div className="card mb-4">
         <div className="card-body">
+          <div className="d-flex gap-2 mb-3">
+            <Button
+              variant={activeTab === 'ongoing' ? 'primary' : 'outline-primary'}
+              onClick={() => setActiveTab('ongoing')}
+            >
+              Ongoing Cases
+            </Button>
+            <Button
+              variant={activeTab === 'resolved' ? 'success' : 'outline-success'}
+              onClick={() => setActiveTab('resolved')}
+            >
+              Resolved Cases
+            </Button>
+          </div>
           <div className="row g-3">
             <div className="col-md-3">
               <label className="form-label">Search</label>
@@ -423,18 +441,6 @@ const BlotterPage: React.FC = () => {
                   onChange={(e) => setSearchInput(e.target.value)}
                 />
               </div>
-            </div>
-            <div className="col-md-2">
-              <label className="form-label">Status</label>
-              <select
-                className="form-select"
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-              >
-                <option value="">All Status</option>
-                <option value="ongoing">Ongoing</option>
-                <option value="resolved">Resolved</option>
-              </select>
             </div>
             <div className="col-md-2">
               <label className="form-label">Start Date</label>

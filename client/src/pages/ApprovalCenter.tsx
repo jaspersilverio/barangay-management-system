@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Row, Col, Card, Button, Form, Modal, Badge, Alert } from 'react-bootstrap'
-import { CheckCircle, XCircle, Clock, Filter, FileText, AlertTriangle, ClipboardList, AlertCircle } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Filter, FileText, AlertTriangle, ClipboardList, AlertCircle, Eye } from 'lucide-react'
 import { format } from 'date-fns'
 import {
   getApprovalQueue,
   getApprovalQueueCached,
   setApprovalQueueCached,
   type PendingRequest,
-  type ApprovalQueueResponse
+  type ApprovalQueueResponse,
+  type ApprovalQueueStatusFilter
 } from '../services/approval-queue.service'
 import { approveCertificateRequest, rejectCertificateRequest } from '../services/certificate.service'
 import blotterService from '../services/blotter.service'
@@ -24,13 +25,17 @@ export default function ApprovalCenter() {
   const [requests, setRequests] = useState<PendingRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<'all' | 'certificate' | 'blotter' | 'incident'>('all')
+  const [approvalTab, setApprovalTab] = useState<ApprovalQueueStatusFilter>('pending')
   const [statistics, setStatistics] = useState({
+    total: 0,
     total_pending: 0,
     certificates: 0,
     blotters: 0,
     incidents: 0
   })
   const [selectedRequest, setSelectedRequest] = useState<PendingRequest | null>(null)
+  const [viewRequest, setViewRequest] = useState<PendingRequest | null>(null)
+  const [showViewModal, setShowViewModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState(false)
   const [actionType, setActionType] = useState<'approve' | 'reject'>('approve')
   const [remarks, setRemarks] = useState('')
@@ -40,7 +45,7 @@ export default function ApprovalCenter() {
   const [checkingSignature, setCheckingSignature] = useState(true)
 
   const canApprove = user?.role === 'captain' || user?.role === 'admin'
-  const cacheKey = `${CACHE_KEY_PREFIX}${typeFilter}`
+  const cacheKey = `${CACHE_KEY_PREFIX}${typeFilter}:${approvalTab}`
 
   const checkSignatureStatus = useCallback(async () => {
     try {
@@ -64,11 +69,18 @@ export default function ApprovalCenter() {
       const k = key ?? cacheKey
       if (showLoading) setLoading(true)
       try {
-        const response = await getApprovalQueue({ type: typeFilter })
+        const response = await getApprovalQueue({ type: typeFilter, status: approvalTab })
         if (response.success) {
           setRequests(response.data)
-          setStatistics(response.statistics)
-          setApprovalQueueCached(k, { data: response.data, statistics: response.statistics })
+          const stats = response.statistics as ApprovalQueueResponse['statistics']
+          setStatistics({
+            total: stats.total ?? stats.total_pending ?? 0,
+            total_pending: stats.total_pending ?? stats.total ?? 0,
+            certificates: stats.certificates,
+            blotters: stats.blotters,
+            incidents: stats.incidents
+          })
+          setApprovalQueueCached(k, { data: response.data, statistics: stats })
         }
       } catch {
         // Keep previous data on error
@@ -76,7 +88,7 @@ export default function ApprovalCenter() {
         if (showLoading) setLoading(false)
       }
     },
-    [typeFilter, cacheKey]
+    [typeFilter, approvalTab, cacheKey]
   )
 
   useEffect(() => {
@@ -90,7 +102,14 @@ export default function ApprovalCenter() {
     const cached = getApprovalQueueCached<{ data: PendingRequest[]; statistics: ApprovalQueueResponse['statistics'] }>(cacheKey)
     if (cached) {
       setRequests(cached.data)
-      setStatistics(cached.statistics)
+      const s = cached.statistics
+      setStatistics({
+        total: s.total ?? s.total_pending ?? 0,
+        total_pending: s.total_pending ?? s.total ?? 0,
+        certificates: s.certificates,
+        blotters: s.blotters,
+        incidents: s.incidents
+      })
       setLoading(false)
       fetchRequests(false, cacheKey).catch(() => {})
     } else {
@@ -166,6 +185,36 @@ export default function ApprovalCenter() {
     }
   }
 
+  const getResidentDisplayName = (request: PendingRequest): string => {
+    if (request.type === 'certificate') {
+      const r = request.data?.resident
+      if (r?.full_name) return r.full_name
+      const parts = [r?.first_name, r?.middle_name, r?.last_name].filter(Boolean)
+      return parts.length ? parts.join(' ') : '—'
+    }
+    if (request.type === 'blotter') {
+      return (
+        request.data?.complainant?.full_name ||
+        request.data?.complainant_full_name ||
+        request.data?.complainant_name ||
+        '—'
+      )
+    }
+    return request.data?.reporting_officer?.name || request.requested_by || '—'
+  }
+
+  const getDetailsText = (request: PendingRequest): string => {
+    if (request.type === 'certificate') {
+      return [request.data?.certificate_type_label && `Type: ${request.data.certificate_type_label}`, request.data?.purpose && `Purpose: ${request.data.purpose}`, request.data?.additional_requirements && `Requirements: ${request.data.additional_requirements}`]
+        .filter(Boolean)
+        .join('\n') || request.subtitle
+    }
+    if (request.type === 'blotter') {
+      return request.data?.description || request.subtitle
+    }
+    return request.data?.description || request.subtitle
+  }
+
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'certificate':
@@ -194,7 +243,28 @@ export default function ApprovalCenter() {
     <div className="page-container">
       <div className="mb-4">
         <h1 className="h3 mb-1 text-brand-primary">Approval Center</h1>
-        <p className="text-brand-muted mb-0">Review and approve pending requests</p>
+        <p className="text-brand-muted mb-0">Review pending requests and browse approved or rejected history</p>
+      </div>
+
+      <div className="btn-group mb-4" role="group" aria-label="Approval status">
+        <Button
+          variant={approvalTab === 'pending' ? 'primary' : 'outline-primary'}
+          onClick={() => setApprovalTab('pending')}
+        >
+          Pending
+        </Button>
+        <Button
+          variant={approvalTab === 'approved' ? 'primary' : 'outline-primary'}
+          onClick={() => setApprovalTab('approved')}
+        >
+          Approved
+        </Button>
+        <Button
+          variant={approvalTab === 'rejected' ? 'primary' : 'outline-primary'}
+          onClick={() => setApprovalTab('rejected')}
+        >
+          Rejected
+        </Button>
       </div>
 
       {/* Statistics Cards */}
@@ -204,8 +274,10 @@ export default function ApprovalCenter() {
             <Card.Body>
               <div className="d-flex align-items-center justify-content-between">
                 <div>
-                  <p className="text-muted mb-1">Total Pending</p>
-                  <h3 className="mb-0">{statistics.total_pending}</h3>
+                  <p className="text-muted mb-1">
+                    {approvalTab === 'pending' ? 'Total pending' : approvalTab === 'approved' ? 'Total approved' : 'Total rejected'}
+                  </p>
+                  <h3 className="mb-0">{statistics.total ?? statistics.total_pending}</h3>
                 </div>
                 <div className="bg-primary bg-opacity-10 p-3 rounded">
                   <Clock className="w-6 h-6 text-primary" />
@@ -308,8 +380,18 @@ export default function ApprovalCenter() {
           ) : requests.length === 0 ? (
             <div className="text-center py-5">
               <Clock className="w-12 h-12 text-muted mb-3" />
-              <h5>No Pending Requests</h5>
-              <p className="text-muted">All requests have been processed.</p>
+              <h5>
+                {approvalTab === 'pending'
+                  ? 'No pending requests'
+                  : approvalTab === 'approved'
+                    ? 'No approved requests'
+                    : 'No rejected requests'}
+              </h5>
+              <p className="text-muted">
+                {approvalTab === 'pending'
+                  ? 'All requests have been processed.'
+                  : 'Nothing in this list yet for the current filters.'}
+              </p>
             </div>
           ) : (
             <div className="list-group">
@@ -323,9 +405,24 @@ export default function ApprovalCenter() {
                       {getTypeIcon(request.type)}
                     </div>
                     <div className="flex-grow-1">
-                      <div className="d-flex align-items-center gap-2 mb-2">
+                      <div className="d-flex align-items-center gap-2 mb-2 flex-wrap">
                         <h6 className="mb-0">{request.title}</h6>
                         <Badge bg="secondary">{request.type_label}</Badge>
+                        {request.status && (
+                          <Badge
+                            bg={
+                              request.status === 'rejected'
+                                ? 'danger'
+                                : request.status === 'pending'
+                                  ? 'warning'
+                                  : ['approved', 'issued', 'released'].includes(request.status)
+                                    ? 'success'
+                                    : 'secondary'
+                            }
+                          >
+                            {request.status}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-muted mb-2 small">{request.subtitle}</p>
                       <div className="d-flex align-items-center gap-4 text-muted small">
@@ -335,34 +432,49 @@ export default function ApprovalCenter() {
                         </span>
                       </div>
                     </div>
-                    <div className="d-flex gap-2">
+                    <div className="d-flex gap-2 flex-shrink-0 flex-wrap">
                       <Button
-                        variant="success"
-                        size="sm"
-                        onClick={async () => {
-                          setSelectedRequest(request)
-                          setActionType('approve')
-                          setRemarks('')
-                          await checkSignatureStatus() // Refresh signature status before opening modal
-                          setShowActionModal(true)
-                        }}
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="danger"
+                        variant="outline-secondary"
                         size="sm"
                         onClick={() => {
-                          setSelectedRequest(request)
-                          setActionType('reject')
-                          setRemarks('')
-                          setShowActionModal(true)
+                          setViewRequest(request)
+                          setShowViewModal(true)
                         }}
                       >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Reject
+                        <Eye className="w-4 h-4 mr-1" />
+                        View
                       </Button>
+                      {approvalTab === 'pending' && (
+                        <>
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={async () => {
+                              setSelectedRequest(request)
+                              setActionType('approve')
+                              setRemarks('')
+                              await checkSignatureStatus()
+                              setShowActionModal(true)
+                            }}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Approve
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRequest(request)
+                              setActionType('reject')
+                              setRemarks('')
+                              setShowActionModal(true)
+                            }}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Reject
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -371,6 +483,85 @@ export default function ApprovalCenter() {
           )}
         </Card.Body>
       </Card>
+
+      {/* Read-only request details (all tabs) */}
+      <Modal
+        show={showViewModal}
+        onHide={() => {
+          setShowViewModal(false)
+          setViewRequest(null)
+        }}
+        size="lg"
+        centered
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Request details</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {viewRequest && (
+            <div className="d-flex flex-column gap-3">
+              <div>
+                <strong className="text-muted small d-block">Resident / primary party</strong>
+                <span className="fs-6">{getResidentDisplayName(viewRequest)}</span>
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Request type</strong>
+                <Badge bg="primary">{viewRequest.type_label}</Badge>
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Status</strong>
+                <Badge
+                  bg={
+                    viewRequest.status === 'rejected'
+                      ? 'danger'
+                      : viewRequest.status === 'pending'
+                        ? 'warning'
+                        : 'success'
+                  }
+                >
+                  {viewRequest.status ?? '—'}
+                </Badge>
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Details</strong>
+                <p className="mb-0 text-break" style={{ whiteSpace: 'pre-wrap' }}>
+                  {getDetailsText(viewRequest)}
+                </p>
+              </div>
+              {viewRequest.type === 'certificate' && viewRequest.data?.resident && (
+                <div>
+                  <strong className="text-muted small d-block">Resident (record)</strong>
+                  <span>
+                    {viewRequest.data.resident.full_name ||
+                      [viewRequest.data.resident.first_name, viewRequest.data.resident.middle_name, viewRequest.data.resident.last_name]
+                        .filter(Boolean)
+                        .join(' ')}
+                  </span>
+                </div>
+              )}
+              <div>
+                <strong className="text-muted small d-block">Requested by</strong>
+                {viewRequest.requested_by}
+              </div>
+              <div>
+                <strong className="text-muted small d-block">Requested at</strong>
+                {format(new Date(viewRequest.requested_at), 'MMMM dd, yyyy hh:mm a')}
+              </div>
+              {(viewRequest.rejection_reason || viewRequest.status === 'rejected') && (
+                <Alert variant="danger" className="mb-0">
+                  <strong>Rejection reason</strong>
+                  <p className="mb-0 mt-2">{viewRequest.rejection_reason || viewRequest.data?.remarks || viewRequest.data?.rejection_remarks || '—'}</p>
+                </Alert>
+              )}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => { setShowViewModal(false); setViewRequest(null) }}>
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       {/* Enhanced Approval Modal */}
       <Modal 

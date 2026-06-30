@@ -1,9 +1,10 @@
 import { NavLink, Link } from "react-router-dom";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { ChevronDown, ChevronRight, LogOut } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { Button } from "react-bootstrap";
 import { sidebarMenu, type MenuItem } from "../../config/sidebarMenu";
+import { getPendingCount } from "../../services/approval-queue.service";
 
 /**
  * Sidebar Component - Single Source of Truth for Navigation UI
@@ -19,6 +20,35 @@ import { sidebarMenu, type MenuItem } from "../../config/sidebarMenu";
  */
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const [approvalPendingCount, setApprovalPendingCount] = useState(0);
+  const isApprover = user?.role === "captain" || user?.role === "admin";
+
+  const fetchPendingApprovals = useCallback(async () => {
+    if (!isApprover) {
+      setApprovalPendingCount(0);
+      return;
+    }
+
+    try {
+      const response = await getPendingCount();
+      if (response.success) {
+        setApprovalPendingCount(response.data.total_pending);
+      }
+    } catch {
+      // Keep sidebar resilient if pending count request fails
+    }
+  }, [isApprover]);
+
+  useEffect(() => {
+    if (!isApprover) return;
+
+    fetchPendingApprovals();
+    const interval = setInterval(fetchPendingApprovals, 30000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [isApprover, fetchPendingApprovals]);
 
   // Auto-expand menus if any child is active (recursive check for nested children)
   const getInitialExpandedMenus = (): Set<string> => {
@@ -134,7 +164,7 @@ export default function Sidebar() {
   const handleLogout = async () => {
     try {
       await logout();
-    } catch (error) {
+    } catch {
       // Logout failed
     }
   };
@@ -226,6 +256,8 @@ export default function Sidebar() {
     isUnderActiveParentTree: boolean = false,
     isParentExpanded: boolean = false
   ) => {
+    const isApprovalCenterItem = item.to === "/approval-center";
+    const hasPendingApprovals = isApprovalCenterItem && approvalPendingCount > 0;
     const isExpanded = expandedMenus.has(item.label);
     const hasChildren = item.children && item.children.length > 0;
     const Icon = item.icon;
@@ -318,7 +350,7 @@ export default function Sidebar() {
     if (hasChildren) {
       // Determine styling based on hierarchy
       let parentStyles = "";
-      let parentInlineStyles: React.CSSProperties = {
+      const parentInlineStyles: React.CSSProperties = {
         paddingLeft: `${0.75 + level * 0.75}rem`,
       };
       let iconSize = 18;
@@ -416,7 +448,7 @@ export default function Sidebar() {
     const isSubmenuItem = level > 0;
 
     let itemStyles = "";
-    let itemInlineStyles: React.CSSProperties = {
+    const itemInlineStyles: React.CSSProperties = {
       paddingLeft: `${0.75 + level * 0.75}rem`,
     };
     let iconSize = 18;
@@ -432,6 +464,11 @@ export default function Sidebar() {
       // Submenu item under active/expanded parent - Subtle highlight
       itemStyles = "bg-blue-50/50 text-blue-600 font-medium";
       itemInlineStyles.borderLeft = "2px solid #93C5FD";
+      fontSize = "text-sm";
+    } else if (hasPendingApprovals) {
+      // Highlight approval center when there are pending requests.
+      itemStyles = "bg-amber-100 text-amber-800 font-semibold";
+      itemInlineStyles.borderLeft = "3px solid #D97706";
       fontSize = "text-sm";
     } else {
       itemStyles =
@@ -449,6 +486,8 @@ export default function Sidebar() {
           `d-flex align-items-center gap-3 px-4 py-3 ${fontSize} rounded-lg transition-colors duration-200 text-decoration-none ${
             isActive
               ? itemStyles
+              : hasPendingApprovals
+                ? "bg-amber-100 text-amber-800 font-semibold"
               : isUnderActiveTree && isSubmenuItem && !isActive
                 ? itemStyles
                 : "bg-transparent text-neutral-700 font-medium hover:bg-neutral-100 hover:text-blue-600"
@@ -458,13 +497,22 @@ export default function Sidebar() {
           ...itemInlineStyles,
           borderLeft: isActive
             ? itemInlineStyles.borderLeft
+            : hasPendingApprovals
+              ? "3px solid #D97706"
             : isUnderActiveTree && isSubmenuItem
               ? itemInlineStyles.borderLeft
               : undefined,
         })}
       >
         <Icon size={iconSize} className="flex-shrink-0" />
-        <span>{item.label}</span>
+        <span className="d-flex align-items-center gap-2">
+          {item.label}
+          {hasPendingApprovals && (
+            <span className="badge rounded-pill bg-danger" title={`${approvalPendingCount} pending request(s)`}>
+              {approvalPendingCount > 99 ? "99+" : approvalPendingCount}
+            </span>
+          )}
+        </span>
       </NavLink>
     );
   };

@@ -31,7 +31,15 @@ class IncidentReportController extends Controller
 
             // Apply filters
             if ($request->has('status') && $request->status !== '') {
-                $query->byStatus($request->status);
+                $status = strtolower((string) $request->status);
+                if ($status === 'ongoing') {
+                    // Ongoing tab includes all active/non-resolved records.
+                    $query->whereNotIn('status', ['Resolved', 'rejected']);
+                } elseif ($status === 'resolved') {
+                    $query->where('status', 'Resolved');
+                } else {
+                    $query->byStatus($request->status);
+                }
             }
 
             if ($request->has('start_date') && $request->start_date !== '') {
@@ -156,6 +164,17 @@ class IncidentReportController extends Controller
             $incidentReport = IncidentReport::findOrFail($id);
             $data = $request->validated();
             $data['updated_by'] = Auth::id();
+
+            // Only captain/admin can mark incidents as resolved.
+            if (array_key_exists('status', $data) && $data['status'] === 'Resolved') {
+                $user = Auth::user();
+                if (!$user || (!$user->isCaptain() && !$user->isAdmin())) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Only Barangay Captain or Admin can mark incident reports as resolved'
+                    ], 403);
+                }
+            }
 
             // Convert persons_involved string to JSON array if provided
             if (isset($data['persons_involved']) && is_string($data['persons_involved'])) {

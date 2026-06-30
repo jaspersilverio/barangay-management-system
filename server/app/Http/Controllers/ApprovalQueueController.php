@@ -27,90 +27,80 @@ class ApprovalQueueController extends Controller
                 ], 403);
             }
 
-            // Get pending certificate requests
-        $certificateRequests = CertificateRequest::pending()
-            ->with(['resident:id,first_name,last_name,middle_name', 'requestedBy:id,name'])
-            ->orderBy('requested_at', 'asc')
-            ->get()
-            ->map(function ($request) {
-                $residentName = $request->resident ? $request->resident->full_name : 'Unknown Resident';
-                return [
-                    'id' => $request->id,
-                    'type' => 'certificate',
-                    'type_label' => 'Certificate Request',
-                    'title' => ($request->certificate_type_label ?? 'Certificate') . ' - ' . $residentName,
-                    'subtitle' => 'Purpose: ' . ($request->purpose ?? 'N/A'),
-                    'requested_by' => $request->requestedBy->name ?? 'Unknown',
-                    'requested_at' => $request->requested_at,
-                    'data' => $request
-                ];
-            });
+            $status = $request->input('status', 'pending');
+            if (! \in_array($status, ['pending', 'approved', 'rejected'], true)) {
+                $status = 'pending';
+            }
 
-        // Get pending blotter cases
-        $blotters = Blotter::pending()
-            ->with(['complainant:id,first_name,last_name,middle_name', 'respondent:id,first_name,last_name,middle_name', 'creator:id,name'])
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function ($blotter) {
-                // Get complainant name (accessor needs relationships loaded)
-                $complainantName = $blotter->complainant_name ?? 'Unknown';
-                $respondentName = $blotter->respondent_name ?? 'Unknown';
-                
-                return [
-                    'id' => $blotter->id,
-                    'type' => 'blotter',
-                    'type_label' => 'Blotter Case',
-                    'title' => $blotter->case_number . ' - ' . $complainantName . ' vs ' . $respondentName,
-                    'subtitle' => 'Location: ' . ($blotter->incident_location ?? 'N/A'),
-                    'requested_by' => $blotter->creator->name ?? 'Unknown',
-                    'requested_at' => $blotter->created_at,
-                    'data' => $blotter
-                ];
-            });
+            $certificateQuery = CertificateRequest::query()
+                ->with(['resident:id,first_name,last_name,middle_name', 'requestedBy:id,name']);
 
-        // Get pending incident reports
-        $incidentReports = IncidentReport::pending()
-            ->with(['creator:id,name', 'reportingOfficer:id,name'])
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->map(function ($incident) {
-                return [
-                    'id' => $incident->id,
-                    'type' => 'incident',
-                    'type_label' => 'Incident Report',
-                    'title' => $incident->incident_title ?? 'Untitled Incident',
-                    'subtitle' => 'Location: ' . ($incident->location ?? 'N/A'),
-                    'requested_by' => $incident->creator->name ?? 'Unknown',
-                    'requested_at' => $incident->created_at,
-                    'data' => $incident
-                ];
-            });
+            if ($status === 'pending') {
+                $certificateQuery->pending();
+            } elseif ($status === 'approved') {
+                $certificateQuery->whereIn('status', ['approved', 'issued', 'released']);
+            } else {
+                $certificateQuery->where('status', 'rejected');
+            }
 
-        // Combine all pending requests
-        $allRequests = $certificateRequests->concat($blotters)->concat($incidentReports);
+            $certificateOrder = match ($status) {
+                'pending' => 'requested_at',
+                'rejected' => 'rejected_at',
+                default => 'approved_at',
+            };
 
-        // Sort by requested_at (oldest first)
-        $allRequests = $allRequests->sortBy('requested_at')->values();
+            $certificateRequests = $certificateQuery
+                ->orderBy($certificateOrder, 'desc')
+                ->get()
+                ->map(fn ($req) => $this->mapCertificateQueueItem($req));
 
-        // Apply filters
-        if ($request->has('type') && $request->type !== 'all') {
-            $allRequests = $allRequests->filter(function ($item) use ($request) {
-                return $item['type'] === $request->type;
-            })->values();
-        }
+            $blotterQuery = Blotter::query()
+                ->with(['complainant:id,first_name,last_name,middle_name', 'respondent:id,first_name,last_name,middle_name', 'creator:id,name']);
 
-        // Get statistics
-        $stats = [
-            'total_pending' => $allRequests->count(),
-            'certificates' => $certificateRequests->count(),
-            'blotters' => $blotters->count(),
-            'incidents' => $incidentReports->count()
-        ];
+            if ($status === 'pending') {
+                $blotterQuery->pending();
+            } elseif ($status === 'approved') {
+                $blotterQuery->approved();
+            } else {
+                $blotterQuery->rejected();
+            }
+
+            $blotters = $blotterQuery
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn ($b) => $this->mapBlotterQueueItem($b));
+
+            $incidentQuery = IncidentReport::query()
+                ->with(['creator:id,name', 'reportingOfficer:id,name']);
+
+            if ($status === 'pending') {
+                $incidentQuery->pending();
+            } elseif ($status === 'approved') {
+                $incidentQuery->approved();
+            } else {
+                $incidentQuery->rejected();
+            }
+
+            $incidentReports = $incidentQuery
+                ->orderBy('created_at', 'desc')
+                ->get()
+                ->map(fn ($i) => $this->mapIncidentQueueItem($i));
+
+            $allRequests = $certificateRequests->concat($blotters)->concat($incidentReports)
+                ->sortByDesc(fn ($item) => $item['requested_at'] ?? '')
+                ->values();
+
+            if ($request->filled('type') && $request->type !== 'all') {
+                $allRequests = $allRequests->filter(fn ($item) => $item['type'] === $request->type)->values();
+            }
+
+            $stats = $this->buildQueueStatistics($status);
 
             return response()->json([
                 'success' => true,
                 'data' => $allRequests,
-                'statistics' => $stats
+                'statistics' => $stats,
+                'status' => $status,
             ]);
         } catch (\Exception $e) {
             \Log::error('ApprovalQueueController index error: ' . $e->getMessage(), [
@@ -150,5 +140,104 @@ class ApprovalQueueController extends Controller
                 'incidents' => IncidentReport::pending()->count()
             ]
         ]);
+    }
+
+    private function mapCertificateQueueItem(CertificateRequest $request): array
+    {
+        $residentName = $request->resident ? $request->resident->full_name : 'Unknown Resident';
+        $rejectionReason = $request->status === 'rejected' ? ($request->remarks ?? null) : null;
+
+        return [
+            'id' => $request->id,
+            'type' => 'certificate',
+            'type_label' => 'Certificate Request',
+            'title' => ($request->certificate_type_label ?? 'Certificate').' - '.$residentName,
+            'subtitle' => 'Purpose: '.($request->purpose ?? 'N/A'),
+            'requested_by' => $request->requestedBy->name ?? 'Unknown',
+            'requested_at' => $request->requested_at,
+            'status' => $request->status,
+            'rejection_reason' => $rejectionReason,
+            'data' => $request,
+        ];
+    }
+
+    private function mapBlotterQueueItem(Blotter $blotter): array
+    {
+        $complainantName = $blotter->complainant_name ?? 'Unknown';
+        $respondentName = $blotter->respondent_name ?? 'Unknown';
+
+        return [
+            'id' => $blotter->id,
+            'type' => 'blotter',
+            'type_label' => 'Blotter Case',
+            'title' => $blotter->case_number.' - '.$complainantName.' vs '.$respondentName,
+            'subtitle' => 'Location: '.($blotter->incident_location ?? 'N/A'),
+            'requested_by' => $blotter->creator->name ?? 'Unknown',
+            'requested_at' => $blotter->created_at,
+            'status' => $blotter->status,
+            'rejection_reason' => $blotter->status === 'rejected' ? ($blotter->rejection_remarks ?? null) : null,
+            'data' => $blotter,
+        ];
+    }
+
+    private function mapIncidentQueueItem(IncidentReport $incident): array
+    {
+        return [
+            'id' => $incident->id,
+            'type' => 'incident',
+            'type_label' => 'Incident Report',
+            'title' => $incident->incident_title ?? 'Untitled Incident',
+            'subtitle' => 'Location: '.($incident->location ?? 'N/A'),
+            'requested_by' => $incident->creator->name ?? 'Unknown',
+            'requested_at' => $incident->created_at,
+            'status' => $incident->status,
+            'rejection_reason' => $incident->status === 'rejected' ? ($incident->rejection_remarks ?? null) : null,
+            'data' => $incident,
+        ];
+    }
+
+    /**
+     * @return array{total_pending: int, certificates: int, blotters: int, incidents: int}
+     */
+    private function buildQueueStatistics(string $status): array
+    {
+        if ($status === 'pending') {
+            $total = CertificateRequest::pending()->count()
+                + Blotter::pending()->count()
+                + IncidentReport::pending()->count();
+
+            return [
+                'total' => $total,
+                'total_pending' => $total,
+                'certificates' => CertificateRequest::pending()->count(),
+                'blotters' => Blotter::pending()->count(),
+                'incidents' => IncidentReport::pending()->count(),
+            ];
+        }
+
+        if ($status === 'approved') {
+            $cert = CertificateRequest::whereIn('status', ['approved', 'issued', 'released'])->count();
+            $total = $cert + Blotter::approved()->count() + IncidentReport::approved()->count();
+
+            return [
+                'total' => $total,
+                'total_pending' => $total,
+                'certificates' => $cert,
+                'blotters' => Blotter::approved()->count(),
+                'incidents' => IncidentReport::approved()->count(),
+            ];
+        }
+
+        $total = CertificateRequest::rejected()->count()
+            + Blotter::rejected()->count()
+            + IncidentReport::rejected()->count();
+
+        return [
+            'total' => $total,
+            'total_pending' => $total,
+            'certificates' => CertificateRequest::rejected()->count(),
+            'blotters' => Blotter::rejected()->count(),
+            'incidents' => IncidentReport::rejected()->count(),
+        ];
     }
 }

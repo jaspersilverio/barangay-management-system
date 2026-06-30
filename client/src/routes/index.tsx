@@ -56,6 +56,7 @@ const Users = lazy(() => import('../pages/Users'))
 const Settings = lazy(() => import('../pages/Settings'))
 const SketchMap = lazy(() => import('../pages/SketchMap'))
 const Notifications = lazy(() => import('../pages/Notifications'))
+const Announcements = lazy(() => import('../pages/Announcements'))
 const Certificates = lazy(() => import('../pages/Certificates'))
 const VaccinationsPage = lazy(() => import('../pages/VaccinationsPage'))
 const Officials = lazy(() => import('../pages/Officials'))
@@ -131,6 +132,12 @@ const VaccinationsPageWithSuspense = () => (
 const NotificationsWithSuspense = () => (
   <Suspense fallback={<PageLoader />}>
     <Notifications />
+  </Suspense>
+)
+
+const AnnouncementsWithSuspense = () => (
+  <Suspense fallback={<PageLoader />}>
+    <Announcements />
   </Suspense>
 )
 
@@ -302,6 +309,10 @@ const router = createBrowserRouter([
           {
             path: 'notifications',
             element: <NotificationsWithSuspense />
+          },
+          {
+            path: 'announcements',
+            element: <AnnouncementsWithSuspense />
           },
           {
             path: 'reports',

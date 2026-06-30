@@ -88,12 +88,15 @@ class OfficialController extends Controller
                 'term_start' => $data['date_appointed'],
                 'term_end' => null,
                 'position' => null,
-                'active' => ($data['status'] ?? 'active') === 'active',
+                'active' => true,
             ];
         } else {
             // Ensure category is set (default to 'official' if not provided)
             if (!isset($data['category']) || empty($data['category'])) {
                 $data['category'] = 'official';
+            }
+            if (($data['category'] ?? '') === 'official') {
+                $data['active'] = true;
             }
         }
 
@@ -297,6 +300,10 @@ class OfficialController extends Controller
             $filename = time() . '_' . uniqid() . '.' . $extension;
             $photoPath = $file->storeAs('officials', $filename, 'public');
             $data['photo_path'] = $photoPath;
+        }
+
+        if ($official->category === 'official' || in_array($official->category, ['tanod', 'bhw', 'staff'], true)) {
+            $data['active'] = true;
         }
 
         $official->update($data);

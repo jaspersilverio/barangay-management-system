@@ -68,6 +68,17 @@ class PdfExportController extends Controller
                 $query->search($request->search);
             }
 
+            if ($request->has('vulnerabilities') && $request->vulnerabilities) {
+                $v = strtolower((string) $request->vulnerabilities);
+                if ($v === 'seniors') {
+                    $query->seniors();
+                } elseif ($v === 'pwds') {
+                    $query->pwds();
+                } elseif ($v === 'children') {
+                    $query->children();
+                }
+            }
+
             // Sort and limit for fast PDF generation
             $pdfLimit = 100;
             $fullResidents = $query->orderBy('first_name')->orderBy('last_name')->get();
@@ -85,6 +96,7 @@ class PdfExportController extends Controller
                     'purok' => $request->purok_id ? \App\Models\Purok::find($request->purok_id)?->name : 'All',
                     'search' => $request->search ?? 'None',
                     'gender' => $request->gender ?? 'All',
+                    'vulnerabilities' => $request->vulnerabilities ?? 'All',
                 ],
             ];
 
@@ -143,6 +155,12 @@ class PdfExportController extends Controller
 
             if ($request->has('search') && $request->search) {
                 $query->where('head_name', 'like', '%' . $request->search . '%');
+            }
+
+            if ($request->boolean('fourps_only')) {
+                $query->whereHas('fourPsBeneficiaries', function ($q) {
+                    $q->where('status', 'active');
+                });
             }
 
             // Sort and limit for fast PDF generation
